@@ -1,0 +1,285 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* =======================================================
+   DARK THEME (TRUE BLACK OLED MODE) - High Contrast Text
+   ======================================================= */
+html.dark body {
+  background-color: #000000 !important;
+  color: #f8fafc !important;
+  color-scheme: dark;
+}
+
+/* Card & Box Containers */
+html.dark .bg-white {
+  background-color: #0d0d0d !important;
+  border-color: #262626 !important;
+  color: #f8fafc !important;
+}
+
+html.dark .bg-slate-50, 
+html.dark .bg-slate-100,
+html.dark .bg-gray-50,
+html.dark .bg-gray-100 {
+  background-color: #141414 !important;
+  border-color: #262626 !important;
+  color: #f1f5f9 !important;
+}
+
+html.dark .bg-slate-200,
+html.dark .bg-slate-200\/80,
+html.dark .bg-gray-200 {
+  background-color: #1e1e1e !important;
+  border-color: #333333 !important;
+  color: #f8fafc !important;
+}
+
+html.dark .bg-slate-900,
+html.dark .bg-slate-950 {
+  background-color: #050505 !important;
+}
+
+/* High Contrast Text Rules for Dark Mode */
+html.dark .text-slate-900,
+html.dark .text-gray-900 {
+  color: #ffffff !important;
+}
+
+html.dark .text-slate-800,
+html.dark .text-gray-800 {
+  color: #f8fafc !important;
+}
+
+html.dark .text-slate-700,
+html.dark .text-gray-700 {
+  color: #f1f5f9 !important;
+}
+
+html.dark .text-slate-600,
+html.dark .text-gray-600 {
+  color: #e2e8f0 !important;
+}
+
+html.dark .text-slate-500,
+html.dark .text-gray-500 {
+  color: #cbd5e1 !important;
+}
+
+html.dark .text-slate-400,
+html.dark .text-gray-400 {
+  color: #94a3b8 !important;
+}
+
+/* Specific Colored Text High-Legibility Boost */
+html.dark .text-blue-700, 
+html.dark .text-blue-800, 
+html.dark .text-blue-900 {
+  color: #60a5fa !important;
+}
+
+html.dark .text-emerald-600,
+html.dark .text-emerald-700, 
+html.dark .text-emerald-800, 
+html.dark .text-emerald-900 {
+  color: #4ade80 !important;
+}
+
+html.dark .text-amber-600,
+html.dark .text-amber-700, 
+html.dark .text-amber-800, 
+html.dark .text-amber-900 {
+  color: #facc15 !important;
+}
+
+html.dark .text-red-600,
+html.dark .text-red-700, 
+html.dark .text-red-800, 
+html.dark .text-red-900 {
+  color: #f87171 !important;
+}
+
+html.dark .text-indigo-600,
+html.dark .text-indigo-700, 
+html.dark .text-indigo-800, 
+html.dark .text-indigo-900 {
+  color: #a78bfa !important;
+}
+
+html.dark .text-sky-600,
+html.dark .text-sky-700, 
+html.dark .text-sky-800, 
+html.dark .text-sky-900 {
+  color: #38bdf8 !important;
+}
+
+/* Light Badge & Chip Background Fixes in Dark Mode */
+html.dark .bg-blue-50, 
+html.dark .bg-blue-100 {
+  background-color: rgba(30, 58, 138, 0.45) !important;
+  color: #93c5fd !important;
+  border-color: rgba(59, 130, 246, 0.4) !important;
+}
+
+html.dark .bg-emerald-50, 
+html.dark .bg-emerald-100 {
+  background-color: rgba(6, 78, 59, 0.45) !important;
+  color: #86efac !important;
+  border-color: rgba(34, 197, 94, 0.4) !important;
+}
+
+html.dark .bg-amber-50, 
+html.dark .bg-amber-100 {
+  background-color: rgba(120, 53, 15, 0.45) !important;
+  color: #fde047 !important;
+  border-color: rgba(234, 179, 8, 0.4) !important;
+}
+
+html.dark .bg-red-50, 
+html.dark .bg-red-100 {
+  background-color: rgba(127, 29, 29, 0.45) !important;
+  color: #fca5a5 !important;
+  border-color: rgba(239, 68, 68, 0.4) !important;
+}
+
+html.dark .bg-indigo-50, 
+html.dark .bg-indigo-100 {
+  background-color: rgba(67, 56, 202, 0.45) !important;
+  color: #c4b5fd !important;
+  border-color: rgba(129, 140, 248, 0.4) !important;
+}
+
+html.dark .bg-sky-50, 
+html.dark .bg-sky-100 {
+  background-color: rgba(12, 74, 110, 0.45) !important;
+  color: #7dd3fc !important;
+  border-color: rgba(56, 189, 248, 0.4) !important;
+}
+
+/* Borders */
+html.dark .border-slate-200, 
+html.dark .border-slate-100, 
+html.dark .border-slate-300,
+html.dark .border-gray-200,
+html.dark .border-gray-100,
+html.dark .border-gray-300 {
+  border-color: #262626 !important;
+}
+
+/* Table Hover & Alternate Rows */
+html.dark tr.hover\:bg-slate-50\/80:hover,
+html.dark tr.hover\:bg-slate-50:hover,
+html.dark tr.hover\:bg-slate-100:hover,
+html.dark tr:hover {
+  background-color: #1a1a1a !important;
+}
+
+/* Form Inputs, Selects, Textareas */
+html.dark input, 
+html.dark select, 
+html.dark textarea {
+  background-color: #0a0a0a !important;
+  color: #ffffff !important;
+  border-color: #333333 !important;
+}
+
+html.dark input::placeholder, 
+html.dark textarea::placeholder {
+  color: #71717a !important;
+}
+
+/* Modal overlays in Dark Mode */
+html.dark .bg-slate-950\/80,
+html.dark .bg-black\/80 {
+  background-color: rgba(0, 0, 0, 0.85) !important;
+}
+
+
+/* =======================================================
+   HDMI DISPLAY MODE (TV MONITOR HIGH CONTRAST)
+   ======================================================= */
+html.hdmi body {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  font-weight: 500 !important;
+}
+
+html.hdmi .bg-white,
+html.hdmi .bg-slate-900,
+html.hdmi .bg-slate-950 {
+  background-color: #080e1e !important;
+  border-color: #1e293b !important;
+  box-shadow: 0 0 15px rgba(56, 189, 248, 0.12) !important;
+}
+
+html.hdmi .bg-slate-50,
+html.hdmi .bg-slate-100 {
+  background-color: #0e172a !important;
+  border-color: #334155 !important;
+  color: #ffffff !important;
+}
+
+/* High visibility neon contrast for HDMI TV screens */
+html.hdmi .text-slate-400,
+html.hdmi .text-slate-500,
+html.hdmi .text-slate-600,
+html.hdmi .text-slate-700,
+html.hdmi .text-slate-800,
+html.hdmi .text-slate-900 {
+  color: #ffffff !important;
+}
+
+html.hdmi .text-blue-600,
+html.hdmi .text-blue-700,
+html.hdmi .text-blue-800 {
+  color: #38bdf8 !important; /* Electric Cyan */
+  font-weight: 700 !important;
+}
+
+html.hdmi .text-emerald-600,
+html.hdmi .text-emerald-700,
+html.hdmi .text-emerald-800 {
+  color: #34d399 !important; /* Neon Emerald */
+  font-weight: 700 !important;
+}
+
+html.hdmi .text-amber-600,
+html.hdmi .text-amber-700,
+html.hdmi .text-amber-800 {
+  color: #facc15 !important; /* Neon Amber */
+  font-weight: 700 !important;
+}
+
+html.hdmi .text-red-600,
+html.hdmi .text-red-700,
+html.hdmi .text-red-800 {
+  color: #f87171 !important; /* Neon Red */
+  font-weight: 700 !important;
+}
+
+html.hdmi .border-slate-200,
+html.hdmi .border-slate-300,
+html.hdmi .border-slate-800 {
+  border-color: #334155 !important;
+}
+
+
+/* Print Styles */
+@media print {
+  @page {
+    margin: 0;
+    size: 100mm 75mm;
+  }
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: white !important;
+    color: black !important;
+  }
+  .page-break-after {
+    page-break-after: always;
+  }
+  ::-webkit-scrollbar {
+    display: none;
+  }
+}

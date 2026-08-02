@@ -1,0 +1,6 @@
+{
+  "name": "HE Smart Warehouse WMS & 3D Rack Visualizer",
+  "description": "ระบบบริหารจัดการคลังสินค้าอัจฉริยะ (WMS) พร้อม 3D Autonomous Warehouse Vision, Bi-directional API Sync Odoo ERP & Microsoft OneDrive, QR Scanner, FIFO Aging Control และ Real-time Dashboard",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
