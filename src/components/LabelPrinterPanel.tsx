@@ -90,10 +90,10 @@ export const LabelPrinterPanel: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-4 sm:space-y-6 animate-fadeIn w-full min-w-0 max-w-full">
       {/* Top Banner & Mode Toggle */}
-      <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm print:hidden">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-4 border-b border-slate-100 gap-4">
+      <div className="bg-white border border-slate-200 rounded-xl p-3.5 sm:p-5 lg:p-6 shadow-sm print:hidden">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-3 sm:pb-4 border-b border-slate-100 gap-3 sm:gap-4">
           <div className="flex items-center space-x-3">
             <div className="p-2.5 bg-blue-100 text-blue-700 rounded-xl">
               <Printer className="w-6 h-6" />

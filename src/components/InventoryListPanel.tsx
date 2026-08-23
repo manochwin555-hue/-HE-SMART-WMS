@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { InventoryItem, MovementType, ShelfLevel, StorageZone } from '../types';
+import { InventoryItem, MovementType, ShelfLevel, StorageZone, WarehouseFacility } from '../types';
 import { 
   Search, 
   ShieldAlert, 
@@ -12,11 +12,15 @@ import {
   Package,
   X,
   Sparkles,
-  Download
+  Download,
+  Building2
 } from 'lucide-react';
 
 interface InventoryListPanelProps {
   items: InventoryItem[];
+  facilities?: WarehouseFacility[];
+  activeFacilityId?: string;
+  setActiveFacilityId?: (id: string) => void;
   globalSearchQuery?: string;
   onUpdateSearchQuery?: (q: string) => void;
   onOpen3DForLocator: (zone: StorageZone, bayNumber: number) => void;
@@ -30,6 +34,9 @@ interface InventoryListPanelProps {
 
 export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
   items,
+  facilities = [],
+  activeFacilityId = 'ALL',
+  setActiveFacilityId,
   globalSearchQuery = '',
   onUpdateSearchQuery,
   onOpen3DForLocator,
@@ -42,6 +49,7 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
   const [lineFilter, setLineFilter] = useState<string>('ALL');
   const [levelFilter, setLevelFilter] = useState<string>('ALL');
   const [agingFilter, setAgingFilter] = useState<string>('ALL');
+  const [facilityFilter, setFacilityFilter] = useState<string>(activeFacilityId);
   const [sortBy, setSortBy] = useState<'DEFAULT' | 'QTY_ASC' | 'QTY_DESC' | 'AGING_DESC' | 'MODEL_ASC'>('DEFAULT');
 
   // Keep local search term synchronized if global search query changes from parent
@@ -50,6 +58,13 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
       setSearchTerm(globalSearchQuery);
     }
   }, [globalSearchQuery]);
+
+  // Keep facility filter synchronized
+  React.useEffect(() => {
+    if (activeFacilityId !== undefined) {
+      setFacilityFilter(activeFacilityId);
+    }
+  }, [activeFacilityId]);
 
   const handleSearchChange = (val: string) => {
     setSearchTerm(val);
@@ -97,8 +112,9 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
       const matchLine = lineFilter === 'ALL' || item.useLine === lineFilter;
       const matchLevel = levelFilter === 'ALL' || String(item.level) === levelFilter;
       const matchAging = agingFilter === 'ALL' || item.agingStatus === agingFilter;
+      const matchFacility = facilityFilter === 'ALL' || item.facilityId === facilityFilter || (!item.facilityId && facilityFilter === 'FAC-A4');
 
-      return matchSearch && matchFilterMode && matchZone && matchLine && matchLevel && matchAging;
+      return matchSearch && matchFilterMode && matchZone && matchLine && matchLevel && matchAging && matchFacility;
     });
 
     if (sortBy === 'QTY_ASC') {
@@ -112,7 +128,7 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
     }
 
     return list;
-  }, [items, searchTerm, filterMode, zoneFilter, lineFilter, levelFilter, agingFilter, sortBy, globalSafetyThreshold]);
+  }, [items, searchTerm, filterMode, zoneFilter, lineFilter, levelFilter, agingFilter, facilityFilter, sortBy, globalSafetyThreshold]);
 
   // Export filtered inventory list to CSV
   const handleExportCSV = () => {
@@ -161,9 +177,9 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm text-slate-900 space-y-6">
+    <div className="bg-white border border-slate-200 rounded-xl p-3.5 sm:p-5 lg:p-6 shadow-sm text-slate-900 space-y-4 sm:space-y-6 w-full min-w-0 max-w-full">
       {/* Header & Title */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-slate-200 gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between pb-3 sm:pb-4 border-b border-slate-200 gap-3 sm:gap-4">
         <div>
           <div className="flex items-center space-x-2">
             <div className="p-1.5 rounded-lg bg-red-50 text-red-600">
@@ -271,6 +287,31 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
 
           {/* Secondary Multi-Criteria Filter Toolbar */}
           <div className="flex flex-wrap items-center gap-3">
+            {/* Facility Filter Dropdown */}
+            {facilities.length > 0 && (
+              <div className="flex items-center space-x-1.5 bg-blue-50/80 px-2 py-0.5 rounded-lg border border-blue-200">
+                <Building2 className="w-3.5 h-3.5 text-blue-600" />
+                <span className="text-blue-900 font-bold text-[11px]">คลัง:</span>
+                <select
+                  value={facilityFilter}
+                  onChange={(e) => {
+                    setFacilityFilter(e.target.value);
+                    if (setActiveFacilityId) {
+                      setActiveFacilityId(e.target.value);
+                    }
+                  }}
+                  className="bg-white border border-blue-300 text-blue-900 font-bold px-2 py-1 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-xs"
+                >
+                  <option value="ALL">🌐 ทุกคลัง (All Facilities)</option>
+                  {facilities.map((fac) => (
+                    <option key={fac.id} value={fac.id}>
+                      {fac.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {/* Zone Filter Dropdown */}
             <div className="flex items-center space-x-1.5">
               <span className="text-slate-500 font-medium">Zone:</span>
@@ -280,7 +321,7 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
                 className="bg-white border border-slate-300 text-slate-800 font-bold px-2 py-1 rounded-lg text-xs focus:outline-none focus:border-blue-500 shadow-sm"
               >
                 <option value="ALL">ทุก Zone (B-K)</option>
-                {(['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'] as StorageZone[]).map((z) => (
+                {(['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'FR1', 'FR2', 'FR3', 'FR4', 'FL-A', 'FL-B', 'FL-C', 'FL-D'] as StorageZone[]).map((z) => (
                   <option key={z} value={z}>Zone {z}</option>
                 ))}
               </select>
@@ -349,13 +390,15 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
             </div>
 
             {/* Clear Filters Button */}
-            {(zoneFilter !== 'ALL' || lineFilter !== 'ALL' || levelFilter !== 'ALL' || agingFilter !== 'ALL' || sortBy !== 'DEFAULT' || searchTerm) && (
+            {(zoneFilter !== 'ALL' || lineFilter !== 'ALL' || levelFilter !== 'ALL' || agingFilter !== 'ALL' || facilityFilter !== 'ALL' || sortBy !== 'DEFAULT' || searchTerm) && (
               <button
                 onClick={() => {
                   setZoneFilter('ALL');
                   setLineFilter('ALL');
                   setLevelFilter('ALL');
                   setAgingFilter('ALL');
+                  setFacilityFilter('ALL');
+                  if (setActiveFacilityId) setActiveFacilityId('ALL');
                   setSortBy('DEFAULT');
                   handleSearchChange('');
                 }}

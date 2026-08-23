@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { InventoryItem, MovementLog, MovementType, ShelfLevel, StorageZone, WmsStats, MasterDataItem, UseLineMaster, ZoneCapacityMaster } from './types';
-import { INITIAL_ITEMS, INITIAL_LOGS, INITIAL_STATS } from './data/mockData';
+import { InventoryItem, MovementLog, MovementType, ShelfLevel, StorageZone, WmsStats, MasterDataItem, UseLineMaster, ZoneCapacityMaster, WarehouseFacility } from './types';
+import { INITIAL_ITEMS, INITIAL_LOGS, INITIAL_STATS, INITIAL_FACILITIES } from './data/mockData';
 import { Navbar } from './components/Navbar';
 import { DashboardKPIs } from './components/DashboardKPIs';
 import { RackLayout2D } from './components/RackLayout2D';
@@ -8,12 +8,10 @@ import { Rack3DViewer } from './components/Rack3DViewer';
 import { QuickScannerModal } from './components/QuickScannerModal';
 import { MovementLogsTable } from './components/MovementLogsTable';
 import { AgingFifoPanel } from './components/AgingFifoPanel';
-import { SystemAdvicePanel } from './components/SystemAdvicePanel';
 import { InventoryListPanel } from './components/InventoryListPanel';
 import { LabelPrinterPanel } from './components/LabelPrinterPanel';
 import { MasterListPanel } from './components/MasterListPanel';
-import { OdooOneDriveModal } from './components/OdooOneDriveModal';
-import { triggerOdooOneDriveSync } from './lib/odooOneDriveSync';
+import { FlowRailFloorMap } from './components/FlowRailFloorMap';
 
 // Extract initial master data from INITIAL_ITEMS
 const initialMasterData: MasterDataItem[] = Array.from(new Set(INITIAL_ITEMS.map(i => i.modelHE))).map(modelHE => {
@@ -41,6 +39,7 @@ const initialZoneCapacities: ZoneCapacityMaster[] = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const [activeStation, setActiveStation] = useState<string>('ALL');
   const [language, setLanguage] = useState<string>('th');
   const [themeMode, setThemeMode] = useState<'light' | 'dark' | 'hdmi'>(() => {
     const saved = localStorage.getItem('themeMode') || localStorage.getItem('theme');
@@ -68,13 +67,20 @@ export default function App() {
     { id: 'REPAIR', name: 'Line Repair', description: 'โซนงานซ่อมแก้ไข (Repair Station)' },
   ]);
   const [zoneCapacities, setZoneCapacities] = useState<ZoneCapacityMaster[]>(initialZoneCapacities);
+  const [facilities, setFacilities] = useState<WarehouseFacility[]>(INITIAL_FACILITIES);
+  const [activeFacilityId, setActiveFacilityId] = useState<string>('ALL');
   const [items, setItems] = useState<InventoryItem[]>(INITIAL_ITEMS);
   const [logs, setLogs] = useState<MovementLog[]>(INITIAL_LOGS);
   const [stats, setStats] = useState<WmsStats>(INITIAL_STATS);
   const [globalSearchQuery, setGlobalSearchQuery] = useState<string>('');
 
+  // Filtered items based on activeFacilityId
+  const displayedItems = activeFacilityId === 'ALL'
+    ? items
+    : items.filter(it => it.facilityId === activeFacilityId || (!it.facilityId && activeFacilityId === 'FAC-A4'));
+
   // Count items below safety stock
-  const lowStockCount = items.filter((it) => it.quantity <= (it.safetyStock ?? 300)).length;
+  const lowStockCount = displayedItems.filter((it) => it.quantity <= (it.safetyStock ?? 300)).length;
 
   // 3D Inspector active state
   const [selected3DZone, setSelected3DZone] = useState<StorageZone>('E');
@@ -82,7 +88,6 @@ export default function App() {
 
   // Scanner Modal state
   const [isScannerOpen, setIsScannerOpen] = useState<boolean>(false);
-  const [isIntegrationOpen, setIsIntegrationOpen] = useState<boolean>(false);
   const [scannerZone, setScannerZone] = useState<StorageZone>('E');
   const [scannerBay, setScannerBay] = useState<number>(6);
   const [scannerLevel, setScannerLevel] = useState<ShelfLevel>(1);
@@ -229,19 +234,65 @@ export default function App() {
       todayOutScanCount: type === 'OUT' ? prev.todayOutScanCount + 1 : prev.todayOutScanCount,
       occupiedRacksCount: updatedItems.length,
     }));
-
-    // 4. Trigger Bi-directional Sync to Odoo ERP & OneDrive Backup
-    triggerOdooOneDriveSync({
-      type,
-      modelHE,
-      qty: actualQty,
-      locatorCode,
-    });
   };
 
   // Quick pick aging item
   const handleQuickPickAgingItem = (item: InventoryItem) => {
     handleOpenScanner(item.zone, item.bayNumber, item.level, 'OUT');
+  };
+
+  // Stock Relocation Handler
+  const handleRelocateItem = (
+    itemId: string,
+    newZone: string,
+    newBay: number,
+    newLevel: number,
+    newStorageType: any
+  ) => {
+    const targetItem = items.find(i => i.id === itemId);
+    if (!targetItem) return;
+
+    const oldLocator = targetItem.locatorCode;
+    const newLocatorCode = `DA4D-1.05-${newZone}${newBay}-L${newLevel}`;
+
+    const updatedItems = items.map(it => {
+      if (it.id === itemId) {
+        return {
+          ...it,
+          zone: newZone as StorageZone,
+          bayNumber: newBay,
+          level: newLevel as ShelfLevel,
+          storageType: newStorageType,
+          locatorCode: newLocatorCode,
+          remark: `ย้ายจาก ${oldLocator} -> ${newLocatorCode}`
+        };
+      }
+      return it;
+    });
+
+    setItems(updatedItems);
+
+    // Add Transfer Movement Log
+    const newLog: MovementLog = {
+      id: `log-reloc-${Date.now()}`,
+      scanInput: `${targetItem.modelHE}_RELOC_${newLocatorCode}`,
+      type: 'OUT',
+      modelHE: targetItem.modelHE,
+      locatorCode: newLocatorCode,
+      locatorGroup: 'DA4D-1',
+      locatorDetail: `ย้ายตำแหน่งจาก ${oldLocator} ไป ${newLocatorCode}`,
+      quantityCheck: targetItem.quantity,
+      actualQty: targetItem.quantity,
+      qtyGap: 0,
+      balanceQty: stats.totalBalanceUnits,
+      useLine: targetItem.useLine,
+      scanStatus: 'DONE',
+      issueDate: new Date().toISOString().slice(0, 10),
+      createdOn: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      remark: `🔄 ย้ายพิกัดสินค้า [${oldLocator}] -> [${newLocatorCode}]`
+    };
+
+    setLogs([newLog, ...logs]);
   };
 
   const appContainerRef = React.useRef<HTMLDivElement>(null);
@@ -266,13 +317,17 @@ export default function App() {
   }, []);
 
   return (
-    <div ref={appContainerRef} className="min-h-screen bg-slate-50 text-slate-900 font-sans antialiased selection:bg-blue-500 selection:text-white flex flex-col md:flex-row min-w-0 max-w-full overflow-x-hidden">
+    <div ref={appContainerRef} className="min-h-screen w-full bg-slate-50 text-slate-900 font-sans antialiased selection:bg-blue-500 selection:text-white flex flex-col md:flex-row min-w-0 max-w-full overflow-x-hidden">
       {/* Collapsible Left Navigation Sidebar */}
       <Navbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        facilities={facilities}
+        activeFacilityId={activeFacilityId}
+        setActiveFacilityId={setActiveFacilityId}
+        activeStation={activeStation}
+        setActiveStation={setActiveStation}
         onOpenScanner={() => handleOpenScanner()}
-        onOpenIntegration={() => setIsIntegrationOpen(true)}
         agingCount={stats.agingAlertCount}
         lowStockCount={lowStockCount}
         isFullscreen={isFullscreen}
@@ -286,10 +341,10 @@ export default function App() {
       />
 
       {/* Flexible Right Main Content Wrapper */}
-      <div className="flex-1 flex flex-col min-w-0 max-w-full overflow-x-hidden">
-        <main className={`${isFullscreen && activeTab === 'dashboard' ? 'w-full max-w-none p-2' : 'w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5'} space-y-5 transition-all min-w-0 max-w-full overflow-x-hidden`}>
+      <div className="flex-1 flex flex-col min-w-0 max-w-full overflow-x-hidden w-full">
+        <main className="w-full max-w-none px-2.5 sm:px-4 lg:px-6 py-3 sm:py-4 space-y-4 sm:space-y-5 transition-all min-w-0 max-w-full overflow-x-hidden flex-1">
           {!(isFullscreen && activeTab === 'dashboard') && (
-            <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+            <div className="bg-white border border-slate-200 rounded-xl p-3 sm:p-3.5 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 w-full">
               <div className="flex-1 relative">
                 <input
                   type="text"
@@ -301,7 +356,7 @@ export default function App() {
                     }
                   }}
                   placeholder="🔍 สแกน / พิมพ์ค้นหาวัตถุดิบด่วน (Model HE, Location Code เช่น DA4D-1.02-B11-L1, QR Barcode...)"
-                  className="w-full bg-slate-50 border border-slate-300 focus:border-blue-500 rounded-lg px-3.5 py-2 text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white transition-all"
+                  className="w-full bg-slate-50 border border-slate-300 focus:border-blue-500 rounded-lg px-3.5 py-2 text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white transition-all shadow-xs"
                 />
               </div>
               
@@ -331,7 +386,7 @@ export default function App() {
                     link.click();
                     document.body.removeChild(link);
                   }}
-                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm flex items-center space-x-1.5 transition-all"
+                  className="w-full sm:w-auto justify-center px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm flex items-center space-x-1.5 transition-all active:scale-95"
                 >
                   <span>📊 ส่งออกข้อมูล Excel (.csv)</span>
                 </button>
@@ -348,7 +403,7 @@ export default function App() {
                 lowStockCount={lowStockCount}
                 onSelectFilter={(tab) => setActiveTab(tab)}
                 logs={logs}
-                items={items}
+                items={displayedItems}
               />
 
               {/* Quick Navigation Card to Layout Map */}
@@ -375,7 +430,7 @@ export default function App() {
           {activeTab === 'layout' && (
             <div className="space-y-6 animate-fadeIn">
               <RackLayout2D
-                items={items}
+                items={displayedItems}
                 searchQuery={globalSearchQuery}
                 onSelectBay={(z, b) => handleOpen3DForBay(z, b)}
                 onOpen3D={(z, b) => handleOpen3DForBay(z, b)}
@@ -384,10 +439,31 @@ export default function App() {
             </div>
           )}
 
+          {activeTab === 'flow_floor' && (
+            <div className="space-y-6 animate-fadeIn">
+              <FlowRailFloorMap
+                items={displayedItems}
+                searchQuery={globalSearchQuery}
+                onSelectSlot={(st, z, b, l) => {
+                  setScannerZone(z as StorageZone);
+                  setScannerBay(b);
+                  setScannerLevel(l as ShelfLevel);
+                }}
+                onOpenScanner={(z, b, l, m) => handleOpenScanner(z, b, l, m)}
+                onRelocateItem={(item) => {
+                  setActiveTab('master');
+                }}
+              />
+            </div>
+          )}
+
           {activeTab === 'inventory' && (
             <div className="animate-fadeIn">
               <InventoryListPanel
-                items={items}
+                items={displayedItems}
+                facilities={facilities}
+                activeFacilityId={activeFacilityId}
+                setActiveFacilityId={setActiveFacilityId}
                 globalSearchQuery={globalSearchQuery}
                 onUpdateSearchQuery={setGlobalSearchQuery}
                 onOpen3DForLocator={(z, b) => handleOpen3DForBay(z, b)}
@@ -401,7 +477,7 @@ export default function App() {
               <Rack3DViewer
                 selectedZone={selected3DZone}
                 selectedBayNumber={selected3DBay}
-                items={items}
+                items={displayedItems}
                 zoneCapacities={zoneCapacities}
                 onSelectBayAndZone={(z, b) => {
                   setSelected3DZone(z);
@@ -425,16 +501,10 @@ export default function App() {
           {activeTab === 'aging' && (
             <div className="animate-fadeIn">
               <AgingFifoPanel
-                items={items}
+                items={displayedItems}
                 onOpen3DForLocator={(z, b) => handleOpen3DForBay(z, b)}
                 onQuickPickItem={handleQuickPickAgingItem}
               />
-            </div>
-          )}
-
-          {activeTab === 'recommendations' && (
-            <div className="animate-fadeIn">
-              <SystemAdvicePanel />
             </div>
           )}
 
@@ -453,20 +523,35 @@ export default function App() {
                 setUseLines={setUseLines}
                 zoneCapacities={zoneCapacities}
                 setZoneCapacities={setZoneCapacities}
+                items={items}
+                setItems={setItems}
+                onRelocateItem={handleRelocateItem}
+                facilities={facilities}
+                setFacilities={setFacilities}
+                activeFacilityId={activeFacilityId}
+                setActiveFacilityId={setActiveFacilityId}
+                onNavigateToLayout={(fac) => {
+                  setActiveFacilityId(fac.id);
+                  if (fac.storageTypes.includes('FLOW_RAIL') && !fac.storageTypes.includes('RACK')) {
+                    setActiveTab('flow_floor');
+                  } else {
+                    setActiveTab('layout');
+                  }
+                }}
               />
             </div>
           )}
         </main>
-      </div>
 
-      {/* Footer Info */}
-      <footer className="h-12 border-t border-slate-200 bg-white flex items-center justify-between px-6 sm:px-8 text-xs text-slate-500 uppercase tracking-wider shrink-0 mt-auto">
-        <span className="font-medium text-slate-600">Warehouse Management System Pro © 2026</span>
-        <span className="flex items-center gap-2 font-bold text-slate-700">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-          Server Status: Online
-        </span>
-      </footer>
+        {/* Footer Info */}
+        <footer className="h-12 border-t border-slate-200 bg-white flex items-center justify-between px-4 sm:px-6 lg:px-8 text-xs text-slate-500 uppercase tracking-wider shrink-0 mt-auto w-full">
+          <span className="font-medium text-slate-600">Warehouse Management System Pro © 2026</span>
+          <span className="flex items-center gap-2 font-bold text-slate-700">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            Server Status: Online
+          </span>
+        </footer>
+      </div>
 
       {/* Quick QR Scanner Modal */}
       <QuickScannerModal
@@ -480,12 +565,6 @@ export default function App() {
         existingItems={items}
         useLines={useLines}
         masterData={masterData}
-      />
-
-      {/* Odoo ERP & Microsoft OneDrive Integration Modal */}
-      <OdooOneDriveModal
-        isOpen={isIntegrationOpen}
-        onClose={() => setIsIntegrationOpen(false)}
       />
     </div>
   );

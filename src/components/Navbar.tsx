@@ -5,7 +5,6 @@ import {
   QrCode, 
   ListFilter, 
   ClockAlert, 
-  Sparkles, 
   Warehouse,
   ShieldCheck,
   ShieldAlert,
@@ -23,8 +22,12 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Map,
-  ArrowRightLeft
+  GitCommit,
+  Building2,
+  ChevronDown
 } from 'lucide-react';
+
+import { WarehouseFacility } from '../types';
 
 interface NavbarProps {
   activeTab: string;
@@ -33,6 +36,11 @@ interface NavbarProps {
   onOpenIntegration?: () => void;
   agingCount: number;
   lowStockCount?: number;
+  facilities?: WarehouseFacility[];
+  activeFacilityId?: string;
+  setActiveFacilityId?: (facilityId: string) => void;
+  activeStation?: string;
+  setActiveStation?: (stationId: string) => void;
   isFullscreen?: boolean;
   toggleFullscreen?: () => void;
   language?: string;
@@ -52,7 +60,6 @@ const translations: Record<string, Record<string, string>> = {
     scanner: 'สแกน QR รับ-เบิก',
     logs: 'รายการเบิก-รับ',
     aging: 'คุม FIFO & Aging',
-    recommendations: 'ข้อเสนอแนะปรับปรุง',
     printer: 'พิมพ์ป้าย Label',
     subtitle: 'คลังสินค้าหลัก > โซน A-J (3D Rack & FIFO)',
     totalCapacity: 'ความจุรวม:',
@@ -65,7 +72,6 @@ const translations: Record<string, Record<string, string>> = {
     scanner: 'QR Scan In/Out',
     logs: 'Movement Logs',
     aging: 'FIFO & Aging',
-    recommendations: 'Recommendations',
     printer: 'Print Labels',
     subtitle: 'Main Warehouse > Zone A-J',
     totalCapacity: 'Total Cap:',
@@ -78,7 +84,6 @@ const translations: Record<string, Record<string, string>> = {
     scanner: 'ស្កេន QR ចូល/ចេញ',
     logs: 'កំណត់ហេតុចលនា',
     aging: 'FIFO & ចាស់',
-    recommendations: 'អនុសាសន៍',
     printer: 'បោះពុម្ពស្លាក',
     subtitle: 'ឃ្លាំងមេ > តំបន់ A-J',
     totalCapacity: 'សមត្ថភាពសរុប:',
@@ -91,7 +96,6 @@ const translations: Record<string, Record<string, string>> = {
     scanner: 'QR စကင်ဖတ်ရန်',
     logs: 'လှုပ်ရှားမှုမှတ်တမ်းများ',
     aging: 'FIFO နှင့် အိုမင်းခြင်း',
-    recommendations: 'အကြံပြုချက်များ',
     printer: 'တံဆိပ်များရိုက်နှိပ်ရန်',
     subtitle: 'ပင်မဂိုဒေါင် > ဇုန် A-J',
     totalCapacity: 'စုစုပေါင်းစွမ်းရည်:',
@@ -104,7 +108,6 @@ const translations: Record<string, Record<string, string>> = {
     scanner: 'QR 스캔 입출고',
     logs: '이동 로그',
     aging: 'FIFO 및 노후화',
-    recommendations: '권장 사항',
     printer: '라벨 인쇄',
     subtitle: '메인 창고 > 구역 A-J',
     totalCapacity: '총 용량:',
@@ -115,9 +118,13 @@ export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   setActiveTab,
   onOpenScanner,
-  onOpenIntegration,
   agingCount,
   lowStockCount = 0,
+  facilities = [],
+  activeFacilityId = 'ALL',
+  setActiveFacilityId,
+  activeStation,
+  setActiveStation,
   isFullscreen = false,
   toggleFullscreen,
   language = 'th',
@@ -131,17 +138,19 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [isMobileOpen, setIsMobileOpen] = useState<boolean>(false);
 
+  const activeFacility = facilities.find(f => f.id === activeFacilityId);
+
   const navItems = [
     { id: 'dashboard', label: t.dashboard, icon: Warehouse },
-    { id: 'layout', label: t.layout, icon: Map, badge: 'MAP' },
+    { id: 'layout', label: 'ผังคลัง 3D Rack (Zone B-K)', icon: Map, badge: 'MAIN' },
+    { id: 'flow_floor', label: 'ผังรางเลื่อน & ลานกองพื้น', icon: GitCommit, badge: 'NEW' },
     { id: 'inventory', label: t.inventory, icon: ShieldAlert, count: lowStockCount },
     { id: 'rack3d', label: t.rack3d, icon: Layers, badge: '3D' },
     { id: 'scanner', label: t.scanner, icon: QrCode },
     { id: 'logs', label: t.logs, icon: ListFilter },
     { id: 'aging', label: t.aging, icon: ClockAlert, count: agingCount },
-    { id: 'recommendations', label: t.recommendations, icon: Sparkles },
     { id: 'printer', label: t.printer, icon: Printer },
-    { id: 'master', label: 'Master List', icon: Box },
+    { id: 'master', label: 'Master List & ตั้งค่า', icon: Box },
   ];
 
   return (
@@ -164,17 +173,6 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         <div className="flex items-center space-x-1.5">
-          {onOpenIntegration && (
-            <button
-              onClick={onOpenIntegration}
-              className="flex items-center space-x-1 bg-purple-600/90 hover:bg-purple-500 text-white text-[11px] px-2.5 py-1.5 rounded-lg font-bold shadow border border-purple-400/30"
-              title="Odoo & OneDrive Bi-directional API Sync"
-            >
-              <ArrowRightLeft className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Odoo / OneDrive</span>
-            </button>
-          )}
-
           <button
             onClick={onOpenScanner}
             className="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold shadow"
@@ -195,7 +193,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Main Sidebar Component */}
       <aside
-        className={`fixed md:sticky top-0 left-0 z-50 h-screen bg-slate-900 border-r border-slate-800 text-white flex flex-col justify-between transition-all duration-300 shadow-xl ${
+        className={`fixed md:sticky top-0 left-0 z-50 h-screen bg-slate-900 border-r border-slate-800 text-white flex flex-col justify-between transition-all duration-300 shadow-xl shrink-0 ${
           isMobileOpen ? 'translate-x-0 w-64' : '-translate-x-full md:translate-x-0'
         } ${isCollapsed ? 'md:w-16' : 'md:w-64'}`}
       >
@@ -234,7 +232,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
         </div>
 
-        {/* Quick Actions (QR Scan & Integration) */}
+        {/* Quick Actions (QR Scan) */}
         <div className="p-3 space-y-2">
           <button
             onClick={() => {
@@ -250,20 +248,53 @@ export const Navbar: React.FC<NavbarProps> = ({
             {!isCollapsed && <span className="text-xs truncate">สแกน QR (IN/OUT)</span>}
           </button>
 
-          {onOpenIntegration && (
-            <button
-              onClick={() => {
-                onOpenIntegration();
-                setIsMobileOpen(false);
-              }}
-              className={`w-full flex items-center justify-center space-x-2 bg-slate-800 hover:bg-purple-900/40 text-purple-300 border border-purple-500/30 font-bold rounded-xl py-2 transition-all shadow-sm active:scale-95 ${
-                isCollapsed ? 'px-2' : 'px-3'
-              }`}
-              title="ตั้งค่า Odoo ERP & OneDrive Sync"
-            >
-              <ArrowRightLeft className="w-4 h-4 shrink-0 text-purple-400" />
-              {!isCollapsed && <span className="text-[11px] truncate">Odoo & OneDrive API</span>}
-            </button>
+          {/* Global Warehouse Site / Facility Dropdown */}
+          {!isCollapsed && setActiveFacilityId && (
+            <div id="global-facility-dropdown-container" className="bg-slate-800/90 p-2 rounded-xl border border-slate-700/80 space-y-1.5 text-left shadow-sm">
+              <div className="flex items-center justify-between text-[10px] text-slate-300 font-bold px-1">
+                <span className="flex items-center space-x-1.5 text-blue-400">
+                  <Building2 className="w-3.5 h-3.5" />
+                  <span>คลัง / อาคารจัดเก็บ (Facility):</span>
+                </span>
+                {activeFacility && (
+                  <span className="px-1.5 py-0.2 bg-blue-500/20 text-blue-300 font-mono text-[9px] rounded border border-blue-500/30">
+                    {activeFacility.code}
+                  </span>
+                )}
+              </div>
+              <select
+                id="global-facility-select"
+                value={activeFacilityId}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setActiveFacilityId(val);
+                  const selected = facilities.find(f => f.id === val);
+                  if (selected) {
+                    if (selected.storageTypes.includes('FLOW_RAIL') && !selected.storageTypes.includes('RACK') && activeTab === 'layout') {
+                      setActiveTab('flow_floor');
+                    } else if (selected.storageTypes.includes('RACK') && activeTab === 'flow_floor') {
+                      setActiveTab('layout');
+                    }
+                  }
+                }}
+                className="w-full bg-slate-900 border border-slate-700 text-slate-100 text-xs font-bold rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors cursor-pointer"
+              >
+                <option value="ALL">🌐 ทุกสถานที่รวมกัน (All Facilities)</option>
+                {facilities.map((fac) => (
+                  <option key={fac.id} value={fac.id}>
+                    🏢 {fac.name} ({fac.totalCapacityPallets}P)
+                  </option>
+                ))}
+              </select>
+
+              {/* Active Facility Zone hint */}
+              {activeFacility && (
+                <div className="px-1 text-[10px] text-slate-400 flex items-center justify-between">
+                  <span className="truncate max-w-[130px]">{activeFacility.building}</span>
+                  <span className="font-mono text-slate-300 font-semibold">{activeFacility.totalCapacityPallets} Pallets</span>
+                </div>
+              )}
+            </div>
           )}
         </div>
 
@@ -318,9 +349,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="flex items-center justify-between text-[11px] bg-slate-800/80 px-2.5 py-1.5 rounded-lg border border-slate-700/60">
               <span className="text-slate-400 font-medium flex items-center space-x-1">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>ความจุ:</span>
+                <span>{activeFacility ? `${activeFacility.code} จุ:` : 'ความจุรวมทุกคลัง:'}</span>
               </span>
-              <span className="text-emerald-400 font-bold">680 Pallets</span>
+              <span className="text-emerald-400 font-bold">
+                {activeFacility 
+                  ? `${activeFacility.totalCapacityPallets} Pallets` 
+                  : `${facilities.reduce((acc, f) => acc + f.totalCapacityPallets, 0) || 680} Pallets`}
+              </span>
             </div>
           )}
 

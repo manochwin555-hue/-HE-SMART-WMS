@@ -16,7 +16,11 @@ import {
   RotateCw, 
   Boxes,
   Zap,
-  Activity
+  Activity,
+  Sliders,
+  ChevronUp,
+  ChevronDown,
+  EyeOff
 } from 'lucide-react';
 
 interface Warehouse3DMapProps {
@@ -39,6 +43,7 @@ export const Warehouse3DMap: React.FC<Warehouse3DMapProps> = ({
   const [hoveredInfo, setHoveredInfo] = useState<{ zone: string; bay: number; qty: number; itemsCount: number; mainModel: string } | null>(null);
   const [isAutoRotate, setIsAutoRotate] = useState<boolean>(false);
   const [viewPreset, setViewPreset] = useState<'3D' | 'ISO' | 'TOP' | 'AISLE1' | 'AISLE2'>('3D');
+  const [isControlsOpen, setIsControlsOpen] = useState<boolean>(true);
 
   const toggleFullscreen = () => {
     if (document.fullscreenElement) {
@@ -508,102 +513,124 @@ export const Warehouse3DMap: React.FC<Warehouse3DMapProps> = ({
   return (
     <div className="relative w-full h-full bg-slate-950 rounded-2xl shadow-2xl border border-slate-800 overflow-hidden">
       
-      {/* AI HUD Header Banner (Top Left) */}
-      <div className="absolute top-4 left-4 z-10 pointer-events-none">
-        <div className="bg-slate-900/90 backdrop-blur-md border border-cyan-500/30 p-3.5 rounded-2xl shadow-2xl flex flex-col pointer-events-auto space-y-2 max-w-sm">
-          <div className="flex items-center justify-between gap-3 text-white">
-            <div className="flex items-center space-x-2">
-              <div className="p-1.5 rounded-lg bg-cyan-500/20 border border-cyan-400/40">
-                <Bot className="w-4 h-4 text-cyan-400 animate-pulse" />
+      {/* AI HUD Header Banner (Top Left) with Collapsible Toggle */}
+      <div className="absolute top-3 sm:top-4 left-3 sm:left-4 z-10 pointer-events-none">
+        {isControlsOpen ? (
+          <div className="bg-slate-900/95 backdrop-blur-md border border-cyan-500/30 p-3 sm:p-3.5 rounded-2xl shadow-2xl flex flex-col pointer-events-auto space-y-2 max-w-xs sm:max-w-sm animate-fadeIn">
+            <div className="flex items-center justify-between gap-2 text-white">
+              <div className="flex items-center space-x-2">
+                <div className="p-1.5 rounded-lg bg-cyan-500/20 border border-cyan-400/40">
+                  <Bot className="w-4 h-4 text-cyan-400 animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="font-black text-xs tracking-tight text-white flex items-center space-x-1.5">
+                    <span>เครื่องมือมุมมอง 3D</span>
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  </h3>
+                  <p className="text-[10px] text-cyan-300/80 font-mono">Real-time Spatial 3D Controls</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-black text-xs tracking-tight text-white flex items-center space-x-1.5">
-                  <span>AI Autonomous 3D Warehouse</span>
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                </h3>
-                <p className="text-[10px] text-cyan-300/80 font-mono">Real-time Spatial Digital Twin</p>
+
+              <div className="flex items-center space-x-1">
+                {isDashboardFullscreen && (
+                  <button 
+                    onClick={toggleFullscreen} 
+                    className="p-1.5 bg-slate-800 text-slate-300 rounded-lg hover:text-white transition-colors"
+                    title="ออกจากการแสดงเต็มจอ"
+                  >
+                    <Minimize className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                <button
+                  onClick={() => setIsControlsOpen(false)}
+                  className="flex items-center space-x-1 px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-[10px] font-bold border border-slate-700 transition-all"
+                  title="ซ่อนแถบเครื่องมือปรับมุม"
+                >
+                  <EyeOff className="w-3 h-3 text-cyan-400" />
+                  <span>ซ่อน</span>
+                </button>
               </div>
             </div>
 
-            {isDashboardFullscreen && (
-              <button 
-                onClick={toggleFullscreen} 
-                className="p-1.5 bg-slate-800 text-slate-300 rounded-lg hover:text-white transition-colors"
-                title="ออกจากการแสดงเต็มจอ"
+            {/* Quick Camera Presets */}
+            <div className="flex items-center gap-1.5 pt-1 overflow-x-auto text-[10px] font-bold pb-0.5">
+              <button
+                onClick={() => setCameraView('3D')}
+                className={`px-2 py-1 rounded-md transition-all flex items-center space-x-1 whitespace-nowrap ${
+                  viewPreset === '3D' ? 'bg-cyan-500 text-slate-950 font-black shadow-md' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'
+                }`}
               >
-                <Minimize className="w-3.5 h-3.5" />
+                <Compass className="w-3 h-3" />
+                <span>3D Overview</span>
               </button>
+              <button
+                onClick={() => setCameraView('ISO')}
+                className={`px-2 py-1 rounded-md transition-all flex items-center space-x-1 whitespace-nowrap ${
+                  viewPreset === 'ISO' ? 'bg-cyan-500 text-slate-950 font-black shadow-md' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'
+                }`}
+              >
+                <Boxes className="w-3 h-3" />
+                <span>ISO 45°</span>
+              </button>
+              <button
+                onClick={() => setCameraView('TOP')}
+                className={`px-2 py-1 rounded-md transition-all flex items-center space-x-1 whitespace-nowrap ${
+                  viewPreset === 'TOP' ? 'bg-cyan-500 text-slate-950 font-black shadow-md' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'
+                }`}
+              >
+                <Layers className="w-3 h-3" />
+                <span>Top-Down</span>
+              </button>
+              <button
+                onClick={() => setCameraView('AISLE1')}
+                className={`px-2 py-1 rounded-md transition-all flex items-center space-x-1 ${
+                  viewPreset === 'AISLE1' ? 'bg-cyan-500 text-slate-950 font-black shadow-md' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'
+                }`}
+              >
+                <Eye className="w-3 h-3" />
+                <span>Aisle B-F</span>
+              </button>
+              <button
+                onClick={() => setCameraView('AISLE2')}
+                className={`px-2 py-1 rounded-md transition-all flex items-center space-x-1 ${
+                  viewPreset === 'AISLE2' ? 'bg-cyan-500 text-slate-950 font-black shadow-md' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'
+                }`}
+              >
+                <Eye className="w-3 h-3" />
+                <span>Aisle G-K</span>
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between pt-1 border-t border-slate-800">
+              <button
+                onClick={() => setIsAutoRotate(!isAutoRotate)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 w-full justify-center ${
+                  isAutoRotate ? 'bg-cyan-500 text-slate-950 shadow-md font-black' : 'bg-slate-800/90 text-slate-300 hover:bg-slate-700 border border-slate-700'
+                }`}
+              >
+                <RotateCw className={`w-3.5 h-3.5 ${isAutoRotate ? 'animate-spin' : ''}`} />
+                <span>{isAutoRotate ? 'กำลังหมุนรอบ 360°' : 'หมุนอัตโนมัติ 360° (Orbit)'}</span>
+              </button>
+            </div>
+
+            {searchQuery && searchQuery.trim() !== '' && (
+              <div className="px-2.5 py-1 bg-cyan-950/80 border border-cyan-400 rounded-lg text-cyan-200 font-mono text-[11px] flex items-center space-x-1.5 animate-pulse">
+                <Zap className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                <span>Laser Highlight: "{searchQuery}"</span>
+              </div>
             )}
           </div>
-
-          {/* Quick Camera Presets */}
-          <div className="flex items-center gap-1.5 pt-1 overflow-x-auto text-[10px] font-bold">
-            <button
-              onClick={() => setCameraView('3D')}
-              className={`px-2 py-1 rounded-md transition-all flex items-center space-x-1 whitespace-nowrap ${
-                viewPreset === '3D' ? 'bg-cyan-500 text-slate-950 font-black shadow-md' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'
-              }`}
-            >
-              <Compass className="w-3 h-3" />
-              <span>3D Overview</span>
-            </button>
-            <button
-              onClick={() => setCameraView('ISO')}
-              className={`px-2 py-1 rounded-md transition-all flex items-center space-x-1 whitespace-nowrap ${
-                viewPreset === 'ISO' ? 'bg-cyan-500 text-slate-950 font-black shadow-md' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'
-              }`}
-            >
-              <Boxes className="w-3 h-3" />
-              <span>ISO 45°</span>
-            </button>
-            <button
-              onClick={() => setCameraView('TOP')}
-              className={`px-2 py-1 rounded-md transition-all flex items-center space-x-1 whitespace-nowrap ${
-                viewPreset === 'TOP' ? 'bg-cyan-500 text-slate-950 font-black shadow-md' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'
-              }`}
-            >
-              <Layers className="w-3 h-3" />
-              <span>Top-Down</span>
-            </button>
-            <button
-              onClick={() => setCameraView('AISLE1')}
-              className={`px-2 py-1 rounded-md transition-all flex items-center space-x-1 ${
-                viewPreset === 'AISLE1' ? 'bg-cyan-500 text-slate-950 font-black shadow-md' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'
-              }`}
-            >
-              <Eye className="w-3 h-3" />
-              <span>Aisle B-F</span>
-            </button>
-            <button
-              onClick={() => setCameraView('AISLE2')}
-              className={`px-2 py-1 rounded-md transition-all flex items-center space-x-1 ${
-                viewPreset === 'AISLE2' ? 'bg-cyan-500 text-slate-950 font-black shadow-md' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'
-              }`}
-            >
-              <Eye className="w-3 h-3" />
-              <span>Aisle G-K</span>
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between pt-1 border-t border-slate-800">
-            <button
-              onClick={() => setIsAutoRotate(!isAutoRotate)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 w-full justify-center ${
-                isAutoRotate ? 'bg-cyan-500 text-slate-950 shadow-md font-black' : 'bg-slate-800/90 text-slate-300 hover:bg-slate-700 border border-slate-700'
-              }`}
-            >
-              <RotateCw className={`w-3.5 h-3.5 ${isAutoRotate ? 'animate-spin' : ''}`} />
-              <span>{isAutoRotate ? 'กำลังหมุนรอบ 360°' : 'หมุนอัตโนมัติ 360° (Orbit)'}</span>
-            </button>
-          </div>
-
-          {searchQuery && searchQuery.trim() !== '' && (
-            <div className="px-2.5 py-1 bg-cyan-950/80 border border-cyan-400 rounded-lg text-cyan-200 font-mono text-[11px] flex items-center space-x-1.5 animate-pulse">
-              <Zap className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-              <span>Laser Highlight: "{searchQuery}"</span>
-            </div>
-          )}
-        </div>
+        ) : (
+          <button
+            onClick={() => setIsControlsOpen(true)}
+            className="pointer-events-auto flex items-center space-x-2 px-3 py-2 bg-slate-900/90 hover:bg-slate-800 backdrop-blur-md border border-cyan-500/40 text-cyan-300 hover:text-white rounded-xl shadow-2xl font-bold text-xs transition-all active:scale-95 group animate-fadeIn"
+            title="คลิกเพื่อเปิดเครื่องมือปรับมุมมอง 3D"
+          >
+            <Sliders className="w-3.5 h-3.5 text-cyan-400 group-hover:rotate-90 transition-transform" />
+            <span>ปรับมุมมอง 3D</span>
+            <ChevronDown className="w-3 h-3 text-slate-400 group-hover:text-white" />
+          </button>
+        )}
       </div>
 
       {/* Top Right Cyber Legend */}

@@ -72,9 +72,9 @@ export const SystemAdvicePanel: React.FC = () => {
   ];
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm text-slate-900 space-y-6">
+    <div className="bg-white border border-slate-200 rounded-xl p-3.5 sm:p-5 lg:p-6 shadow-sm text-slate-900 space-y-4 sm:space-y-6 w-full min-w-0 max-w-full">
       {/* Header */}
-      <div className="flex items-center space-x-3 pb-4 border-b border-slate-200">
+      <div className="flex items-center space-x-3 pb-3 sm:pb-4 border-b border-slate-200">
         <div className="p-3 rounded-xl bg-blue-600 text-white shadow-sm">
           <Sparkles className="w-6 h-6" />
         </div>

@@ -13,9 +13,66 @@ import {
   Zap,
   Repeat,
   Box,
-  Package
+  Package,
+  History,
+  Trash2,
+  RotateCcw,
+  ArrowRight,
+  MapPin
 } from 'lucide-react';
 import { QRScanner } from './QRScanner';
+
+export interface RecentScanEntry {
+  id: string;
+  type: MovementType;
+  modelHE: string;
+  partName?: string;
+  zone: StorageZone;
+  bayNumber: number;
+  level: ShelfLevel;
+  actualQty: number;
+  useLine: string;
+  scanInput: string;
+  stdQtyPerPallet?: number;
+  fullPallets?: number;
+  looseQty?: number;
+  timestamp: string;
+}
+
+const DEFAULT_RECENT_SCANS: RecentScanEntry[] = [
+  {
+    id: 'scan-init-1',
+    type: 'IN',
+    modelHE: 'ADL74920904',
+    partName: 'HE Core Frame Bracket',
+    zone: 'E',
+    bayNumber: 6,
+    level: 1,
+    actualQty: 480,
+    useLine: 'HE2',
+    scanInput: 'ADL74920904_2026-08-20_HE2_480',
+    stdQtyPerPallet: 80,
+    fullPallets: 6,
+    looseQty: 0,
+    timestamp: '10:45 น.'
+  },
+  {
+    id: 'scan-init-2',
+    type: 'OUT',
+    modelHE: 'ACG76284709',
+    partName: 'Compressor Mounting Bracket',
+    zone: 'D',
+    bayNumber: 4,
+    level: 2,
+    actualQty: 160,
+    useLine: 'HE1',
+    scanInput: 'ACG76284709_2026-08-20_HE1_160',
+    stdQtyPerPallet: 80,
+    fullPallets: 2,
+    looseQty: 0,
+    timestamp: '09:30 น.'
+  }
+];
 
 interface QuickScannerModalProps {
   isOpen: boolean;
@@ -63,6 +120,9 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
 }) => {
   const [type, setType] = useState<MovementType>(initialMode);
   const [scanInput, setScanInput] = useState<string>('');
+  const [locatorScanInput, setLocatorScanInput] = useState<string>(`${initialZone}${initialBayNumber}-L${initialLevel}`);
+  const [locatorDetectedMsg, setLocatorDetectedMsg] = useState<string | null>(null);
+  const [cameraTarget, setCameraTarget] = useState<'PRODUCT' | 'LOCATOR'>('PRODUCT');
   const [modelHE, setModelHE] = useState<string>('ADL74920904');
   const [zone, setZone] = useState<StorageZone>(initialZone);
   const [bayNumber, setBayNumber] = useState<number>(initialBayNumber);
@@ -76,6 +136,47 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
   const [batchMode, setBatchMode] = useState<boolean>(false);
   const [itemFilterQuery, setItemFilterQuery] = useState<string>('');
   const [showItemSearchDrawer, setShowItemSearchDrawer] = useState<boolean>(false);
+
+  // Recent Scans State & Persistence
+  const [recentScans, setRecentScans] = useState<RecentScanEntry[]>(() => {
+    try {
+      const saved = localStorage.getItem('wms_recent_scans');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.warn('Failed to load recent scans:', e);
+    }
+    return DEFAULT_RECENT_SCANS;
+  });
+
+  const handleReSelectScan = (scan: RecentScanEntry) => {
+    setType(scan.type);
+    setModelHE(scan.modelHE);
+    setZone(scan.zone);
+    setBayNumber(scan.bayNumber);
+    setLevel(scan.level);
+    setLocatorScanInput(`${scan.zone}${scan.bayNumber}-L${scan.level}`);
+    setActualQty(scan.actualQty);
+    setLabelQty(scan.actualQty);
+    setUseLine(scan.useLine);
+    setScanInput(scan.scanInput);
+    if (scan.stdQtyPerPallet) setStdQtyPerPalletInput(scan.stdQtyPerPallet);
+    if (scan.fullPallets !== undefined) setFullPalletsInput(scan.fullPallets);
+    if (scan.looseQty !== undefined) setLooseQtyInput(scan.looseQty);
+    setSuccessMessage(`⚡ โหลดข้อมูลการสแกนล่าสุด ${scan.modelHE} (${scan.zone}${scan.bayNumber}-L${scan.level}) เรียบร้อย!`);
+    setTimeout(() => {
+      setSuccessMessage(null);
+    }, 2000);
+  };
+
+  const handleClearRecentScans = () => {
+    setRecentScans([]);
+    try {
+      localStorage.removeItem('wms_recent_scans');
+    } catch (e) {}
+  };
 
   // Filter existing items for quick lookup selection
   const filteredExistingItems = existingItems.filter((item) => {
@@ -106,6 +207,7 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
     setZone(item.zone);
     setBayNumber(item.bayNumber);
     setLevel(item.level);
+    setLocatorScanInput(`${item.zone}${item.bayNumber}-L${item.level}`);
     
     const std = item.stdQtyPerPallet || 80;
     setStdQtyPerPalletInput(std);
@@ -130,8 +232,10 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
       setZone(initialZone);
       setBayNumber(initialBayNumber);
       setLevel(initialLevel);
+      setLocatorScanInput(`${initialZone}${initialBayNumber}-L${initialLevel}`);
       setType(initialMode);
       setSuccessMessage(null);
+      setLocatorDetectedMsg(null);
 
       // Pre-fill existing item if present at level
       const found = existingItems.find(
@@ -152,10 +256,60 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Auto Parse QR Code string when changed
+  // Auto Parse Locator QR Code string (e.g. from Rack Pillar tags)
+  const handleLocatorInputChange = (raw: string) => {
+    setLocatorScanInput(raw);
+    if (!raw.trim()) {
+      setLocatorDetectedMsg(null);
+      return;
+    }
+
+    const clean = raw.trim().toUpperCase();
+
+    // Regex to match formats like: "E6-L1", "LOC-E-06-L1", "LOC_E_6_1", "ZONE E BAY 6 L1", "B5-L2", "E6"
+    const match = clean.match(/(?:LOC[-_]|ZONE[-_]|RACK[-_])?([B-K])[-_\s]*(?:BAY[-_\s]*)?0?([1-9]|1[0-2])(?:[-_\s]*(?:LEVEL|LVL|L)?[-_\s]*([1-4]))?/i);
+
+    if (match) {
+      const z = match[1] as StorageZone;
+      const b = parseInt(match[2], 10);
+      const l = match[3] ? (parseInt(match[3], 10) as ShelfLevel) : undefined;
+
+      const validZones: StorageZone[] = ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'];
+      if (validZones.includes(z) && b >= 1 && b <= 12) {
+        setZone(z);
+        setBayNumber(b);
+        if (l) {
+          setLevel(l);
+          setLocatorDetectedMsg(`📍 พิกัดเสา: Zone ${z} Bay ${b} ชั้น ${l} ✅`);
+        } else {
+          setLocatorDetectedMsg(`📍 พิกัดเสา: Zone ${z} Bay ${b} ✅`);
+        }
+
+        // Auto look up if there is an existing stock item at this locator
+        const existing = existingItems.find(i => i.zone === z && i.bayNumber === b && (!l || i.level === l));
+        if (existing) {
+          setModelHE(existing.modelHE);
+          setUseLine(existing.useLine);
+          if (type === 'OUT') {
+            setLabelQty(existing.quantity);
+            setActualQty(existing.quantity);
+          }
+        }
+      }
+    }
+  };
+
+  // Auto Parse Product QR Code string when changed
   const handleScanInputChange = (raw: string) => {
     setScanInput(raw);
     if (!raw.trim()) return;
+
+    // If user scanned a locator tag format into product input, redirect to locator
+    const clean = raw.trim().toUpperCase();
+    if (/^(?:LOC[-_])?[B-K](?:[1-9]|1[0-2])(?:[-_]L?[1-4])?$/i.test(clean)) {
+      handleLocatorInputChange(clean);
+      return;
+    }
 
     // Pattern format example: "ADL74920904_2026-06-25_09:27_HE2_600"
     const parts = raw.split('_');
@@ -174,17 +328,29 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
   };
 
   const handleQRScan = (decodedText: string) => {
-    handleScanInputChange(decodedText);
+    if (cameraTarget === 'LOCATOR') {
+      handleLocatorInputChange(decodedText);
+      setSuccessMessage(`📍 สแกนพิกัดเสา Rack สำเร็จ: ${decodedText}`);
+    } else {
+      const clean = decodedText.trim().toUpperCase();
+      if (/^(?:LOC[-_])?[B-K](?:[1-9]|1[0-2])(?:[-_]L?[1-4])?$/i.test(clean)) {
+        handleLocatorInputChange(clean);
+        setSuccessMessage(`📍 ตรวจพบว่าเป็น QR เสา Rack: ${decodedText}`);
+      } else {
+        handleScanInputChange(decodedText);
+      }
+    }
     setCameraActive(false);
   };
 
-  // Preset QR Strings for quick one-click testing
-  const presets = [
-    { label: 'ADL74920904 (600 U)', qr: 'ADL74920904_2026-06-25_09:27_HE2_600' },
-    { label: 'ACG76284709 (480 U)', qr: 'ACG76284709_2026-06-24_09:10_HE3_480' },
-    { label: 'ACG74184707 (420 U)', qr: 'ACG74184707_2026-07-07_08:37_HE1_420' },
-    { label: 'ADL74761254 (80 U)', qr: 'ADL74761254_2026-07-14_18:29_HE1_80' }
-  ];
+  const handleToggleCamera = (target: 'PRODUCT' | 'LOCATOR') => {
+    if (cameraActive && cameraTarget === target) {
+      setCameraActive(false);
+    } else {
+      setCameraTarget(target);
+      setCameraActive(true);
+    }
+  };
 
   const qtyGap = actualQty - labelQty;
 
@@ -207,6 +373,32 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
       looseQty: calcMode === 'PALLET' ? looseQtyInput : (actualQty % stdQtyPerPalletInput)
     });
 
+    // Record into recent scans list
+    const newScanEntry: RecentScanEntry = {
+      id: 'scan-' + Date.now(),
+      type,
+      modelHE,
+      partName: existingItems.find(i => i.modelHE === modelHE)?.partName || masterData.find(m => m.modelHE === modelHE)?.partName || 'Raw Material',
+      zone,
+      bayNumber,
+      level,
+      actualQty,
+      useLine,
+      scanInput: scanInput || modelHE,
+      stdQtyPerPallet: stdQtyPerPalletInput,
+      fullPallets: calcMode === 'PALLET' ? fullPalletsInput : Math.floor(actualQty / stdQtyPerPalletInput),
+      looseQty: calcMode === 'PALLET' ? looseQtyInput : (actualQty % stdQtyPerPalletInput),
+      timestamp: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.'
+    };
+
+    setRecentScans(prev => {
+      const updated = [newScanEntry, ...prev.filter(s => !(s.modelHE === newScanEntry.modelHE && s.zone === newScanEntry.zone && s.bayNumber === newScanEntry.bayNumber && s.level === newScanEntry.level && s.type === newScanEntry.type))].slice(0, 10);
+      try {
+        localStorage.setItem('wms_recent_scans', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
     setSuccessMessage(`บันทึกสแกน ${type === 'IN' ? 'รับเข้า' : 'เบิกออก'} ${modelHE} ตำแหน่ง ${zone}${bayNumber}-L${level} เรียบร้อย!`);
     
     if (batchMode) {
@@ -223,27 +415,27 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
-      <div className="bg-white border border-slate-200 rounded-2xl max-w-xl w-full p-6 text-slate-900 shadow-xl relative overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-fadeIn">
+      <div className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full max-h-[94vh] overflow-y-auto p-4 sm:p-6 text-slate-900 shadow-2xl relative">
         {/* Top Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-200">
+        <div className="flex items-center justify-between pb-3.5 border-b border-slate-200">
           <div className="flex items-center space-x-3">
-            <div className={`p-2.5 rounded-xl ${type === 'IN' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-blue-50 text-blue-700 border border-blue-200'}`}>
-              <QrCode className="w-6 h-6" />
+            <div className={`p-2.5 rounded-xl shrink-0 ${type === 'IN' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-blue-50 text-blue-700 border border-blue-200'}`}>
+              <QrCode className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
             <div>
-              <h3 className="font-bold text-lg tracking-tight text-slate-900">
+              <h3 className="font-bold text-base sm:text-lg tracking-tight text-slate-900">
                 สแกน QR Code บันทึกคลังสินค้า
               </h3>
-              <p className="text-xs text-slate-500">
-                รองรับ Hardware Barcode Scanner / กล้อง / พิมพ์ข้อความ QR
+              <p className="text-[11px] text-slate-500">
+                ยิงบาร์โค้ด / สแกนกล้อง / กรอกรหัสเพื่อบันทึกทันที
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
@@ -251,19 +443,19 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
 
         {/* Success Alert Banner */}
         {successMessage && (
-          <div className="my-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-bold flex items-center space-x-2 animate-bounce">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+          <div className="my-3 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-bold flex items-center space-x-2 animate-fadeIn">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>{successMessage}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+        <form onSubmit={handleSubmit} className="mt-3.5 space-y-3.5">
           {/* Mode Selector (IN / OUT) */}
-          <div className="grid grid-cols-2 gap-3 p-1 bg-slate-100 rounded-xl border border-slate-200">
+          <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl border border-slate-200">
             <button
               type="button"
               onClick={() => setType('IN')}
-              className={`py-2.5 rounded-lg font-bold text-xs flex items-center justify-center space-x-2 transition-all ${
+              className={`py-2.5 rounded-lg font-bold text-xs flex items-center justify-center space-x-1.5 transition-all ${
                 type === 'IN'
                   ? 'bg-emerald-600 text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
@@ -276,7 +468,7 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
             <button
               type="button"
               onClick={() => setType('OUT')}
-              className={`py-2.5 rounded-lg font-bold text-xs flex items-center justify-center space-x-2 transition-all ${
+              className={`py-2.5 rounded-lg font-bold text-xs flex items-center justify-center space-x-1.5 transition-all ${
                 type === 'OUT'
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
@@ -287,23 +479,25 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
             </button>
           </div>
 
-          {/* Quick Preset Chips & Item Search Tool */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
-              <span>เลือกตัวอย่าง QR Tag หรือ ค้นหารายการด่วน:</span>
+          {/* Clean QR Scan Input */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-slate-700">
+                ข้อความสแกน QR / Barcode (Scan Input):
+              </label>
               <button
                 type="button"
                 onClick={() => setShowItemSearchDrawer(!showItemSearchDrawer)}
-                className="text-blue-600 hover:text-blue-800 font-bold flex items-center space-x-1"
+                className="text-blue-600 hover:text-blue-800 text-[11px] font-bold flex items-center space-x-1"
               >
-                <Search className="w-3.5 h-3.5" />
-                <span>{showItemSearchDrawer ? 'ซ่อนตัวกรอง' : 'ค้นหารายการในคลัง (Filter)'}</span>
+                <Search className="w-3 h-3" />
+                <span>{showItemSearchDrawer ? 'ซ่อนค้นหา' : 'ค้นหาในคลัง'}</span>
               </button>
             </div>
 
-            {/* Quick Item Filter Search Drawer */}
+            {/* Quick Item Filter Search Drawer (Only when user taps search) */}
             {showItemSearchDrawer && (
-              <div className="bg-slate-50 border border-blue-200 rounded-xl p-3 space-y-2 shadow-inner">
+              <div className="bg-slate-50 border border-blue-200 rounded-xl p-2.5 space-y-2 shadow-inner">
                 <div className="relative">
                   <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" />
                   <input
@@ -324,15 +518,15 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
                         onClick={() => handleSelectFilteredItem(item)}
                         className="w-full text-left p-2 rounded bg-white hover:bg-blue-50 border border-slate-200 transition-all flex items-center justify-between group"
                       >
-                        <div>
-                          <div className="font-mono font-bold text-blue-600 group-hover:text-blue-700">
+                        <div className="truncate mr-2">
+                          <div className="font-mono font-bold text-blue-600 group-hover:text-blue-700 truncate">
                             {item.modelHE}
                           </div>
-                          <div className="text-[10px] text-slate-500">
+                          <div className="text-[10px] text-slate-500 truncate">
                             {item.partName} | Line {item.useLine}
                           </div>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right shrink-0">
                           <div className="flex items-center space-x-1 justify-end mb-0.5">
                             <span className="px-1.5 py-0.2 rounded bg-blue-100 text-blue-900 font-extrabold text-[10px]">
                               Rack {item.zone}{item.bayNumber}
@@ -356,38 +550,19 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
               </div>
             )}
 
-            <div className="flex flex-wrap gap-1.5">
-              {presets.map((p, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => handleScanInputChange(p.qr)}
-                  className="px-2.5 py-1 bg-slate-50 hover:bg-slate-100 text-slate-700 text-[11px] rounded-md font-mono border border-slate-200 transition-all active:scale-95"
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* QR Scan Input */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              ข้อความสแกน QR / Barcode (Scan Input):
-            </label>
             <div className="relative">
               <input
                 type="text"
                 value={scanInput}
                 onChange={(e) => handleScanInputChange(e.target.value)}
                 placeholder="ยิงบาร์โค้ด หรือพิมพ์ข้อความ QR..."
-                className="w-full bg-slate-50 border border-slate-300 focus:border-blue-500 rounded-xl px-3.5 py-2.5 text-xs text-blue-700 font-mono font-bold focus:outline-none focus:bg-white"
+                className="w-full bg-slate-50 border border-slate-300 focus:border-blue-500 rounded-xl pl-3.5 pr-20 py-2.5 text-xs text-blue-700 font-mono font-bold focus:outline-none focus:bg-white transition-all shadow-xs"
                 required
               />
               <button
                 type="button"
                 onClick={() => setCameraActive(!cameraActive)}
-                className="absolute right-2 top-2 p-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-[10px] font-semibold flex items-center space-x-1 shadow-sm"
+                className="absolute right-1.5 top-1.5 p-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-[10px] font-semibold flex items-center space-x-1 shadow-xs"
               >
                 <Camera className="w-3.5 h-3.5 text-blue-600" />
                 <span>{cameraActive ? 'ปิดกล้อง' : 'กล้อง'}</span>
@@ -397,51 +572,122 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
 
           {/* Camera View Finder */}
           {cameraActive && (
-            <QRScanner onScan={handleQRScan} onClose={() => setCameraActive(false)} />
+            <div className="space-y-2 p-2 bg-slate-900 rounded-xl border border-blue-500 shadow-lg">
+              <div className="flex items-center justify-between px-2 text-white text-xs">
+                <span className="font-bold flex items-center space-x-1.5">
+                  <Camera className="w-4 h-4 text-cyan-400 animate-pulse" />
+                  <span>
+                    กำลังสแกนกล้อง: {cameraTarget === 'LOCATOR' ? '🎯 ป้าย QR พิกัดเสา Rack' : '📦 ป้าย QR สินค้า'}
+                  </span>
+                </span>
+                <div className="flex items-center space-x-1">
+                  <button
+                    type="button"
+                    onClick={() => setCameraTarget(cameraTarget === 'LOCATOR' ? 'PRODUCT' : 'LOCATOR')}
+                    className="px-2 py-0.5 rounded bg-blue-600 hover:bg-blue-500 text-[10px] font-bold text-white transition-all"
+                  >
+                    สลับไปสแกน {cameraTarget === 'LOCATOR' ? 'ป้ายสินค้า' : 'ป้ายเสา Rack'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCameraActive(false)}
+                    className="p-1 text-slate-400 hover:text-white rounded"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              <QRScanner onScan={handleQRScan} onClose={() => setCameraActive(false)} />
+            </div>
           )}
 
-          {/* Locator Details Grid */}
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">Zone:</label>
-              <select
-                value={zone}
-                onChange={(e) => setZone(e.target.value as StorageZone)}
-                className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-lg px-2.5 py-2 text-xs font-bold focus:outline-none focus:border-blue-500 focus:bg-white"
-              >
-                {(['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'] as StorageZone[]).map((z) => (
-                  <option key={z} value={z}>Zone {z}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">Rack (Bay):</label>
-              <select
-                value={bayNumber}
-                onChange={(e) => setBayNumber(Number(e.target.value))}
-                className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-lg px-2.5 py-2 text-xs font-bold focus:outline-none focus:border-blue-500 focus:bg-white"
-              >
-                {Array.from({ length: 12 }, (_, i) => i + 1).map((b) => (
-                  <option key={b} value={b}>Bay {b}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold text-amber-700 dark:text-amber-400 mb-1">
-                ชั้น (Level 1-4):
+          {/* 📍 Rack Locator QR Tag Scanner (ติดที่เสา Rack แต่ละจุด) */}
+          <div className="p-3 bg-gradient-to-r from-amber-50/80 to-orange-50/50 border border-amber-300/80 rounded-xl space-y-2.5 shadow-xs">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-black text-amber-950 flex items-center space-x-1.5">
+                <MapPin className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>สแกน QR Code พิกัดเสา Rack (Rack Locator Tag):</span>
               </label>
-              <select
-                value={level}
-                onChange={(e) => setLevel(Number(e.target.value) as ShelfLevel)}
-                className="w-full bg-blue-50 border border-blue-200 text-blue-800 rounded-lg px-2.5 py-2 text-xs font-bold focus:outline-none"
+              {locatorDetectedMsg && (
+                <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-300 animate-fadeIn">
+                  {locatorDetectedMsg}
+                </span>
+              )}
+            </div>
+
+            <div className="relative">
+              <input
+                type="text"
+                value={locatorScanInput}
+                onChange={(e) => handleLocatorInputChange(e.target.value)}
+                placeholder="ยิงบาร์โค้ดเสา Rack (เช่น E6-L1, LOC-E-06-L1, B5)..."
+                className="w-full bg-white border border-amber-300 focus:border-amber-500 rounded-xl pl-3.5 pr-24 py-2 text-xs text-amber-950 font-mono font-bold focus:outline-none focus:ring-1 focus:ring-amber-500 shadow-xs transition-all placeholder:font-sans placeholder:text-slate-400 placeholder:font-normal"
+              />
+              <button
+                type="button"
+                onClick={() => handleToggleCamera('LOCATOR')}
+                className="absolute right-1.5 top-1.5 p-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded-lg text-[10px] font-bold flex items-center space-x-1 shadow-xs transition-all"
               >
-                <option value={1}>ชั้น 1 (L1 Ground)</option>
-                <option value={2}>ชั้น 2 (L2 Heavy)</option>
-                <option value={3}>ชั้น 3 (L3 Standard)</option>
-                <option value={4}>ชั้น 4 (L4 Top)</option>
-              </select>
+                <Camera className="w-3.5 h-3.5 text-amber-700" />
+                <span>{cameraActive && cameraTarget === 'LOCATOR' ? 'ปิดกล้อง' : 'สแกนเสา'}</span>
+              </button>
+            </div>
+
+            {/* Locator Details Grid (Zone, Bay, Level) */}
+            <div className="grid grid-cols-3 gap-2 pt-0.5">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Zone:</label>
+                <select
+                  value={zone}
+                  onChange={(e) => {
+                    const newZ = e.target.value as StorageZone;
+                    setZone(newZ);
+                    setLocatorScanInput(`${newZ}${bayNumber}-L${level}`);
+                  }}
+                  className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:border-amber-500 shadow-xs"
+                >
+                  {(['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'] as StorageZone[]).map((z) => (
+                    <option key={z} value={z}>Zone {z}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Rack (Bay):</label>
+                <select
+                  value={bayNumber}
+                  onChange={(e) => {
+                    const newB = Number(e.target.value);
+                    setBayNumber(newB);
+                    setLocatorScanInput(`${zone}${newB}-L${level}`);
+                  }}
+                  className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:border-amber-500 shadow-xs"
+                >
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((b) => (
+                    <option key={b} value={b}>Bay {b}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-amber-900 mb-1">
+                  ชั้น (Level 1-4):
+                </label>
+                <select
+                  value={level}
+                  onChange={(e) => {
+                    const newL = Number(e.target.value) as ShelfLevel;
+                    setLevel(newL);
+                    setLocatorScanInput(`${zone}${bayNumber}-L${newL}`);
+                  }}
+                  className="w-full bg-white border border-amber-400 text-amber-950 rounded-lg px-2 py-1.5 text-xs font-extrabold focus:outline-none shadow-xs"
+                >
+                  <option value={1}>ชั้น 1 (L1 Ground)</option>
+                  <option value={2}>ชั้น 2 (L2 Heavy)</option>
+                  <option value={3}>ชั้น 3 (L3 Standard)</option>
+                  <option value={4}>ชั้น 4 (L4 Top)</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -663,6 +909,92 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
             <span>ยืนยันสแกน {type === 'IN' ? 'รับเข้าจัดเก็บ' : 'เบิกจ่ายวัตถุดิบ'} (One Save)</span>
           </button>
         </form>
+
+        {/* Recent Scans Section */}
+        <div className="mt-6 pt-4 border-t border-slate-200">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center space-x-2">
+              <div className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600">
+                <History className="w-4 h-4" />
+              </div>
+              <span className="text-xs font-bold text-slate-800">
+                รายการสแกนล่าสุด (Recent Scans)
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                {recentScans.length} รายการ
+              </span>
+            </div>
+
+            {recentScans.length > 0 && (
+              <button
+                type="button"
+                onClick={handleClearRecentScans}
+                className="text-[11px] font-semibold text-slate-400 hover:text-red-600 flex items-center space-x-1 px-2 py-1 rounded hover:bg-red-50 transition-colors"
+                title="ล้างประวัติการสแกนล่าสุดทั้งหมด"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>ล้างประวัติ (Clear)</span>
+              </button>
+            )}
+          </div>
+
+          {recentScans.length > 0 ? (
+            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+              {recentScans.map((scan) => {
+                const isScanIn = scan.type === 'IN';
+                return (
+                  <div
+                    key={scan.id}
+                    className="flex items-center justify-between p-2.5 bg-slate-50 hover:bg-slate-100/90 border border-slate-200 rounded-xl transition-all group"
+                  >
+                    <div className="flex items-center space-x-2.5 min-w-0">
+                      <span
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase shrink-0 ${
+                          isScanIn
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                            : 'bg-blue-100 text-blue-800 border border-blue-300'
+                        }`}
+                      >
+                        {isScanIn ? '📥 IN' : '📤 OUT'}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex items-center space-x-2">
+                          <span className="font-mono font-bold text-xs text-slate-900 truncate">
+                            {scan.modelHE}
+                          </span>
+                          <span className="text-[11px] font-semibold text-slate-500 font-mono">
+                            {scan.zone}{scan.bayNumber}-L{scan.level}
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            • {scan.timestamp}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-600 truncate font-medium">
+                          {scan.actualQty.toLocaleString()} Units ({scan.fullPallets || 0}P + {scan.looseQty || 0}U) | {scan.useLine}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-1.5 shrink-0 ml-2">
+                      <button
+                        type="button"
+                        onClick={() => handleReSelectScan(scan)}
+                        className="px-2.5 py-1 text-[11px] font-bold bg-white hover:bg-blue-600 hover:text-white text-blue-700 border border-slate-200 hover:border-blue-600 rounded-lg shadow-2xs transition-all flex items-center space-x-1 active:scale-95"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        <span>เลือกอีกครั้ง</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-4 px-3 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-slate-400 text-xs">
+              ยังไม่มีประวัติการสแกนล่าสุดในรอบนี้ (จะบันทึกอัตโนมัติเมื่อสแกน)
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

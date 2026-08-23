@@ -114,9 +114,9 @@ export const MovementLogsTable: React.FC<MovementLogsTableProps> = ({
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm text-slate-900 space-y-4">
+    <div className="bg-white border border-slate-200 rounded-xl p-3.5 sm:p-5 lg:p-6 shadow-sm text-slate-900 space-y-4 w-full min-w-0 max-w-full">
       {/* Table Header & Controls */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-slate-200 gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between pb-3 sm:pb-4 border-b border-slate-200 gap-3 sm:gap-4">
         <div>
           <div className="flex items-center space-x-2">
             <ListFilter className="w-5 h-5 text-blue-600" />
