@@ -62,6 +62,35 @@ export const DashboardKPIs: React.FC<DashboardKPIsProps> = ({ stats, lowStockCou
   const rackBFPercent = Math.round((stats.rackBFOccupied / stats.rackBFCapacity) * 100);
   const rackJGPercent = Math.round((stats.rackJGOccupied / stats.rackJGCapacity) * 100);
 
+  // Dynamic calculations for all campus facilities
+  const a2Occupied = useMemo(() => {
+    return items.filter(it => it.facilityId === 'FAC-A2-RAIL' || it.locatorCode.startsWith('DA2D-1') || (it.zone && (it.zone.startsWith('R') || it.zone.startsWith('FR')))).length;
+  }, [items]);
+  const a2Capacity = 160;
+  const a2Percent = Math.round((a2Occupied / a2Capacity) * 100);
+
+  const a4RackOccupied = useMemo(() => {
+    return items.filter(it => ['B','C','D','E','F','G','H','I','J','K'].includes(it.zone)).length;
+  }, [items]);
+  const a4RackCapacity = 680;
+  const a4RackPercent = Math.round((a4RackOccupied / a4RackCapacity) * 100);
+
+  const a4FloorOccupied = useMemo(() => {
+    return items.filter(it => ['X1','X2','X3','X4','X5','X6','X7','X8'].includes(it.zone) || it.locatorCode.startsWith('DA4D-1-') || it.locatorCode.startsWith('DA4D-1.01-')).length;
+  }, [items]);
+  const a4FloorCapacity = 432;
+  const a4FloorPercent = Math.round((a4FloorOccupied / a4FloorCapacity) * 100);
+
+  const a5TentOccupied = useMemo(() => {
+    return items.filter(it => it.facilityId === 'FAC-A5-TENT' || it.locatorCode.includes('DA5T') || (it.zone && it.zone.startsWith('T'))).length;
+  }, [items]);
+  const a5TentCapacity = 784; // 196 x 4
+  const a5TentPercent = Math.round((a5TentOccupied / a5TentCapacity) * 100);
+
+  const totalCampusCapacity = 2056; // 160 + 680 + 432 + 784
+  const totalCampusOccupied = a2Occupied + a4RackOccupied + a4FloorOccupied + a5TentOccupied;
+  const totalCampusPercent = Math.round((totalCampusOccupied / totalCampusCapacity) * 100);
+
   // Drag and drop grid order state
   const [widgetOrder, setWidgetOrder] = useState<string[]>(() => {
     try {
@@ -767,75 +796,138 @@ export const DashboardKPIs: React.FC<DashboardKPIsProps> = ({ stats, lowStockCou
 
       case 'capacity_status':
         content = (
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm h-full">
-            <div className="flex items-center space-x-2 mb-4 border-b border-slate-100 pb-3">
-              <Layers className="w-5 h-5 text-blue-600" />
-              <h3 className="text-sm font-bold text-slate-800">สถานะความจุพื้นที่จัดเก็บ (Storage Capacity Status)</h3>
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm h-full space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center space-x-2">
+                <Layers className="w-5 h-5 text-blue-600" />
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">สถานะความจุพื้นที่จัดเก็บทุกโซน (Campus Storage Capacity)</h3>
+                  <p className="text-[11px] text-slate-500">อัตราการใช้งานแยกตามพื้นที่จัดเก็บหลัก 4 โซน (A2, A4 Rack, A4 พื้น, A5 เต็นท์)</p>
+                </div>
+              </div>
+              <span className="text-xs font-mono font-black text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200">
+                รวม 2,056 PL
+              </span>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-              {/* Rack B-F Capacity */}
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                <div className="flex items-center justify-between text-xs font-semibold text-slate-700 mb-2">
-                  <span className="flex items-center space-x-2">
-                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                    <span>Zone B-F</span>
-                  </span>
-                  <span className={`font-bold ${rackBFPercent > 90 ? 'text-red-600' : rackBFPercent > 70 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                    {stats.rackBFOccupied} / {stats.rackBFCapacity} ({rackBFPercent}%)
-                  </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+              {/* 1. A2 Flow Rail */}
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-800 mb-1.5">
+                    <span className="flex items-center space-x-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                      <span>A2 วางรางเลื่อน</span>
+                    </span>
+                    <span className={`font-mono ${a2Percent > 90 ? 'text-red-600' : a2Percent > 70 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                      {a2Occupied} / {a2Capacity} ({a2Percent}%)
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-slate-500 mb-2">20 ราง x 8 ตำแหน่ง = 160 PL</div>
                 </div>
-                <div className="w-full bg-slate-200 rounded-full h-3.5 overflow-hidden shadow-inner">
+                <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
                   <div 
-                    className={`h-3.5 rounded-full transition-all duration-500 ${rackBFPercent > 90 ? 'bg-red-500' : rackBFPercent > 70 ? 'bg-amber-500' : 'bg-blue-500'}`} 
-                    style={{ width: `${Math.max(2, rackBFPercent)}%` }}
+                    className={`h-2.5 rounded-full transition-all duration-500 ${a2Percent > 90 ? 'bg-red-500' : a2Percent > 70 ? 'bg-amber-500' : 'bg-rose-500'}`} 
+                    style={{ width: `${Math.max(2, a2Percent)}%` }}
                   />
                 </div>
               </div>
 
-              {/* Rack G-K Capacity */}
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                <div className="flex items-center justify-between text-xs font-semibold text-slate-700 mb-2">
-                  <span className="flex items-center space-x-2">
-                    <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
-                    <span>Zone G-K</span>
-                  </span>
-                  <span className={`font-bold ${rackJGPercent > 90 ? 'text-red-600' : rackJGPercent > 70 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                    {stats.rackJGOccupied} / {stats.rackJGCapacity} ({rackJGPercent}%)
-                  </span>
+              {/* 2. A4 Rack (680 PL) */}
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-800 mb-1.5">
+                    <span className="flex items-center space-x-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                      <span>A4 แร็คสูง (B-K)</span>
+                    </span>
+                    <span className={`font-mono ${a4RackPercent > 90 ? 'text-red-600' : a4RackPercent > 70 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                      {a4RackOccupied} / {a4RackCapacity} ({a4RackPercent}%)
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-slate-500 mb-2">DA4D-2 (480P) + DA4D-3 (200P) = 680 PL</div>
                 </div>
-                <div className="w-full bg-slate-200 rounded-full h-3.5 overflow-hidden shadow-inner">
+                <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
                   <div 
-                    className={`h-3.5 rounded-full transition-all duration-500 ${rackJGPercent > 90 ? 'bg-red-500' : rackJGPercent > 70 ? 'bg-amber-500' : 'bg-indigo-500'}`} 
-                    style={{ width: `${Math.max(2, rackJGPercent)}%` }}
+                    className={`h-2.5 rounded-full transition-all duration-500 ${a4RackPercent > 90 ? 'bg-red-500' : a4RackPercent > 70 ? 'bg-amber-500' : 'bg-blue-500'}`} 
+                    style={{ width: `${Math.max(2, a4RackPercent)}%` }}
                   />
                 </div>
               </div>
 
-              {/* Total Warehouse Capacity Summary */}
-              <div className="bg-blue-50 rounded-xl p-4 flex flex-col justify-center border border-blue-200 shadow-sm relative overflow-hidden">
-                <div className="absolute right-0 top-0 bottom-0 opacity-10">
-                  <Warehouse className="w-24 h-24 -mr-6 -mt-2" />
+              {/* 3. A4 Floor Staging (432 PL) */}
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-800 mb-1.5">
+                    <span className="flex items-center space-x-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                      <span>A4 วางพื้น (X1-X8)</span>
+                    </span>
+                    <span className={`font-mono ${a4FloorPercent > 90 ? 'text-red-600' : a4FloorPercent > 70 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                      {a4FloorOccupied} / {a4FloorCapacity} ({a4FloorPercent}%)
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-slate-500 mb-2">บล็อกบน (264P) + บล็อกล่าง (168P) = 432 PL</div>
                 </div>
-                <div className="relative z-10 flex items-center justify-between">
-                  <div>
-                    <div className="text-[11px] font-bold uppercase text-blue-800 tracking-wider mb-1">ความจุรวมทั้งคลัง (Total)</div>
-                    <div className="text-2xl font-black text-blue-900">
-                      {stats.rackBFOccupied + stats.rackJGOccupied} <span className="text-sm font-bold text-blue-600">/ 680</span>
-                    </div>
+                <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
+                  <div 
+                    className={`h-2.5 rounded-full transition-all duration-500 ${a4FloorPercent > 90 ? 'bg-red-500' : a4FloorPercent > 70 ? 'bg-amber-500' : 'bg-amber-500'}`} 
+                    style={{ width: `${Math.max(2, a4FloorPercent)}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* 4. A5 Tent Area (784 PL) */}
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-800 mb-1.5">
+                    <span className="flex items-center space-x-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                      <span>A5 เต็นท์นอก (1-4)</span>
+                    </span>
+                    <span className={`font-mono ${a5TentPercent > 90 ? 'text-red-600' : a5TentPercent > 70 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                      {a5TentOccupied} / {a5TentCapacity} ({a5TentPercent}%)
+                    </span>
                   </div>
-                  <div className="text-right">
-                    <div className="text-[10px] font-bold uppercase text-blue-700 tracking-wider mb-1">อัตราจัดเก็บรวม</div>
-                    <div className={`text-xl font-black ${Math.round(((stats.rackBFOccupied + stats.rackJGOccupied) / 680) * 100) > 90 ? 'text-red-600' : Math.round(((stats.rackBFOccupied + stats.rackJGOccupied) / 680) * 100) > 70 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                      {Math.round(((stats.rackBFOccupied + stats.rackJGOccupied) / 680) * 100)}%
-                    </div>
+                  <div className="text-[10px] text-slate-500 mb-2">4 เต็นท์ x 196 พาเลท = 784 PL</div>
+                </div>
+                <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
+                  <div 
+                    className={`h-2.5 rounded-full transition-all duration-500 ${a5TentPercent > 90 ? 'bg-red-500' : a5TentPercent > 70 ? 'bg-amber-500' : 'bg-emerald-500'}`} 
+                    style={{ width: `${Math.max(2, a5TentPercent)}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Total Warehouse Campus Summary Bar */}
+            <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-950 text-white rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-blue-600/30 rounded-lg border border-blue-400/40">
+                  <Warehouse className="w-5 h-5 text-blue-300" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-blue-200">ความจุรวมทุกพื้นที่ในแคมปัส (Total Campus Capacity)</div>
+                  <div className="text-sm text-slate-300">
+                    A2 (160) + A4 Rack (680) + A4 พื้น (432) + A5 เต็นท์ (784)
                   </div>
+                </div>
+              </div>
+              <div className="flex items-center space-x-4 self-end sm:self-auto">
+                <div className="text-right">
+                  <div className="text-xs text-slate-300">จัดเก็บรวมแล้ว</div>
+                  <div className="text-base font-black font-mono text-white">
+                    {totalCampusOccupied} <span className="text-xs text-blue-300">/ 2,056 PL</span>
+                  </div>
+                </div>
+                <div className="px-3 py-1.5 bg-blue-600 text-white font-mono font-black text-sm rounded-lg shadow-xs">
+                  {totalCampusPercent}%
                 </div>
               </div>
             </div>
           </div>
         );
-        gridSpanClass = 'col-span-1 sm:col-span-2 lg:col-span-4';
+        gridSpanClass = 'col-span-1 sm:col-span-2 lg:col-span-6';
         break;
 
       case 'demand_forecast':

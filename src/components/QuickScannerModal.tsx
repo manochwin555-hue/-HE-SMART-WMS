@@ -266,8 +266,79 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
 
     const clean = raw.trim().toUpperCase();
 
-    // Regex to match formats like: "E6-L1", "LOC-E-06-L1", "LOC_E_6_1", "ZONE E BAY 6 L1", "B5-L2", "E6"
-    const match = clean.match(/(?:LOC[-_]|ZONE[-_]|RACK[-_])?([B-K])[-_\s]*(?:BAY[-_\s]*)?0?([1-9]|1[0-2])(?:[-_\s]*(?:LEVEL|LVL|L)?[-_\s]*([1-4]))?/i);
+    // 1. Check DA4D-1 Floor Staging format: e.g. "DA4D-1-R8-06", "DA4D-1-R8-6", "DA4D-1-X2-06", "DA4D-1.01-X2", "X2-06"
+    const da4d1FloorMatch = clean.match(/(?:DA4D-1(?:\.01)?[-_])?(?:(X[1-8])|R([1-9]|[1-4][0-9]|48))[-_\s]*0?([1-9]|1[0-2])/i);
+    if (da4d1FloorMatch) {
+      let xGroup = da4d1FloorMatch[1]?.toUpperCase();
+      let rowNum = da4d1FloorMatch[2] ? parseInt(da4d1FloorMatch[2], 10) : undefined;
+      const colNum = parseInt(da4d1FloorMatch[3], 10);
+
+      // If Row number provided, map to corresponding X group (6 rows per X group)
+      if (rowNum && !xGroup) {
+        const xIndex = Math.min(8, Math.max(1, Math.ceil(rowNum / 6)));
+        xGroup = `X${xIndex}`;
+      } else if (!xGroup) {
+        xGroup = 'X1';
+      }
+
+      setZone(xGroup);
+      setBayNumber(colNum);
+      setLevel(1);
+      const rowDisplay = rowNum ? `Row R${rowNum}` : `Group ${xGroup}`;
+      setLocatorDetectedMsg(`📍 พิกัดลานวางพื้น A4: DA4D-1 ${rowDisplay} Col ${String(colNum).padStart(2, '0')} (1 พาเลท) ✅`);
+
+      const formattedCol = String(colNum).padStart(2, '0');
+      const exactLocator = rowNum ? `DA4D-1-R${rowNum}-${formattedCol}` : `DA4D-1-${xGroup}-${formattedCol}`;
+      const existing = existingItems.find(i => 
+        i.locatorCode === exactLocator || 
+        (i.zone === xGroup && i.bayNumber === colNum) ||
+        (rowNum && i.locatorCode.includes(`-R${rowNum}-`))
+      );
+
+      if (existing) {
+        setModelHE(existing.modelHE);
+        setUseLine(existing.useLine);
+        if (type === 'OUT') {
+          setLabelQty(existing.quantity);
+          setActualQty(existing.quantity);
+        }
+      }
+      return;
+    }
+
+    // 2. Check DA2D-1 Flow Rail format: e.g. "DA2D-1-R20-01", "DA2D-1-R3-02", "R20-01", "R3-02"
+    const railMatch = clean.match(/(?:DA2D-1[-_])?R(20|1[0-9]|[1-9])[-_\s]*0?([1-8])/i);
+    if (railMatch) {
+      const railNum = parseInt(railMatch[1], 10);
+      const posNum = parseInt(railMatch[2], 10);
+      const railZone = `R${railNum}`;
+      
+      setZone(railZone);
+      setBayNumber(posNum);
+      setLevel(1);
+      setLocatorDetectedMsg(`📍 พิกัดรางเลื่อน A2: DA2D-1 Rail R${railNum} ตำแหน่ง ${String(posNum).padStart(2, '0')} (1 พาเลท) ✅`);
+
+      const formattedPos = String(posNum).padStart(2, '0');
+      const exactLocator = `DA2D-1-R${railNum}-${formattedPos}`;
+      const existing = existingItems.find(i => 
+        i.locatorCode === exactLocator || 
+        (i.zone === railZone && i.bayNumber === posNum) ||
+        (i.zone === `FR${railNum}` && i.bayNumber === posNum)
+      );
+
+      if (existing) {
+        setModelHE(existing.modelHE);
+        setUseLine(existing.useLine);
+        if (type === 'OUT') {
+          setLabelQty(existing.quantity);
+          setActualQty(existing.quantity);
+        }
+      }
+      return;
+    }
+
+    // 3. Regex to match standard Rack formats like: "DA4D-2-D2-L1", "DA4D-3-G5-L2", "E6-L1", "LOC-E-06-L1", "LOC_E_6_1", "ZONE E BAY 6 L1", "B5-L2", "E6"
+    const match = clean.match(/(?:DA4D-[23][-_]|LOC[-_]|ZONE[-_]|RACK[-_])?([B-K])[-_\s]*(?:BAY[-_\s]*)?0?([1-9]|1[0-2])(?:[-_\s]*(?:LEVEL|LVL|L)?[-_\s]*([1-4]))?/i);
 
     if (match) {
       const z = match[1] as StorageZone;

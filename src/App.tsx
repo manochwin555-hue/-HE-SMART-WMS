@@ -12,6 +12,8 @@ import { InventoryListPanel } from './components/InventoryListPanel';
 import { LabelPrinterPanel } from './components/LabelPrinterPanel';
 import { MasterListPanel } from './components/MasterListPanel';
 import { FlowRailFloorMap } from './components/FlowRailFloorMap';
+import { CampusMasterOverview } from './components/CampusMasterOverview';
+import { A5TentFloorStagingMap } from './components/A5TentFloorStagingMap';
 
 // Extract initial master data from INITIAL_ITEMS
 const initialMasterData: MasterDataItem[] = Array.from(new Set(INITIAL_ITEMS.map(i => i.modelHE))).map(modelHE => {
@@ -73,6 +75,27 @@ export default function App() {
   const [logs, setLogs] = useState<MovementLog[]>(INITIAL_LOGS);
   const [stats, setStats] = useState<WmsStats>(INITIAL_STATS);
   const [globalSearchQuery, setGlobalSearchQuery] = useState<string>('');
+  const [a4InitialTab, setA4InitialTab] = useState<'MACRO_OVERVIEW' | 'FLOOR_DA4D1' | 'RACK_ZONES' | 'FULL3D'>('MACRO_OVERVIEW');
+
+  // Handle drill-down navigation from Master Campus overview to specific building/zone
+  const handleCampusZoneNavigation = (target: 'A4_MACRO' | 'A4_RACK' | 'A4_FLOOR' | 'A4_3D' | 'A2_RAIL' | 'A2_MACRO' | 'A2_SPLIT' | 'A5_TENT' | 'A5_MACRO') => {
+    if (target === 'A4_RACK') {
+      setA4InitialTab('RACK_ZONES');
+      setActiveTab('layout');
+    } else if (target === 'A4_FLOOR') {
+      setA4InitialTab('FLOOR_DA4D1');
+      setActiveTab('layout');
+    } else if (target === 'A4_MACRO') {
+      setA4InitialTab('MACRO_OVERVIEW');
+      setActiveTab('layout');
+    } else if (target === 'A4_3D') {
+      setActiveTab('rack3d');
+    } else if (target === 'A2_RAIL' || target === 'A2_MACRO' || target === 'A2_SPLIT') {
+      setActiveTab('flow_floor');
+    } else if (target === 'A5_TENT' || target === 'A5_MACRO') {
+      setActiveTab('tent_layout');
+    }
+  };
 
   // Filtered items based on activeFacilityId
   const displayedItems = activeFacilityId === 'ALL'
@@ -146,7 +169,22 @@ export default function App() {
       looseQty,
     } = data;
 
-    const locatorCode = `DA4D-1.05-${zone}${bayNumber}-L${level}`;
+    let locatorCode = `DA4D-1.05-${zone}${bayNumber}-L${level}`;
+    let storageType: 'RACK' | 'FLOW_RAIL' | 'FLOOR_STAGING' = 'RACK';
+    let facilityId = activeFacilityId === 'ALL' ? 'FAC-A4-RACK' : activeFacilityId;
+
+    if (String(zone).startsWith('R') || String(zone).startsWith('FR')) {
+      const railNum = String(zone).replace(/\D/g, '');
+      const formattedPos = String(bayNumber).padStart(2, '0');
+      locatorCode = `DA2D-1-R${railNum}-${formattedPos}`;
+      storageType = 'FLOW_RAIL';
+      facilityId = 'FAC-A2-RAIL';
+    } else if (String(zone).startsWith('FL') || String(zone).startsWith('A1')) {
+      locatorCode = `A2-FL-${zone}-${String(bayNumber).padStart(2, '0')}`;
+      storageType = 'FLOOR_STAGING';
+      facilityId = 'FAC-A2-RAIL';
+    }
+
     const qtyGap = actualQty - quantityCheck;
 
     // 1. Update or create Inventory Item
@@ -179,6 +217,8 @@ export default function App() {
           zone,
           bayNumber,
           level,
+          storageType,
+          facilityId,
           useLine,
           storageInDate: new Date().toISOString(),
           agingDays: 0,
@@ -417,13 +457,49 @@ export default function App() {
                   </p>
                 </div>
 
-                <button
-                  onClick={() => setActiveTab('layout')}
-                  className="px-5 py-2.5 bg-blue-500 hover:bg-blue-400 text-white font-extrabold rounded-lg text-xs shadow-md transition-all shrink-0 active:scale-95 flex items-center space-x-2"
-                >
-                  <span>เปิดดูแผนผัง Layout 2D/3D Map →</span>
-                </button>
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => setActiveTab('campus_overview')}
+                    className="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-lg text-xs shadow-md transition-all active:scale-95 flex items-center space-x-1.5"
+                  >
+                    <span>🏢 ผังรวม A2/A4/A5</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('layout')}
+                    className="px-3.5 py-2 bg-blue-500 hover:bg-blue-400 text-white font-extrabold rounded-lg text-xs shadow-md transition-all active:scale-95 flex items-center space-x-1.5"
+                  >
+                    <span>🗺️ ผัง A4 (แร็ค/พื้น)</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('flow_floor')}
+                    className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-lg text-xs shadow-md transition-all active:scale-95 flex items-center space-x-1.5"
+                  >
+                    <span>⚡ ผัง A2 (ราง)</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('tent_layout')}
+                    className="px-3.5 py-2 bg-teal-600 hover:bg-teal-500 text-white font-extrabold rounded-lg text-xs shadow-md transition-all active:scale-95 flex items-center space-x-1.5"
+                  >
+                    <span>⛺ ผัง A5 (เต็นท์)</span>
+                  </button>
+                </div>
               </div>
+            </div>
+          )}
+
+          {activeTab === 'campus_overview' && (
+            <div className="space-y-6 animate-fadeIn">
+              <CampusMasterOverview
+                items={displayedItems}
+                facilities={facilities}
+                searchQuery={globalSearchQuery}
+                onNavigateToZone={handleCampusZoneNavigation}
+                onOpenScanner={(z, b, l, m) => handleOpenScanner(z, b, l, m)}
+                onOpen3D={(z, b) => handleOpen3DForBay(z, b)}
+                onRelocateItem={(item) => {
+                  setActiveTab('master');
+                }}
+              />
             </div>
           )}
 
@@ -432,8 +508,14 @@ export default function App() {
               <RackLayout2D
                 items={displayedItems}
                 searchQuery={globalSearchQuery}
+                initialSectionTab={a4InitialTab}
                 onSelectBay={(z, b) => handleOpen3DForBay(z, b)}
                 onOpen3D={(z, b) => handleOpen3DForBay(z, b)}
+                onOpenScanner={(z, b, l, m) => handleOpenScanner(z, b, l, m)}
+                onRelocateItem={(item) => {
+                  setActiveTab('master');
+                }}
+                onNavigateToCampus={() => setActiveTab('campus_overview')}
                 isDashboardFullscreen={isFullscreen}
               />
             </div>
@@ -453,6 +535,27 @@ export default function App() {
                 onRelocateItem={(item) => {
                   setActiveTab('master');
                 }}
+                onNavigateToCampus={() => setActiveTab('campus_overview')}
+              />
+            </div>
+          )}
+
+          {activeTab === 'tent_layout' && (
+            <div className="space-y-6 animate-fadeIn">
+              <A5TentFloorStagingMap
+                items={displayedItems}
+                searchQuery={globalSearchQuery}
+                onSelectSlot={(tentId, groupNumber, rowCode, columnNumber) => {
+                  // Pre-set scanner target with appropriate zone/bay if scanned
+                  setScannerZone('A' as StorageZone);
+                  setScannerBay(groupNumber);
+                  setScannerLevel(1 as ShelfLevel);
+                }}
+                onOpenScanner={(z, b, l, m) => handleOpenScanner(z, b, l, m)}
+                onRelocateItem={(item) => {
+                  setActiveTab('master');
+                }}
+                onNavigateToCampus={() => setActiveTab('campus_overview')}
               />
             </div>
           )}
@@ -532,7 +635,9 @@ export default function App() {
                 setActiveFacilityId={setActiveFacilityId}
                 onNavigateToLayout={(fac) => {
                   setActiveFacilityId(fac.id);
-                  if (fac.storageTypes.includes('FLOW_RAIL') && !fac.storageTypes.includes('RACK')) {
+                  if (fac.id === 'FAC-A5-TENT' || fac.storageTypes.includes('FLOOR_STAGING') && !fac.storageTypes.includes('RACK') && !fac.storageTypes.includes('FLOW_RAIL')) {
+                    setActiveTab('tent_layout');
+                  } else if (fac.storageTypes.includes('FLOW_RAIL') && !fac.storageTypes.includes('RACK')) {
                     setActiveTab('flow_floor');
                   } else {
                     setActiveTab('layout');
@@ -544,9 +649,9 @@ export default function App() {
         </main>
 
         {/* Footer Info */}
-        <footer className="h-12 border-t border-slate-200 bg-white flex items-center justify-between px-4 sm:px-6 lg:px-8 text-xs text-slate-500 uppercase tracking-wider shrink-0 mt-auto w-full">
-          <span className="font-medium text-slate-600">Warehouse Management System Pro © 2026</span>
-          <span className="flex items-center gap-2 font-bold text-slate-700">
+        <footer className="h-12 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between px-4 sm:px-6 lg:px-8 text-xs text-slate-500 uppercase tracking-wider shrink-0 mt-auto w-full">
+          <span className="font-semibold text-slate-700 dark:text-slate-300">HEX WMS LGETH © 2026</span>
+          <span className="flex items-center gap-2 font-bold text-slate-700 dark:text-slate-300">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
             Server Status: Online
           </span>

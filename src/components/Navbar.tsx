@@ -24,7 +24,9 @@ import {
   Map,
   GitCommit,
   Building2,
-  ChevronDown
+  ChevronDown,
+  Compass,
+  Tent
 } from 'lucide-react';
 
 import { WarehouseFacility } from '../types';
@@ -53,63 +55,83 @@ interface NavbarProps {
 
 const translations: Record<string, Record<string, string>> = {
   th: {
-    dashboard: 'ภาพรวม (KPIs & Trends)',
-    layout: 'แผนผัง Layout 2D & 3D',
-    inventory: 'ค้นหา & Safety Stock',
-    rack3d: '3D Rack Inspector (4 ชั้น)',
+    dashboard: 'แดชบอร์ด (KPIs)',
+    layout: 'ผัง A4 (แร็ค/พื้น)',
+    campus: 'ผังรวม (A2/A4/A5)',
+    flow: 'ผัง A2 (รางเลื่อน)',
+    tent: 'ผัง A5 (เต็นท์)',
+    inventory: 'สต็อก & Safety Stock',
+    rack3d: '3D Rack Inspector',
     scanner: 'สแกน QR รับ-เบิก',
-    logs: 'รายการเบิก-รับ',
-    aging: 'คุม FIFO & Aging',
-    printer: 'พิมพ์ป้าย Label',
-    subtitle: 'คลังสินค้าหลัก > โซน A-J (3D Rack & FIFO)',
+    logs: 'ประวัติรับ-เบิก',
+    aging: 'FIFO / Aging',
+    printer: 'พิมพ์ฉลาก (Label)',
+    master: 'Master Data & ตั้งค่า',
+    subtitle: 'LGETH Warehouse Automation',
     totalCapacity: 'ความจุรวม:',
   },
   en: {
-    dashboard: 'Overview (KPIs & Trends)',
-    layout: '2D & 3D Layout Map',
-    inventory: 'Search & Safety Stock',
+    dashboard: 'Dashboard (KPIs)',
+    layout: 'A4 Map (Rack/Floor)',
+    campus: 'Campus (A2/A4/A5)',
+    flow: 'A2 Map (Flow Rail)',
+    tent: 'A5 Map (Tents)',
+    inventory: 'Inventory & Safety',
     rack3d: '3D Rack Inspector',
     scanner: 'QR Scan In/Out',
     logs: 'Movement Logs',
     aging: 'FIFO & Aging',
     printer: 'Print Labels',
-    subtitle: 'Main Warehouse > Zone A-J',
+    master: 'Master Data & Settings',
+    subtitle: 'LGETH Warehouse Automation',
     totalCapacity: 'Total Cap:',
   },
   kh: {
-    dashboard: 'ទិដ្ឋភាពទូទៅ',
-    layout: 'ផែនទី Layout 2D & 3D',
-    inventory: 'ស្វែងរក & ស្តុកសុវត្ថិភាព',
-    rack3d: 'អ្នកត្រួតពិនិត្យធ្នើរ 3D',
-    scanner: 'ស្កេន QR ចូល/ចេញ',
-    logs: 'កំណត់ហេតុចលនា',
-    aging: 'FIFO & ចាស់',
+    dashboard: 'ផ្ទាំងគ្រប់គ្រង',
+    layout: 'ប្លង់ A4',
+    campus: 'ប្លង់រួម A2/A4/A5',
+    flow: 'ប្លង់ A2 (ផ្លូវរអិល)',
+    tent: 'ប្លង់ A5 (តង់)',
+    inventory: 'ស្តុក & សុវត្ថិភាព',
+    rack3d: 'អ្នកត្រួតពិនិត្យ 3D',
+    scanner: 'ស្កេន QR',
+    logs: 'កំណត់ហេតុ',
+    aging: 'FIFO & Aging',
     printer: 'បោះពុម្ពស្លាក',
-    subtitle: 'ឃ្លាំងមេ > តំបន់ A-J',
+    master: 'ទិន្នន័យមេ',
+    subtitle: 'LGETH Warehouse Automation',
     totalCapacity: 'សមត្ថភាពសរុប:',
   },
   mm: {
-    dashboard: 'ခြုံငုံသုံးသပ်ချက်',
-    layout: '2D & 3D အပြင်အဆင် မြေပုံ',
-    inventory: 'ရှာဖွေရန်နှင့် ဘေးကင်းလုံခြုံရေး',
+    dashboard: 'ဒက်ရှ်ဘုတ်',
+    layout: 'A4 မြေပုံ',
+    campus: 'A2/A4/A5 မြေပုံ',
+    flow: 'A2 မြေပုံ (ရထားလမ်း)',
+    tent: 'A5 မြေပုံ (တဲ)',
+    inventory: 'စာရင်းနှင့် သိုလှောင်မှု',
     rack3d: '3D စင်စစ်ဆေးသူ',
-    scanner: 'QR စကင်ဖတ်ရန်',
-    logs: 'လှုပ်ရှားမှုမှတ်တမ်းများ',
-    aging: 'FIFO နှင့် အိုမင်းခြင်း',
-    printer: 'တံဆိပ်များရိုက်နှိပ်ရန်',
-    subtitle: 'ပင်မဂိုဒေါင် > ဇုန် A-J',
+    scanner: 'QR စကင်',
+    logs: 'မှတ်တမ်းများ',
+    aging: 'FIFO နှင့် သက်တမ်း',
+    printer: 'တံဆိပ်ရိုက်နှိပ်ခြင်း',
+    master: 'ပင်မဒေတာ',
+    subtitle: 'LGETH Warehouse Automation',
     totalCapacity: 'စုစုပေါင်းစွမ်းရည်:',
   },
   kr: {
-    dashboard: '개요 (KPIs & Trends)',
-    layout: '2D & 3D 레이아웃 지도',
-    inventory: '검색 및 안전 재고',
-    rack3d: '3D 랙 검사기',
+    dashboard: '대시보드 (KPIs)',
+    layout: 'A4 배치도 (랙/평치)',
+    campus: '캠퍼스 종합 (A2/A4/A5)',
+    flow: 'A2 배치도 (플로우레일)',
+    tent: 'A5 배치도 (야외텐트)',
+    inventory: '재고 및 안전재고',
+    rack3d: '3D 랙 인스펙터',
     scanner: 'QR 스캔 입출고',
-    logs: '이동 로그',
-    aging: 'FIFO 및 노후화',
+    logs: '입출고 이력',
+    aging: 'FIFO / 에이징',
     printer: '라벨 인쇄',
-    subtitle: '메인 창고 > 구역 A-J',
+    master: '기준 정보 & 설정',
+    subtitle: 'LGETH Warehouse Automation',
     totalCapacity: '총 용량:',
   }
 };
@@ -142,15 +164,17 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const navItems = [
     { id: 'dashboard', label: t.dashboard, icon: Warehouse },
-    { id: 'layout', label: 'ผังคลัง 3D Rack (Zone B-K)', icon: Map, badge: 'MAIN' },
-    { id: 'flow_floor', label: 'ผังรางเลื่อน & ลานกองพื้น', icon: GitCommit, badge: 'NEW' },
+    { id: 'campus_overview', label: t.campus, icon: Compass, badge: 'SITE' },
+    { id: 'layout', label: t.layout, icon: Map, badge: 'A4' },
+    { id: 'flow_floor', label: t.flow, icon: GitCommit, badge: 'A2' },
+    { id: 'tent_layout', label: t.tent, icon: Tent, badge: 'A5' },
     { id: 'inventory', label: t.inventory, icon: ShieldAlert, count: lowStockCount },
     { id: 'rack3d', label: t.rack3d, icon: Layers, badge: '3D' },
     { id: 'scanner', label: t.scanner, icon: QrCode },
     { id: 'logs', label: t.logs, icon: ListFilter },
     { id: 'aging', label: t.aging, icon: ClockAlert, count: agingCount },
     { id: 'printer', label: t.printer, icon: Printer },
-    { id: 'master', label: 'Master List & ตั้งค่า', icon: Box },
+    { id: 'master', label: t.master, icon: Box },
   ];
 
   return (
@@ -166,9 +190,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
           <div className="flex items-center space-x-2 cursor-pointer" onClick={() => setActiveTab('dashboard')}>
             <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white text-xs">
-              WMS
+              HEX
             </div>
-            <span className="font-bold text-sm tracking-tight text-white">WMS Pro</span>
+            <span className="font-extrabold text-sm tracking-tight text-white">HEX WMS LGETH</span>
           </div>
         </div>
 
@@ -178,7 +202,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             className="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold shadow"
           >
             <QrCode className="w-3.5 h-3.5" />
-            <span>สแกน QR</span>
+            <span>สแกน</span>
           </button>
         </div>
       </div>
@@ -197,14 +221,14 @@ export const Navbar: React.FC<NavbarProps> = ({
           isMobileOpen ? 'translate-x-0 w-64' : '-translate-x-full md:translate-x-0'
         } ${isCollapsed ? 'md:w-16' : 'md:w-64'}`}
       >
-        {/* Sidebar Header & Brand */}
+        {/* Sidebar Header & Brand (HEX WMS LGETH) */}
         <div className="p-3.5 border-b border-slate-800/80 flex items-center justify-between">
           <div
             onClick={() => {
               setActiveTab('dashboard');
               setIsMobileOpen(false);
             }}
-            className="flex items-center space-x-3 cursor-pointer overflow-hidden text-left"
+            className="flex items-center space-x-2.5 cursor-pointer overflow-hidden text-left"
           >
             <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shrink-0 shadow-md">
               <Box className="w-5 h-5 text-white" />
@@ -212,9 +236,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             {!isCollapsed && (
               <div className="truncate">
                 <div className="flex items-center space-x-1.5">
-                  <span className="font-extrabold text-base tracking-tight text-white">WMS Pro</span>
-                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300 font-bold border border-blue-500/30">
-                    SMART
+                  <span className="font-black text-sm tracking-tight text-white truncate">HEX WMS LGETH</span>
+                  <span className="text-[8px] px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
+                    LIVE
                   </span>
                 </div>
                 <p className="text-[10px] text-slate-400 font-medium truncate">{t.subtitle}</p>
@@ -226,7 +250,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
             className="hidden md:flex p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors border border-slate-700/60"
-            title={isCollapsed ? 'ขยายแถบเมนู (Expand)' : 'ซ่อนแถบเมนู (Collapse)'}
+            title={isCollapsed ? 'ขยายแถบเมนู' : 'ซ่อนแถบเมนู'}
           >
             {isCollapsed ? <PanelLeftOpen className="w-4 h-4 text-blue-400" /> : <PanelLeftClose className="w-4 h-4" />}
           </button>

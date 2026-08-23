@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { InventoryItem, StorageZone } from '../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { InventoryItem, MovementType, ShelfLevel, StorageZone } from '../types';
 import { 
   Layers, 
   Eye, 
@@ -22,15 +22,28 @@ import {
   Grid,
   Sparkles,
   Clock,
-  ArrowUpRight
+  ArrowUpRight,
+  Building2,
+  MapPin,
+  Compass,
+  TrendingUp,
+  LayoutGrid
 } from 'lucide-react';
 import { Warehouse3DMap } from './Warehouse3DMap';
+import { DA4D1FloorStagingMap } from './DA4D1FloorStagingMap';
+import { DynamicLegendPanel } from './DynamicLegendPanel';
+import { UnifiedSlotModal, UnifiedSlotData } from './UnifiedSlotModal';
+import { SlotMiniStatsOverlay, MiniStatsSlotData } from './SlotMiniStatsOverlay';
 
 interface RackLayout2DProps {
   items: InventoryItem[];
   searchQuery?: string;
+  initialSectionTab?: 'MACRO_OVERVIEW' | 'FLOOR_DA4D1' | 'RACK_ZONES' | 'FULL3D';
   onSelectBay: (zone: StorageZone, bayNumber: number) => void;
   onOpen3D: (zone: StorageZone, bayNumber: number) => void;
+  onOpenScanner?: (zone: StorageZone, bay: number, level: ShelfLevel, mode: MovementType) => void;
+  onRelocateItem?: (item: InventoryItem) => void;
+  onNavigateToCampus?: () => void;
   isDashboardFullscreen?: boolean;
 }
 
@@ -44,17 +57,31 @@ interface HoveredBayData {
 export const RackLayout2D: React.FC<RackLayout2DProps> = ({
   items,
   searchQuery = '',
+  initialSectionTab = 'MACRO_OVERVIEW',
   onSelectBay,
   onOpen3D,
+  onOpenScanner,
+  onRelocateItem,
+  onNavigateToCampus,
   isDashboardFullscreen
 }) => {
+  // A4 Building Main Section Switcher: Macro Plan, Floor Staging (DA4D-1), Rack Zones (DA4D-2 & DA4D-3), or Full 3D
+  const [a4SectionTab, setA4SectionTab] = useState<'MACRO_OVERVIEW' | 'FLOOR_DA4D1' | 'RACK_ZONES' | 'FULL3D'>(initialSectionTab);
+  
+  useEffect(() => {
+    if (initialSectionTab) {
+      setA4SectionTab(initialSectionTab);
+    }
+  }, [initialSectionTab]);
+
   const [selectedZone, setSelectedZone] = useState<string>('ALL');
   const [filterType, setFilterType] = useState<'ALL' | 'OCCUPIED' | 'AGING'>('ALL');
-  const [viewMode, setViewMode] = useState<'STANDARD' | 'HEATMAP' | 'FULL3D'>('STANDARD');
+  const [viewMode, setViewMode] = useState<'STANDARD' | 'HEATMAP'>('STANDARD');
   const [layoutMode, setLayoutMode] = useState<'FIT_OVERVIEW' | 'DETAILED'>('FIT_OVERVIEW');
   const [dimMode, setDimMode] = useState<'DIM' | 'HIDE'>('DIM');
   const [localSearch, setLocalSearch] = useState<string>(searchQuery);
   const [hoveredBay, setHoveredBay] = useState<HoveredBayData | null>(null);
+  const [selectedSlotForModal, setSelectedSlotForModal] = useState<UnifiedSlotData | null>(null);
 
   useEffect(() => {
     setLocalSearch(searchQuery);
@@ -63,9 +90,9 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
   const activeQuery = localSearch.trim();
 
   // Zones definition based on layout
-  const purpleZones: StorageZone[] = ['B', 'C', 'D', 'E', 'F']; // 12 bays each
-  const orangeZones: StorageZone[] = ['G', 'H', 'I', 'J', 'K']; // 5 bays each
-  const allZonesList: StorageZone[] = ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'];
+  const purpleZones: StorageZone[] = ['B', 'C', 'D', 'E', 'F']; // 12 bays each (DA4D-2: 480 Pallets)
+  const orangeZones: StorageZone[] = ['G', 'H', 'I', 'J', 'K']; // 5 bays each (DA4D-3: 200 Pallets)
+  const allRackZonesList: StorageZone[] = ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'];
 
   // Helper to get items in a specific bay
   const getBayInfo = (zone: StorageZone, bayNum: number) => {
@@ -123,32 +150,9 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
     setHoveredBay(null);
   };
 
-  // Calculate overall search statistics across all zones
-  const allZones: StorageZone[] = [...purpleZones, ...orangeZones];
-  let totalMatchedRacksCount = 0;
-  let totalMatchedPalletsCount = 0;
-  let totalMatchedQtyCount = 0;
-  const matchedBayList: string[] = [];
-
-  if (activeQuery !== '') {
-    allZones.forEach((z) => {
-      const maxBays = purpleZones.includes(z) ? 12 : 5;
-      for (let b = 1; b <= maxBays; b++) {
-        const info = getBayInfo(z, b);
-        if (info.matchesSearch) {
-          totalMatchedRacksCount++;
-          totalMatchedPalletsCount += info.matchedCount;
-          totalMatchedQtyCount += info.matchedQty;
-          matchedBayList.push(`${z}${b}`);
-        }
-      }
-    });
-  }
-
-  // Zone Capacity & Congestion Heatmap Calculation for Zones B to K
+  // Zone Capacity & Congestion Heatmap Calculation for Zones B to K (Racks)
   const zoneCapacityStats = useMemo(() => {
-    const zonesList: StorageZone[] = ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'];
-    return zonesList.map((z) => {
+    return allRackZonesList.map((z) => {
       const isPurple = purpleZones.includes(z);
       const maxBays = isPurple ? 12 : 5;
       const maxCapacity = maxBays * 4; // 4 shelf levels per bay
@@ -198,11 +202,75 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
         congestionText,
       };
     });
-  }, [items, purpleZones]);
+  }, [items]);
 
-  const totalWarehouseCapacity = zoneCapacityStats.reduce((acc, z) => acc + z.maxCapacity, 0);
-  const totalWarehouseOccupied = zoneCapacityStats.reduce((acc, z) => acc + z.occupiedLocations, 0);
-  const totalWarehousePercent = Math.round((totalWarehouseOccupied / totalWarehouseCapacity) * 100);
+  // Helper to open unified slot modal for a rack bay
+  const handleOpenSlotModal = (zone: StorageZone, bayNum: number) => {
+    const bayItems = items.filter(it => it.zone === zone && it.bayNumber === bayNum);
+    const isPurple = purpleZones.includes(zone);
+    const subArea = isPurple ? 'DA4D-2 (Zone B-F)' : 'DA4D-3 (Zone G-K)';
+    const primaryItem = bayItems[0] || null;
+    const locator = primaryItem ? primaryItem.locatorCode : `DA4D-${isPurple ? '2' : '3'}.01-${zone}${String(bayNum).padStart(2, '0')}-L1`;
+
+    setSelectedSlotForModal({
+      sectorType: 'RACK',
+      buildingName: 'อาคาร A4',
+      facilityId: 'FAC-A4-MAIN',
+      zoneName: `Rack โซน ${zone} (${subArea})`,
+      locatorCode: locator,
+      bayOrGroupNumber: bayNum,
+      level: primaryItem ? primaryItem.level : 1,
+      maxCapacityPallets: 4,
+      item: primaryItem,
+      bayItems: bayItems
+    });
+  };
+
+  // Overall A4 Building Capacities
+  const a4CapacitySummary = useMemo(() => {
+    // 1. DA4D-1 Floor Staging (X1-X8) = 432 Pallets
+    const floorItems = items.filter(it => 
+      ['X1','X2','X3','X4','X5','X6','X7','X8'].includes(it.zone) ||
+      it.locatorCode.startsWith('DA4D-1-') ||
+      it.locatorCode.startsWith('DA4D-1.01-')
+    );
+    const floorOccupied = floorItems.length;
+    const floorCapacity = 432;
+
+    // 2. DA4D-2 Rack (B-F) = 60 bays x 4 levels x 2 pallets = 480 Pallets
+    const da4d2Items = items.filter(it => purpleZones.includes(it.zone));
+    const da4d2Occupied = da4d2Items.length;
+    const da4d2Capacity = 480;
+
+    // 3. DA4D-3 Rack (G-K) = 25 bays x 4 levels x 2 pallets = 200 Pallets
+    const da4d3Items = items.filter(it => orangeZones.includes(it.zone));
+    const da4d3Occupied = da4d3Items.length;
+    const da4d3Capacity = 200;
+
+    const totalRackCapacity = da4d2Capacity + da4d3Capacity; // 680
+    const totalRackOccupied = da4d2Occupied + da4d3Occupied;
+
+    const totalA4Capacity = floorCapacity + totalRackCapacity; // 1,112
+    const totalA4Occupied = floorOccupied + totalRackOccupied;
+
+    return {
+      totalA4Capacity,
+      totalA4Occupied,
+      totalA4Percent: Math.round((totalA4Occupied / totalA4Capacity) * 100),
+      floorCapacity,
+      floorOccupied,
+      floorPercent: Math.round((floorOccupied / floorCapacity) * 100),
+      da4d2Capacity,
+      da4d2Occupied,
+      da4d2Percent: Math.round((da4d2Occupied / da4d2Capacity) * 100),
+      da4d3Capacity,
+      da4d3Occupied,
+      da4d3Percent: Math.round((da4d3Occupied / da4d3Capacity) * 100),
+      totalRackCapacity,
+      totalRackOccupied,
+      totalRackPercent: Math.round((totalRackOccupied / totalRackCapacity) * 100)
+    };
+  }, [items]);
 
   // Heatmap intensity styling based on quantity
   const getDensityHeatmapBg = (totalQty: number) => {
@@ -226,347 +294,518 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-3 sm:p-5 shadow-sm text-slate-900 space-y-4 sm:space-y-5 min-w-0 max-w-full w-full">
-      {/* Header controls */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between pb-3 sm:pb-4 border-b border-slate-200 gap-3 sm:gap-4">
-        <div>
-          <div className="flex items-center space-x-2">
-            <span className="w-3 h-3 rounded-full bg-blue-600" />
-            <h2 className="text-lg font-bold tracking-tight text-slate-800">
-              แผนผังพื้นที่จัดเก็บ 2D & 3D (HE Inventory Layout)
-            </h2>
+    <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-5 shadow-xs text-slate-900 space-y-4 sm:space-y-5 min-w-0 max-w-full w-full">
+      
+      {/* 1. TOP HEADER & MULTI-ZONE CAPACITY BREAKDOWN CARDS */}
+      <div className="space-y-4 border-b border-slate-200 pb-4">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center space-x-2 flex-wrap">
+              {onNavigateToCampus && (
+                <button
+                  onClick={onNavigateToCampus}
+                  className="px-2.5 py-0.5 rounded-full text-xs font-black bg-slate-800 hover:bg-slate-700 text-white flex items-center space-x-1 shadow-sm transition-all"
+                >
+                  <span>🏢 ◂ ผังรวมแคมปัส A2/A4</span>
+                </button>
+              )}
+              <span className="w-3 h-3 rounded-full bg-blue-600 animate-pulse" />
+              <h2 className="text-lg sm:text-xl font-black tracking-tight text-slate-900">
+                ผังคลังสินค้า A4 Building (อาคารคลังหลัก & โครงสร้าง Rack + ลานวางพื้น)
+              </h2>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-blue-100 text-blue-900 border border-blue-200">
+                ความจุรวม 1,112 พาเลท
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              โครงสร้าง Selective Rack DA4D-2 (480P), DA4D-3 (200P) รวม 680 พาเลท และโซนลานวางพื้นสีเหลือง DA4D-1 (X1-X8 รวม 432 พาเลท)
+            </p>
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">
-            ค้นหาตำแหน่ง P/No, ดูชั้นวางแบบ Heatmap หรือส่องในโหมด 3D Map ได้ทันที
-          </p>
+
+          {/* Area Capacity Breakdown Badges */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs w-full lg:w-auto">
+            {/* Total A4 Building */}
+            <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-2.5 rounded-xl text-center shadow-xs">
+              <span className="text-[10px] text-slate-300 block font-bold">อาคาร A4 รวมทั้งหมด</span>
+              <span className="text-sm sm:text-base font-black font-mono">{a4CapacitySummary.totalA4Capacity}</span>
+              <span className="text-[10px] text-slate-300 block font-medium mt-0.5">
+                จัดเก็บ {a4CapacitySummary.totalA4Occupied} ({a4CapacitySummary.totalA4Percent}%)
+              </span>
+            </div>
+
+            {/* DA4D-1 Floor Staging */}
+            <div 
+              onClick={() => setA4SectionTab('FLOOR_DA4D1')}
+              className={`p-2.5 rounded-xl text-center border-2 transition-all cursor-pointer shadow-xs ${
+                a4SectionTab === 'FLOOR_DA4D1'
+                  ? 'bg-amber-500 text-slate-950 border-amber-600 ring-2 ring-amber-400'
+                  : 'bg-amber-50 text-slate-900 border-amber-300 hover:bg-amber-100'
+              }`}
+              title="คลิกเพื่อเปิดผังโซนวางพื้น DA4D-1"
+            >
+              <span className="text-[10px] font-bold block">🟨 วางพื้น DA4D-1 (X1-X8)</span>
+              <span className="text-sm sm:text-base font-black font-mono">{a4CapacitySummary.floorCapacity} P</span>
+              <span className="text-[10px] block font-medium mt-0.5">
+                จัดเก็บ {a4CapacitySummary.floorOccupied} ({a4CapacitySummary.floorPercent}%)
+              </span>
+            </div>
+
+            {/* DA4D-2 Selective Rack */}
+            <div 
+              onClick={() => setA4SectionTab('RACK_ZONES')}
+              className={`p-2.5 rounded-xl text-center border-2 transition-all cursor-pointer shadow-xs ${
+                a4SectionTab === 'RACK_ZONES'
+                  ? 'bg-blue-600 text-white border-blue-700 ring-2 ring-blue-400'
+                  : 'bg-blue-50 text-slate-900 border-blue-200 hover:bg-blue-100'
+              }`}
+              title="คลิกเพื่อเปิดผังแร็ค Zone B-F"
+            >
+              <span className="text-[10px] font-bold block">🏗️ Rack DA4D-2 (B-F)</span>
+              <span className="text-sm sm:text-base font-black font-mono">{a4CapacitySummary.da4d2Capacity} P</span>
+              <span className="text-[10px] block font-medium mt-0.5">
+                จัดเก็บ {a4CapacitySummary.da4d2Occupied} ({a4CapacitySummary.da4d2Percent}%)
+              </span>
+            </div>
+
+            {/* DA4D-3 Selective Rack */}
+            <div 
+              onClick={() => setA4SectionTab('RACK_ZONES')}
+              className={`p-2.5 rounded-xl text-center border-2 transition-all cursor-pointer shadow-xs ${
+                a4SectionTab === 'RACK_ZONES'
+                  ? 'bg-indigo-600 text-white border-indigo-700 ring-2 ring-indigo-400'
+                  : 'bg-indigo-50 text-slate-900 border-indigo-200 hover:bg-indigo-100'
+              }`}
+              title="คลิกเพื่อเปิดผังแร็ค Zone G-K"
+            >
+              <span className="text-[10px] font-bold block">🏗️ Rack DA4D-3 (G-K)</span>
+              <span className="text-sm sm:text-base font-black font-mono">{a4CapacitySummary.da4d3Capacity} P</span>
+              <span className="text-[10px] block font-medium mt-0.5">
+                จัดเก็บ {a4CapacitySummary.da4d3Occupied} ({a4CapacitySummary.da4d3Percent}%)
+              </span>
+            </div>
+          </div>
         </div>
 
-        {/* Filters & View Mode Toggles */}
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          {/* Layout Display Mode: Fit Overview vs Detailed */}
-          <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-300 shadow-2xs">
+        {/* 2. PRIMARY VIEW SWITCHER TABS */}
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs bg-slate-100 p-1.5 rounded-xl border border-slate-200">
+          <div className="flex flex-wrap items-center gap-1 font-bold">
             <button
-              onClick={() => setLayoutMode('FIT_OVERVIEW')}
-              className={`px-3 py-1 rounded-md font-bold transition-all flex items-center space-x-1.5 ${
-                layoutMode === 'FIT_OVERVIEW' 
-                  ? 'bg-blue-600 text-white shadow-xs' 
-                  : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/60'
-              }`}
-              title="เห็นครบ 10 Racks (B-K) ในหน้าจอเดียว ไม่ต้องเลื่อนจอลงล่าง"
-            >
-              <Grid className="w-3.5 h-3.5" />
-              <span>ภาพรวมพอดีจอ (10 Racks)</span>
-            </button>
-            <button
-              onClick={() => setLayoutMode('DETAILED')}
-              className={`px-3 py-1 rounded-md font-bold transition-all flex items-center space-x-1.5 ${
-                layoutMode === 'DETAILED' 
-                  ? 'bg-blue-600 text-white shadow-xs' 
-                  : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/60'
-              }`}
-              title="มุมมองแบบแยกโซน B-F และ G-K"
-            >
-              <Maximize2 className="w-3.5 h-3.5" />
-              <span>มุมมองขยาย (Zone View)</span>
-            </button>
-          </div>
-
-          {/* View Mode Toggle: Standard vs Heatmap vs FULL3D */}
-          <div className="flex bg-slate-200/80 p-1 rounded-lg border border-slate-300">
-            <button
-              onClick={() => setViewMode('STANDARD')}
-              className={`px-3 py-1 rounded-md font-bold transition-all ${
-                viewMode === 'STANDARD' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              onClick={() => setA4SectionTab('MACRO_OVERVIEW')}
+              className={`px-3 py-2 rounded-lg transition-all flex items-center space-x-1.5 ${
+                a4SectionTab === 'MACRO_OVERVIEW'
+                  ? 'bg-blue-600 text-white shadow-xs font-black'
+                  : 'text-slate-700 hover:bg-slate-200'
               }`}
             >
-              แผนผังปกติ
+              <Building2 className="w-3.5 h-3.5" />
+              <span>🏢 ผังรวมอาคาร A4 (Macro Floor & Rack Layout)</span>
             </button>
             <button
-              onClick={() => setViewMode('HEATMAP')}
-              className={`px-3 py-1 rounded-md font-bold transition-all flex items-center space-x-1 ${
-                viewMode === 'HEATMAP' ? 'bg-gradient-to-r from-orange-500 to-red-600 text-white shadow-sm' : 'text-slate-700 hover:text-slate-900'
+              onClick={() => setA4SectionTab('FLOOR_DA4D1')}
+              className={`px-3 py-2 rounded-lg transition-all flex items-center space-x-1.5 ${
+                a4SectionTab === 'FLOOR_DA4D1'
+                  ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                  : 'text-slate-700 hover:bg-slate-200'
               }`}
             >
-              <span>🔥 Density Heatmap</span>
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span>🟨 โซนวางพื้น DA4D-1 (X1-X8: 432 พาเลท)</span>
             </button>
             <button
-              onClick={() => setViewMode('FULL3D')}
-              className={`px-3 py-1 rounded-md font-bold transition-all flex items-center space-x-1 ${
-                viewMode === 'FULL3D' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-700 hover:text-slate-900'
+              onClick={() => setA4SectionTab('RACK_ZONES')}
+              className={`px-3 py-2 rounded-lg transition-all flex items-center space-x-1.5 ${
+                a4SectionTab === 'RACK_ZONES'
+                  ? 'bg-blue-600 text-white shadow-xs font-black'
+                  : 'text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>🏗️ โซนแร็ค DA4D-2 & DA4D-3 (Zone B-K: 680 พาเลท)</span>
+            </button>
+            <button
+              onClick={() => setA4SectionTab('FULL3D')}
+              className={`px-3 py-2 rounded-lg transition-all flex items-center space-x-1.5 ${
+                a4SectionTab === 'FULL3D'
+                  ? 'bg-blue-600 text-white shadow-xs font-black'
+                  : 'text-slate-700 hover:bg-slate-200'
               }`}
             >
               <Box className="w-3.5 h-3.5" />
-              <span>Full 3D Map</span>
+              <span>🌐 3D Virtual Warehouse (โมเดล 3 มิติ)</span>
             </button>
           </div>
 
-          <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
-            <button
-              onClick={() => setFilterType('ALL')}
-              className={`px-3 py-1 rounded-md font-medium transition-all ${
-                filterType === 'ALL' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              ทั้งหมด
-            </button>
-            <button
-              onClick={() => setFilterType('OCCUPIED')}
-              className={`px-3 py-1 rounded-md font-medium transition-all ${
-                filterType === 'OCCUPIED' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              มีสินค้า
-            </button>
-            <button
-              onClick={() => setFilterType('AGING')}
-              className={`px-3 py-1 rounded-md font-medium transition-all ${
-                filterType === 'AGING' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Aging
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* P/No Search Bar & Heatmap Filter Controller */}
-      <div className="space-y-3">
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shadow-xs">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          {/* Quick Search */}
+          <div className="relative min-w-[220px]">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={localSearch}
               onChange={(e) => setLocalSearch(e.target.value)}
-              placeholder="🔍 ค้นหา P/No หรือ Model HE ใน Layout (เช่น 1254, ADL74920904, ACG76284709...)"
-              className="w-full bg-white border border-slate-300 focus:border-blue-500 rounded-lg pl-9 pr-8 py-2 text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none shadow-xs"
+              placeholder="ค้นหา P/No, Model, Locator..."
+              className="w-full bg-white border border-slate-300 focus:border-blue-500 rounded-lg pl-8 pr-7 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none shadow-2xs"
             />
             {localSearch && (
               <button
                 onClick={() => setLocalSearch('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-full"
-                title="ล้างคำค้นหา"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="w-3 h-3" />
               </button>
             )}
           </div>
+        </div>
+      </div>
 
-          {/* Quick Search Chips */}
-          <div className="flex items-center space-x-1.5 overflow-x-auto text-[11px] no-scrollbar">
-            <span className="text-slate-500 font-semibold shrink-0">ค้นหาด่วน:</span>
-            {['1254', 'ADL76754205', 'ADL74920904', 'ACG76284709'].map((code) => (
+      {/* DYNAMIC LEGEND & LOCATOR GUIDE PANEL */}
+      <DynamicLegendPanel />
+
+      {/* ========================================================================= */}
+      {/* 🏢 TAB 1: MACRO OVERVIEW (ผังรวมอาคาร A4 - สถาปัตยกรรม & แผนที่พื้นที่รวม) */}
+      {/* ========================================================================= */}
+      {a4SectionTab === 'MACRO_OVERVIEW' && (
+        <div className="space-y-4 animate-fadeIn">
+          {/* Architectural Layout Map Canvas */}
+          <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-5 sm:p-6 text-white shadow-lg space-y-6 relative overflow-hidden">
+            
+            {/* Background Blueprint Grid Line Pattern */}
+            <div className="absolute inset-0 opacity-10 pointer-events-none bg-[radial-gradient(#3b82f6_1px,transparent_1px)] [background-size:16px_16px]" />
+
+            {/* Macro Header */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 relative z-10 border-b border-slate-800 pb-3">
+              <div>
+                <div className="flex items-center space-x-2">
+                  <Compass className="w-4 h-4 text-blue-400" />
+                  <h3 className="text-base font-black text-white">
+                    A4 BUILDING ARCHITECTURAL LAYOUT & STORAGE MAPPING
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  ผังรวมอาคาร A4 แสดงความสัมพันธ์ระหว่าง Selective Racks (DA4D-2, DA4D-3), ลานวางพื้น (DA4D-1), และเส้นทางลำเลียง Forklift / AGV
+                </p>
+              </div>
+
+              {/* Sample Locator Legend */}
+              <div className="flex items-center space-x-2 text-[11px] font-mono">
+                <span className="px-2 py-1 rounded bg-rose-950 border border-rose-500 text-rose-300 font-bold flex items-center space-x-1">
+                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+                  <span>ตัวอย่าง DA4D-2-D2-L1 & DA4D-1-R8-06</span>
+                </span>
+              </div>
+            </div>
+
+            {/* A4 Macro Schematic Container */}
+            <div className="relative z-10 border-2 border-slate-700 bg-slate-950/80 rounded-xl p-4 sm:p-6 space-y-6 min-h-[480px]">
+              
+              {/* Outer Walls & Door Markers */}
+              <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 px-4">
+                <span className="px-2 py-0.5 bg-slate-800 rounded border border-slate-700 text-emerald-400">
+                  🚪 Door 1 (Raw Material Gate)
+                </span>
+                <span className="px-2 py-0.5 bg-slate-800 rounded border border-slate-700 text-blue-400">
+                  🚛 Receiving & Dock Area A4
+                </span>
+                <span className="px-2 py-0.5 bg-slate-800 rounded border border-slate-700 text-emerald-400">
+                  🚪 Door 2 (Assembly Transfer Gate)
+                </span>
+              </div>
+
+              {/* Top Row: RACK ZONES (DA4D-2 on left, DA4D-3 on right) */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                
+                {/* DA4D-2 Selective Rack Block (Zone B, C, D, E, F: 12 Bays each) */}
+                <div 
+                  onClick={() => setA4SectionTab('RACK_ZONES')}
+                  className="md:col-span-8 bg-blue-950/40 border-2 border-blue-500/60 hover:border-blue-400 rounded-xl p-4 cursor-pointer transition-all hover:bg-blue-950/60 group shadow-md"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center space-x-2">
+                      <span className="px-2 py-0.5 bg-blue-600 text-white rounded text-xs font-black">
+                        DA4D-2
+                      </span>
+                      <span className="text-xs font-bold text-blue-200">
+                        Selective Rack Zone B, C, D, E, F
+                      </span>
+                    </div>
+                    <span className="text-xs font-mono font-black text-blue-400 group-hover:text-blue-300 flex items-center space-x-1">
+                      <span>480 Pallets (12 Bays x 4 Levels)</span>
+                      <ArrowUpRight className="w-3.5 h-3.5" />
+                    </span>
+                  </div>
+
+                  {/* Visual Rack Preview Bars */}
+                  <div className="grid grid-cols-5 gap-1.5 mt-3 text-center text-[10px] font-mono">
+                    {['Rack B (Single)', 'Rack C (Back)', 'Rack D (Back)', 'Rack E (Back)', 'Rack F (Single)'].map((rName, idx) => {
+                      const z = ['B', 'C', 'D', 'E', 'F'][idx];
+                      const isD2Sample = z === 'D';
+                      return (
+                        <div 
+                          key={rName} 
+                          className={`p-2 rounded-lg border transition-all ${
+                            isD2Sample 
+                              ? 'bg-rose-950/80 border-rose-500 text-white ring-1 ring-rose-500' 
+                              : 'bg-blue-900/40 border-blue-700/60 text-blue-200'
+                          }`}
+                        >
+                          <div className="font-bold text-xs">{rName.split(' ')[0]} {rName.split(' ')[1]}</div>
+                          <div className="text-[9px] text-slate-400">12 Bays • L1-L4</div>
+                          {isD2Sample && (
+                            <div className="mt-1 text-[8px] bg-rose-600 text-white font-bold px-1 py-0.5 rounded animate-pulse">
+                              Sample D2-L1
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-2 text-right">
+                    <span className="text-[10px] text-blue-300/80 italic font-sans">
+                      คลิกเพื่อเปิดดูรายละเอียดและชั้นวางแร็ค DA4D-2 →
+                    </span>
+                  </div>
+                </div>
+
+                {/* DA4D-3 Selective Rack Block (Zone G, H, I, J, K: 5 Bays each) */}
+                <div 
+                  onClick={() => setA4SectionTab('RACK_ZONES')}
+                  className="md:col-span-4 bg-indigo-950/40 border-2 border-indigo-500/60 hover:border-indigo-400 rounded-xl p-4 cursor-pointer transition-all hover:bg-indigo-950/60 group shadow-md"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center space-x-2">
+                      <span className="px-2 py-0.5 bg-indigo-600 text-white rounded text-xs font-black">
+                        DA4D-3
+                      </span>
+                      <span className="text-xs font-bold text-indigo-200">
+                        Rack G, H, I, J, K
+                      </span>
+                    </div>
+                    <span className="text-xs font-mono font-black text-indigo-400 group-hover:text-indigo-300 flex items-center space-x-1">
+                      <span>200 Pallets</span>
+                      <ArrowUpRight className="w-3.5 h-3.5" />
+                    </span>
+                  </div>
+
+                  {/* Visual Rack Preview Bars */}
+                  <div className="grid grid-cols-5 gap-1 mt-3 text-center text-[10px] font-mono">
+                    {['G', 'H', 'I', 'J', 'K'].map((z) => (
+                      <div key={z} className="p-2 rounded-lg bg-indigo-900/40 border border-indigo-700/60 text-indigo-200">
+                        <div className="font-bold text-xs">Rack {z}</div>
+                        <div className="text-[9px] text-slate-400">5 Bays</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-2 text-right">
+                    <span className="text-[10px] text-indigo-300/80 italic font-sans">
+                      คลิกเพื่อเปิดดูแร็ค DA4D-3 →
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Middle Aisle: FORKLIFT & AGV MAIN AISLE */}
+              <div className="border-y-2 border-dashed border-amber-500/40 py-2 px-4 flex items-center justify-between text-xs font-mono text-amber-400/90 bg-amber-950/20 rounded-lg">
+                <span className="flex items-center space-x-2">
+                  <span>🚜 MAIN FORKLIFT AISLE (ทางวิ่งรถยก & รถโฟล์คลิฟท์)</span>
+                </span>
+                <span className="text-[10px] text-amber-300/70">
+                  ◀ AGV & Pallet Truck Transfer Pathway ▶
+                </span>
+              </div>
+
+              {/* Bottom Row: FLOOR STAGING DA4D-1 (Yellow Zone) & OFFICE */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch">
+                
+                {/* DA4D-1 FLOOR STAGING ZONE (X1 to X8: 432 Pallets) */}
+                <div 
+                  onClick={() => setA4SectionTab('FLOOR_DA4D1')}
+                  className="md:col-span-9 bg-amber-950/30 border-2 border-amber-400 hover:border-amber-300 rounded-xl p-4 cursor-pointer transition-all hover:bg-amber-950/50 group shadow-md"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center space-x-2">
+                      <span className="px-2 py-0.5 bg-amber-500 text-slate-950 rounded text-xs font-black">
+                        DA4D-1
+                      </span>
+                      <span className="text-xs font-bold text-amber-200">
+                        โซนวางพื้นสีเหลือง (Floor Staging Group X1 - X8)
+                      </span>
+                    </div>
+                    <span className="text-xs font-mono font-black text-amber-400 group-hover:text-amber-300 flex items-center space-x-1">
+                      <span>432 Pallets (1 กล่อง = 1 พาเลท)</span>
+                      <ArrowUpRight className="w-3.5 h-3.5" />
+                    </span>
+                  </div>
+
+                  {/* Preview Matrix of X1..X8 */}
+                  <div className="space-y-1.5 mt-3">
+                    {/* Top block X5-X8 */}
+                    <div className="grid grid-cols-4 gap-1.5 text-center text-[10px] font-mono">
+                      {['X8 (1212)', 'X7 (1211)', 'X6 (1210)', 'X5 (1209)'].map((xName) => (
+                        <div key={xName} className="p-1.5 rounded bg-amber-900/40 border border-amber-600/50 text-amber-100">
+                          <div className="font-bold text-[11px]">{xName}</div>
+                          <div className="text-[9px] text-amber-300/80">12 Cols • 66 Pallets</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Bottom block X1-X4 */}
+                    <div className="grid grid-cols-4 gap-1.5 text-center text-[10px] font-mono">
+                      {['X4 (1208)', 'X3 (1207)', 'X2 (1206)', 'X1 (1205)'].map((xName) => {
+                        const isX2Sample = xName.startsWith('X2');
+                        return (
+                          <div 
+                            key={xName} 
+                            className={`p-1.5 rounded border transition-all ${
+                              isX2Sample 
+                                ? 'bg-rose-950/80 border-rose-500 text-white ring-1 ring-rose-500' 
+                                : 'bg-amber-900/40 border-amber-600/50 text-amber-100'
+                            }`}
+                          >
+                            <div className="font-bold text-[11px]">{xName}</div>
+                            <div className="text-[9px] text-amber-300/80">7 Cols • 42 Pallets</div>
+                            {isX2Sample && (
+                              <div className="text-[8px] bg-rose-600 text-white font-bold px-1 rounded mt-0.5 animate-pulse">
+                                Sample R8-06
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="mt-2.5 flex items-center justify-between text-[10px] text-amber-300/80">
+                    <span>💡 รูปแบบรหัสพิกัด: DA4D-1-R[Row]-[Col] (เช่น DA4D-1-R8-06)</span>
+                    <span className="font-bold underline text-amber-300">คลิกเพื่อเปิดดู Matrix ผังวางพื้นเต็มรูปแบบ →</span>
+                  </div>
+                </div>
+
+                {/* OFFICE / CONTROL ROOM BLOCK (Bottom Right matching image) */}
+                <div className="md:col-span-3 bg-sky-950/60 border-2 border-sky-500/70 rounded-xl p-4 flex flex-col justify-between text-center">
+                  <div className="space-y-1">
+                    <span className="px-2 py-0.5 bg-sky-600 text-white rounded text-[10px] font-bold">
+                      OFFICE & QA
+                    </span>
+                    <h4 className="text-xs font-black text-sky-200 mt-2">
+                      ห้องสำนักงาน & ควบคุมคลัง A4 (Office)
+                    </h4>
+                    <p className="text-[10px] text-sky-300/70">
+                      จุดประสานงานจ่ายงาน Forklift, ตรวจสอบเอกสารนำเข้า และบันทึก WMS
+                    </p>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-sky-800 text-[10px] text-sky-400 font-mono">
+                    ประตูทางเข้าสำนักงาน 🚪
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 🟨 TAB 2: FLOOR STAGING DA4D-1 (1 กล่อง แทน 1 พาเลท: X1 - X8 รวม 432 พาเลท) */}
+      {/* ========================================================================= */}
+      {a4SectionTab === 'FLOOR_DA4D1' && (
+        <div className="space-y-4 animate-fadeIn">
+          <DA4D1FloorStagingMap 
+            items={items}
+            searchQuery={activeQuery}
+            onOpenScanner={onOpenScanner}
+            onRelocateItem={onRelocateItem}
+          />
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 🏗️ TAB 3: SELECTIVE RACKS DA4D-2 & DA4D-3 (ZONE B ถึง K รวม 680 พาเลท) */}
+      {/* ========================================================================= */}
+      {a4SectionTab === 'RACK_ZONES' && (
+        <div className="space-y-4 animate-fadeIn">
+          
+          {/* Sub-header controls for Selective Racks */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-3 border-b border-slate-200 gap-3">
+            <div>
+              <h3 className="text-base font-black text-slate-800 flex items-center space-x-2">
+                <span>โครงสร้าง Selective Racks (DA4D-2: Zone B-F & DA4D-3: Zone G-K)</span>
+              </h3>
+              <p className="text-xs text-slate-500">
+                Selective Rack 4 ชั้น (L1-L4) ความจุรวม 680 พาเลท • รหัสพิกัดระบุตำแหน่ง: DA4D-2-[Rack]-[Level] (เช่น DA4D-2-D2-L1)
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              {/* Layout Mode Switcher */}
+              <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-300">
+                <button
+                  onClick={() => setLayoutMode('FIT_OVERVIEW')}
+                  className={`px-3 py-1 rounded-md font-bold transition-all flex items-center space-x-1 ${
+                    layoutMode === 'FIT_OVERVIEW' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  <Grid className="w-3.5 h-3.5" />
+                  <span>ภาพรวมพอดีจอ (10 Racks)</span>
+                </button>
+                <button
+                  onClick={() => setLayoutMode('DETAILED')}
+                  className={`px-3 py-1 rounded-md font-bold transition-all flex items-center space-x-1 ${
+                    layoutMode === 'DETAILED' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  <Maximize2 className="w-3.5 h-3.5" />
+                  <span>มุมมองขยาย (Zone View)</span>
+                </button>
+              </div>
+
+              {/* View Mode Toggle */}
+              <div className="flex bg-slate-200/80 p-1 rounded-lg border border-slate-300 font-bold">
+                <button
+                  onClick={() => setViewMode('STANDARD')}
+                  className={`px-3 py-1 rounded-md transition-all ${
+                    viewMode === 'STANDARD' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  แผนผังปกติ
+                </button>
+                <button
+                  onClick={() => setViewMode('HEATMAP')}
+                  className={`px-3 py-1 rounded-md transition-all flex items-center space-x-1 ${
+                    viewMode === 'HEATMAP' ? 'bg-gradient-to-r from-orange-500 to-red-600 text-white shadow-xs' : 'text-slate-700 hover:text-slate-900'
+                  }`}
+                >
+                  <span>🔥 Density Heatmap</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Mini Zone Filter Badges */}
+          <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5 text-xs">
+            {zoneCapacityStats.map((z) => (
               <button
-                key={code}
-                onClick={() => setLocalSearch(code)}
-                className={`px-2 py-1 rounded-md border font-mono font-bold transition-colors shrink-0 ${
-                  localSearch === code
-                    ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                key={z.zone}
+                onClick={() => setSelectedZone(selectedZone === z.zone ? 'ALL' : z.zone)}
+                className={`p-2 rounded-xl border text-left transition-all ${
+                  selectedZone === z.zone
+                    ? 'ring-2 ring-blue-600 bg-blue-50 border-blue-400'
+                    : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
                 }`}
               >
-                {code}
+                <div className="flex items-center justify-between font-black">
+                  <span>Rack {z.zone}</span>
+                  <span className="text-[10px] font-mono">{z.percent}%</span>
+                </div>
+                <div className="w-full bg-slate-200 rounded-full h-1 mt-1 overflow-hidden">
+                  <div className={`h-1 ${z.barBgClass}`} style={{ width: `${z.percent}%` }} />
+                </div>
               </button>
             ))}
           </div>
-        </div>
 
-        {/* Heatmap Search Active Banner */}
-        {activeQuery !== '' && (
-          <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white p-3.5 rounded-xl border border-blue-500/40 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fadeIn">
-            <div className="flex items-center space-x-3">
-              <div className="w-9 h-9 rounded-lg bg-emerald-500/20 border border-emerald-400/50 flex items-center justify-center shrink-0">
-                <Search className="w-5 h-5 text-emerald-400 animate-pulse" />
-              </div>
-              <div>
-                <div className="flex items-center space-x-2">
-                  <span className="font-extrabold text-xs sm:text-sm text-emerald-300">
-                    🎯 P/No Heatmap Filter Active: "{activeQuery}"
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500 text-slate-950">
-                    {totalMatchedRacksCount} Racks Found
-                  </span>
-                </div>
-                <p className="text-[11px] sm:text-xs text-slate-300 mt-0.5">
-                  ตำแหน่งที่พบ: <span className="font-mono font-bold text-amber-300">{matchedBayList.join(', ') || 'ไม่พบในคลัง'}</span> | รวม <span className="font-bold text-white">{totalMatchedPalletsCount} Pallets</span> ({totalMatchedQtyCount.toLocaleString()} Units)
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2 self-end sm:self-center shrink-0 text-xs">
-              <button
-                onClick={() => setDimMode(dimMode === 'DIM' ? 'HIDE' : 'DIM')}
-                className={`px-3 py-1.5 rounded-lg border font-bold transition-all flex items-center space-x-1.5 ${
-                  dimMode === 'HIDE'
-                    ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm'
-                    : 'bg-slate-800 text-slate-200 border-slate-700 hover:bg-slate-700'
-                }`}
-              >
-                <Filter className="w-3.5 h-3.5" />
-                <span>{dimMode === 'HIDE' ? 'โหมด: ซ่อน Rack อื่นๆ' : 'โหมด: จางแสง Rack อื่นๆ'}</span>
-              </button>
-              <button
-                onClick={() => setLocalSearch('')}
-                className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 font-semibold transition-colors flex items-center space-x-1"
-              >
-                <X className="w-3.5 h-3.5" />
-                <span>ล้างคำค้นหา</span>
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Visual Heatmap Bar: Occupied Capacity for Each Zone (B-K) */}
-      <div className="bg-slate-50 border border-slate-200/90 rounded-xl p-3.5 sm:p-4 space-y-3 shadow-xs">
-        {/* Heatmap Bar Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-          <div className="flex items-center space-x-2">
-            <div className="p-1.5 rounded-lg bg-orange-100 text-orange-600">
-              <Activity className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <h3 className="text-xs sm:text-sm font-extrabold text-slate-800">
-                  แถบวิเคราะห์ความจุและระดับความหนาแน่นรายโซน (Zone B-K Capacity Heatmap Bar)
-                </h3>
-              </div>
-              <p className="text-[11px] text-slate-500">
-                สัดส่วนการใช้พื้นที่จัดเก็บรายโซน (B - K) เพื่อระบุจุดแออัด (Congestion) ได้อย่างรวดเร็ว
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-2 self-stretch sm:self-auto justify-between sm:justify-end">
-            <div className="text-right">
-              <span className="text-[11px] font-semibold text-slate-500">ความจุรวมทั้งคลัง: </span>
-              <span className="font-mono font-bold text-xs text-slate-900">
-                {totalWarehouseOccupied} / {totalWarehouseCapacity} Pallets ({totalWarehousePercent}%)
-              </span>
-            </div>
-            <span
-              className={`px-2.5 py-0.5 rounded-full text-[11px] font-black shrink-0 ${
-                totalWarehousePercent >= 90
-                  ? 'bg-red-600 text-white animate-pulse'
-                  : totalWarehousePercent >= 75
-                  ? 'bg-amber-500 text-white'
-                  : 'bg-emerald-600 text-white'
-              }`}
-            >
-              {totalWarehousePercent >= 90 ? '🔥 แน่นมาก' : totalWarehousePercent >= 75 ? '⚠️ หนาแน่น' : '✅ คล่องตัว'}
-            </span>
-          </div>
-        </div>
-
-        {/* Proportional Segmented Visual Bar */}
-        <div className="w-full bg-slate-200 rounded-xl h-6 sm:h-7 p-0.5 flex gap-0.5 overflow-hidden shadow-inner border border-slate-300/60">
-          {zoneCapacityStats.map((z) => {
-            const widthWeight = z.isPurple ? 12 : 5; // Weight according to rack bays count
-            return (
-              <div
-                key={z.zone}
-                style={{ flex: widthWeight }}
-                className={`h-full ${z.barBgClass} rounded transition-all duration-300 relative group flex items-center justify-center text-white cursor-pointer hover:opacity-90 hover:scale-y-105`}
-                onClick={() => setSelectedZone(selectedZone === z.zone ? 'ALL' : z.zone)}
-                title={`Zone ${z.zone}: ${z.occupiedLocations}/${z.maxCapacity} พาเลท (${z.percent}%) - ${z.congestionText}`}
-              >
-                <span className="text-[10px] sm:text-[11px] font-black truncate px-0.5 drop-shadow-xs">
-                  {z.zone}: {z.percent}%
-                </span>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Zone-by-Zone Heatmap Indicator Badges Grid */}
-        <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5 pt-1">
-          {zoneCapacityStats.map((z) => {
-            const isSelected = selectedZone === z.zone;
-            return (
-              <button
-                key={z.zone}
-                type="button"
-                onClick={() => setSelectedZone(selectedZone === z.zone ? 'ALL' : z.zone)}
-                className={`p-2 rounded-lg border text-left transition-all flex flex-col justify-between active:scale-95 ${
-                  isSelected
-                    ? 'ring-2 ring-blue-500 border-blue-500 bg-blue-50/80 shadow-xs'
-                    : z.badgeBorder
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-mono font-black text-xs">
-                    Zone {z.zone}
-                  </span>
-                  <span className="text-[10px] font-bold">
-                    {z.percent}%
-                  </span>
-                </div>
-                <div className="mt-1">
-                  {/* Mini Bar */}
-                  <div className="w-full bg-slate-200/80 rounded-full h-1.5 overflow-hidden">
-                    <div
-                      className={`h-1.5 rounded-full ${z.barBgClass}`}
-                      style={{ width: `${Math.max(4, z.percent)}%` }}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between text-[9px] mt-1 font-semibold opacity-90 truncate">
-                    <span>{z.occupiedLocations}/{z.maxCapacity} P</span>
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Main Grid Map Area */}
-      {viewMode === 'FULL3D' ? (
-        <div className="w-full relative min-w-0" style={{ height: isDashboardFullscreen ? 'calc(100vh - 180px)' : '500px' }}>
-          <Warehouse3DMap 
-            items={items} 
-            searchQuery={activeQuery}
-            onSelectBay={(z, b) => {
-              onSelectBay(z, b);
-              onOpen3D(z, b);
-            }} 
-            isDashboardFullscreen={isDashboardFullscreen}
-          />
-        </div>
-      ) : layoutMode === 'FIT_OVERVIEW' ? (
-        /* ========================================================================= */
-        /* 📊 MODE 1: FIT OVERVIEW (ภาพรวมพอดีจอ - เห็นครบทั้ง 10 RACKS B ถึง K ไม่ต้องเลื่อนจอลงล่าง) */
-        /* ========================================================================= */
-        <div className="space-y-4">
+          {/* 10-Rack Locked Unified Grid (Zone B to K) */}
           <div className="bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-200 shadow-xs overflow-x-auto min-w-0">
-            {/* Legend & Layout Notice */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-2.5 mb-3 border-b border-slate-200/80 gap-2 min-w-[760px]">
-              <div className="flex items-center space-x-3">
-                <span className="flex items-center space-x-1.5 text-xs font-black text-slate-800">
-                  <Grid className="w-4 h-4 text-blue-600" />
-                  <span>แผนผังภาพรวมทั้งคลัง 10 Racks (Zone B - K)</span>
-                </span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200">
-                  ความจุรวม 680 พาเลท (B-F 480P + G-K 200P)
-                </span>
-              </div>
-              <div className="flex items-center space-x-3 text-[11px] text-slate-500 font-medium">
-                <span className="flex items-center space-x-1">
-                  <span className="w-2 h-2 rounded bg-blue-600 inline-block" />
-                  <span>Zone B-F (12 Bays)</span>
-                </span>
-                <span className="flex items-center space-x-1">
-                  <span className="w-2 h-2 rounded bg-indigo-600 inline-block" />
-                  <span>Zone G-K (5 Bays)</span>
-                </span>
-                <span className="text-blue-600 font-bold hidden md:inline">
-                  ✨ ชี้เมาส์ที่ช่องเพื่อดูข้อมูล Pop-up ทันที
-                </span>
-              </div>
-            </div>
-
-            {/* 10-Column Unified Locked Grid for All Racks (B, C, D, E, F, G, H, I, J, K) */}
             <div className="grid grid-cols-10 gap-1.5 sm:gap-2 min-w-[760px]">
-              {allZonesList.map((zone) => {
+              {allRackZonesList.map((zone) => {
                 const isPurple = purpleZones.includes(zone);
                 const maxBays = isPurple ? 12 : 5;
                 const zoneStats = zoneCapacityStats.find((s) => s.zone === zone);
@@ -575,133 +814,77 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
                   <div key={zone} className="flex flex-col space-y-1">
                     {/* Rack Header */}
                     <div 
-                      className={`text-center font-black text-xs py-1.5 rounded-lg border shadow-2xs transition-colors ${
+                      className={`text-center font-black text-xs py-1.5 rounded-lg border shadow-2xs ${
                         isPurple 
                           ? 'bg-blue-600 text-white border-blue-700' 
                           : 'bg-indigo-600 text-white border-indigo-700'
                       }`}
                     >
-                      <div className="text-xs font-black leading-tight">Rack {zone}</div>
+                      <div className="text-xs font-black">Rack {zone}</div>
                       <div className="text-[9px] font-medium opacity-90 leading-tight mt-0.5">
                         {zoneStats ? `${zoneStats.occupiedLocations}/${zoneStats.maxCapacity} P` : ''}
                       </div>
                     </div>
 
-                    {/* Uniform Locked Aspect-Ratio Bay Cells (Top-aligned matching 3D layout) */}
+                    {/* Locked Bay Cells (Top-aligned matching 3D layout) */}
                     {(isPurple
                       ? [12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
                       : [5, 4, 3, 2, 1, null, null, null, null, null, null, null]
                     ).map((bayNum, rowIndex) => {
-                      // If empty floor area below Rack G-K (rows 6 to 12)
                       if (bayNum === null) {
                         return (
                           <div
                             key={`${zone}-empty-${rowIndex}`}
                             className="h-[46px] sm:h-[50px] rounded-md border border-dashed border-slate-200 bg-slate-100/40 flex items-center justify-center text-[10px] text-slate-300 font-mono select-none"
-                            title={`พื้นที่ว่างถัดจาก Rack ${zone} (ตรงกับแผนผัง 3D)`}
                           >
-                            <span className="opacity-40">-</span>
+                            -
                           </div>
                         );
                       }
 
-                      const { occupiedLevelsCount, totalQty, hasAgingAlert, mainModel, matchesSearch, matchedItemCode, matchedQty } = getBayInfo(zone, bayNum);
-                      const isOccupied = occupiedLevelsCount > 0;
-
-                      // Filter logic
-                      if (filterType === 'OCCUPIED' && !isOccupied) {
-                        return (
-                          <div key={`${zone}${bayNum}`} className="h-[46px] sm:h-[50px] rounded-md border border-slate-100 bg-slate-50/50 opacity-20" />
-                        );
-                      }
-                      if (filterType === 'AGING' && !hasAgingAlert) {
-                        return (
-                          <div key={`${zone}${bayNum}`} className="h-[46px] sm:h-[50px] rounded-md border border-slate-100 bg-slate-50/50 opacity-20" />
-                        );
-                      }
-
-                      const isDimmed = !matchesSearch && activeQuery !== '';
-                      const isMatchHighlight = matchesSearch && activeQuery !== '';
-
-                      if (activeQuery !== '' && dimMode === 'HIDE' && isDimmed) {
-                        return <div key={`${zone}${bayNum}`} className="h-[46px] sm:h-[50px] rounded-md border border-slate-100 bg-slate-50/20" />;
-                      }
+                      const bayInfo = getBayInfo(zone, bayNum);
+                      const isD2RedSample = zone === 'D' && bayNum === 2;
 
                       return (
                         <div
-                          key={`${zone}${bayNum}`}
-                          onMouseMove={(e) => !isDimmed && handleBayMouseMove(e, zone, bayNum)}
-                          onMouseEnter={(e) => !isDimmed && handleBayMouseMove(e, zone, bayNum)}
+                          key={`${zone}-${bayNum}`}
+                          id={`rack-bay-${zone}-${bayNum}`}
+                          onClick={() => onSelectBay(zone, bayNum)}
+                          onMouseMove={(e) => handleBayMouseMove(e, zone, bayNum)}
                           onMouseLeave={handleBayMouseLeave}
-                          onClick={() => {
-                            if (!isDimmed) {
-                              onSelectBay(zone, bayNum);
-                              onOpen3D(zone, bayNum);
-                            }
-                          }}
-                          className={`h-[46px] sm:h-[50px] rounded-md p-1 sm:p-1.5 border text-left transition-all duration-150 flex flex-col justify-between relative select-none ${
-                            isDimmed
-                              ? 'opacity-15 grayscale blur-[0.2px] cursor-not-allowed bg-slate-200 border-slate-300'
-                              : 'cursor-pointer hover:shadow-md hover:scale-[1.03] hover:z-20'
-                          } ${
-                            isMatchHighlight
-                              ? getPNoHeatmapBg(matchedQty)
+                          className={`h-[46px] sm:h-[50px] rounded-md p-1 flex flex-col justify-between text-left transition-all cursor-pointer relative overflow-hidden border select-none ${
+                            isD2RedSample
+                              ? 'bg-rose-700 text-white border-rose-900 shadow-md ring-2 ring-rose-500/60 font-black' // Red sample matching DA4D-2-D2-L1
                               : viewMode === 'HEATMAP'
-                              ? getDensityHeatmapBg(totalQty)
-                              : hasAgingAlert
-                              ? 'bg-amber-50 border-amber-300 ring-1 ring-amber-300'
-                              : isOccupied
-                              ? isPurple 
-                                ? 'bg-white border-blue-300/80 shadow-2xs' 
-                                : 'bg-white border-indigo-300/80 shadow-2xs'
-                              : 'bg-white/70 border-slate-200/90 text-slate-400 hover:border-slate-400'
+                              ? getDensityHeatmapBg(bayInfo.totalQty)
+                              : bayInfo.occupiedLevelsCount > 0
+                              ? bayInfo.hasAgingAlert
+                                ? 'bg-amber-100 border-amber-400 text-slate-900 shadow-2xs hover:border-amber-600'
+                                : 'bg-blue-50 border-blue-300 text-slate-900 shadow-2xs hover:border-blue-500'
+                              : 'bg-white border-dashed border-slate-300 hover:border-blue-400'
                           }`}
                         >
-                          {/* Bay Number & Level indicator */}
-                          <div className="flex items-center justify-between leading-none">
-                            <span className={`font-black text-[11px] sm:text-xs tracking-tight ${
-                              isMatchHighlight ? 'text-white' : 'text-slate-900'
+                          <div className="flex items-center justify-between">
+                            <span className={`text-[9px] font-mono font-black ${
+                              isD2RedSample ? 'text-rose-100' : 'text-slate-700'
                             }`}>
                               {zone}{bayNum}
                             </span>
-
-                            {isMatchHighlight ? (
-                              <span className="text-[8px] font-black px-1 rounded bg-slate-950/80 text-emerald-300">
-                                🎯 {matchedQty}
-                              </span>
-                            ) : hasAgingAlert ? (
-                              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse ring-2 ring-amber-200" />
-                            ) : isOccupied ? (
-                              <span className={`text-[8px] sm:text-[9px] font-extrabold px-1 py-0.2 rounded leading-tight ${
-                                occupiedLevelsCount === 4
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-blue-100 text-blue-800'
-                              }`}>
-                                {occupiedLevelsCount}/4
-                              </span>
-                            ) : (
-                              <span className="text-[8px] text-slate-300 font-medium">ว่าง</span>
-                            )}
+                            <span className={`text-[8px] font-black px-1 rounded ${
+                              isD2RedSample ? 'bg-rose-950 text-rose-100' : 'bg-blue-100 text-blue-900'
+                            }`}>
+                              {bayInfo.occupiedLevelsCount}/4 L
+                            </span>
                           </div>
 
-                          {/* Item Code & Qty */}
-                          <div className="leading-tight">
-                            {isOccupied ? (
-                              <>
-                                <p className={`text-[8px] sm:text-[9px] font-mono font-bold truncate ${
-                                  isMatchHighlight ? 'text-amber-200' : isPurple ? 'text-blue-800' : 'text-indigo-800'
-                                }`}>
-                                  {matchedItemCode || mainModel}
-                                </p>
-                                <p className={`text-[8px] sm:text-[9px] font-extrabold flex items-center justify-between ${
-                                  isMatchHighlight ? 'text-white' : 'text-slate-700'
-                                }`}>
-                                  <span>{isMatchHighlight ? matchedQty.toLocaleString() : totalQty.toLocaleString()}</span>
-                                  <span className="text-[7px] opacity-70 font-normal">U</span>
-                                </p>
-                              </>
-                            ) : (
-                              <p className="text-[8px] text-slate-400 italic">0 U</p>
+                          <div className="leading-none truncate text-[8px] font-mono font-bold">
+                            {bayInfo.mainModel || 'ว่าง'}
+                          </div>
+
+                          <div className="flex items-center justify-between pt-0.5 border-t border-black/10 text-[8px] font-mono">
+                            <span>{bayInfo.totalQty} U</span>
+                            {bayInfo.hasAgingAlert && (
+                              <span className="text-rose-600 font-black">!</span>
                             )}
                           </div>
                         </div>
@@ -712,481 +895,55 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
               })}
             </div>
           </div>
-
-          {/* Color Legend & Visual Key */}
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 sm:p-4 text-xs space-y-2.5 shadow-2xs">
-            <div className="font-bold text-slate-800 flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Info className="w-4 h-4 text-blue-600" />
-                <span>คำอธิบายสัญลักษณ์ {viewMode === 'HEATMAP' ? '🔥 Density Heatmap Intensity' : 'และวิธีใช้งานภาพรวม'}</span>
-              </div>
-              <span className="text-[11px] text-slate-500 font-medium">
-                Tip: เลื่อนเมาส์ชี้ที่ช่องใดก็ได้เพื่อเปิด Pop-up รายละเอียดสินค้า 4 ชั้น
-              </span>
-            </div>
-
-            {viewMode === 'HEATMAP' ? (
-              <div className="space-y-2 pt-1">
-                <div className="text-[11px] font-semibold text-slate-600">
-                  ระดับความหนาแน่นจำนวนสินค้าในแต่ละช่อง (Density Intensity Spectrum):
-                </div>
-                <div className="grid grid-cols-5 gap-1.5 text-center text-[10px] font-bold">
-                  <div className="p-1.5 bg-slate-100 border border-slate-300 text-slate-600 rounded">0 Units (ว่าง)</div>
-                  <div className="p-1.5 bg-emerald-100 border border-emerald-300 text-emerald-900 rounded">1 - 150 Units</div>
-                  <div className="p-1.5 bg-yellow-100 border border-yellow-300 text-yellow-900 rounded">151 - 350 Units</div>
-                  <div className="p-1.5 bg-amber-200 border border-amber-400 text-amber-950 rounded">351 - 600 Units</div>
-                  <div className="p-1.5 bg-red-400 border border-red-600 text-white rounded">601+ Units (หนาแน่นสูง)</div>
-                </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
-                <div className="flex items-center space-x-2">
-                  <span className="w-3 h-3 rounded bg-blue-600 border border-blue-400" />
-                  <span className="text-slate-700">Rack B-F (480 Pallets)</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="w-3 h-3 rounded bg-indigo-600 border border-indigo-400" />
-                  <span className="text-slate-700">Rack G-K (200 Pallets)</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="w-3 h-3 rounded bg-amber-500 border border-amber-400 animate-pulse" />
-                  <span className="text-amber-700 font-semibold">มีเตือน Aging (&gt;30 วัน)</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="w-3 h-3 rounded bg-white border border-slate-300" />
-                  <span className="text-slate-500">ช่องว่าง (Empty Level)</span>
-                </div>
-              </div>
-            )}
-          </div>
         </div>
-      ) : (
-        /* ========================================================================= */
-        /* 📐 MODE 2: DETAILED ZONE VIEW (มุมมองขยายแบบ 2 โซน พร้อมปุ่ม 3D และกล่องเท่ากัน) */
-        /* ========================================================================= */
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 min-w-0 max-w-full">
-          {/* Left Section: Purple Zones B, C, D, E, F (12 bays high) */}
-          <div className="xl:col-span-7 bg-slate-50 p-4 rounded-xl border border-slate-200 overflow-x-auto min-w-0">
-            <div className="flex items-center justify-between mb-3 min-w-[480px]">
-              <span className="text-xs font-bold text-blue-700 flex items-center space-x-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
-                <span>ZONE B - F (Capacity: 480 Pallets)</span>
-              </span>
-              <span className="text-[11px] text-slate-500 font-medium">12 Bays x 4 Shelf Levels (ชั้น 1-4)</span>
-            </div>
-
-            <div className="grid grid-cols-5 gap-2.5 min-w-[480px]">
-            {purpleZones.map((zone) => (
-              <div key={zone} className="space-y-2">
-                <div className="text-center font-bold text-xs text-blue-800 bg-blue-100/80 py-1 rounded-md border border-blue-200">
-                  Rack {zone}
-                </div>
-                {/* Render bays 12 down to 1 */}
-                {Array.from({ length: 12 }, (_, i) => 12 - i).map((bayNum) => {
-                  const { occupiedLevelsCount, totalQty, hasAgingAlert, mainModel, matchesSearch, matchedItemCode, matchedQty } = getBayInfo(zone, bayNum);
-                  const isOccupied = occupiedLevelsCount > 0;
-
-                  // Filter logic
-                  if (filterType === 'OCCUPIED' && !isOccupied) return null;
-                  if (filterType === 'AGING' && !hasAgingAlert) return null;
-
-                  const isDimmed = !matchesSearch && activeQuery !== '';
-                  const isMatchHighlight = matchesSearch && activeQuery !== '';
-
-                  if (activeQuery !== '' && dimMode === 'HIDE' && isDimmed) return null;
-
-                  return (
-                    <div
-                      key={`${zone}${bayNum}`}
-                      onMouseMove={(e) => !isDimmed && handleBayMouseMove(e, zone, bayNum)}
-                      onMouseEnter={(e) => !isDimmed && handleBayMouseMove(e, zone, bayNum)}
-                      onMouseLeave={handleBayMouseLeave}
-                      onClick={() => !isDimmed && onSelectBay(zone, bayNum)}
-                      className={`group relative rounded-lg p-2.5 border text-left transition-all duration-200 shadow-sm h-[78px] flex flex-col justify-between ${
-                        isDimmed ? 'opacity-15 grayscale blur-[0.2px] cursor-not-allowed bg-slate-200 border-slate-300' : 'cursor-pointer transform hover:-translate-y-0.5 hover:shadow-md'
-                      } ${
-                        isMatchHighlight
-                          ? getPNoHeatmapBg(matchedQty)
-                          : viewMode === 'HEATMAP'
-                          ? getDensityHeatmapBg(totalQty)
-                          : hasAgingAlert
-                          ? 'bg-amber-50 border-amber-300 hover:border-amber-400'
-                          : isOccupied
-                          ? 'bg-white border-blue-200 hover:border-blue-500 shadow-sm'
-                          : 'bg-white/60 border-slate-200 hover:border-slate-400'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className={`font-extrabold text-sm ${isMatchHighlight ? 'text-white' : 'text-slate-800 group-hover:text-blue-600'}`}>
-                          {zone}{bayNum}
-                        </span>
-                        {isMatchHighlight ? (
-                          <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-slate-950/80 text-emerald-300 border border-emerald-400/50 shadow-xs">
-                            🎯 {matchedQty} U
-                          </span>
-                        ) : hasAgingAlert ? (
-                          <AlertTriangle className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
-                        ) : isOccupied ? (
-                          <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                            {occupiedLevelsCount}/4 ชั้น
-                          </span>
-                        ) : (
-                          <span className="text-[10px] text-slate-400 font-medium">ว่าง</span>
-                        )}
-                      </div>
-
-                      {/* Item info preview */}
-                      <div className="mt-0.5 leading-tight">
-                        {isOccupied ? (
-                          <>
-                            <p className={`text-[10px] font-mono font-bold truncate ${isMatchHighlight ? 'text-amber-200' : 'text-blue-800'}`}>
-                              {matchedItemCode || mainModel || 'In Stock'}
-                            </p>
-                            <p className={`text-[10px] font-bold ${isMatchHighlight ? 'text-white' : 'text-slate-600'}`}>
-                              {isMatchHighlight ? matchedQty.toLocaleString() : totalQty.toLocaleString()} <span className={isMatchHighlight ? 'text-slate-200 font-normal' : 'text-slate-400 font-normal'}>Units</span>
-                            </p>
-                          </>
-                        ) : (
-                          <p className="text-[10px] text-slate-400 italic">0 Units</p>
-                        )}
-                      </div>
-
-                      {/* Quick 3D trigger button on hover */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onOpen3D(zone, bayNum);
-                        }}
-                        className={`mt-1 w-full py-0.5 rounded font-bold text-[9px] flex items-center justify-center space-x-1 shadow-xs transition-colors ${
-                          isMatchHighlight
-                            ? 'bg-slate-950/80 hover:bg-slate-900 text-emerald-300 border border-emerald-400/40'
-                            : 'bg-blue-600 hover:bg-blue-700 text-white'
-                        }`}
-                      >
-                        <Layers className="w-2.5 h-2.5" />
-                        <span>ส่อง 3D (4 ชั้น)</span>
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Right Section: Orange Zones G, H, I, J, K (5 bays high) */}
-        <div className="xl:col-span-5 space-y-6 min-w-0">
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 overflow-x-auto min-w-0">
-            <div className="flex items-center justify-between mb-3 min-w-[360px]">
-              <span className="text-xs font-bold text-indigo-700 flex items-center space-x-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" />
-                <span>ZONE G - K (Capacity: 200 Pallets)</span>
-              </span>
-              <span className="text-[11px] text-slate-500 font-medium">5 Bays x 4 Levels</span>
-            </div>
-
-            <div className="grid grid-cols-5 gap-2.5 min-w-[360px]">
-              {orangeZones.map((zone) => (
-                <div key={zone} className="space-y-2">
-                  <div className="text-center font-bold text-xs text-indigo-800 bg-indigo-100/80 py-1 rounded-md border border-indigo-200">
-                    Rack {zone}
-                  </div>
-                  {/* Render bays 5 down to 1 */}
-                  {Array.from({ length: 5 }, (_, i) => 5 - i).map((bayNum) => {
-                    const { occupiedLevelsCount, totalQty, hasAgingAlert, mainModel, matchesSearch, matchedItemCode, matchedQty } = getBayInfo(zone, bayNum);
-                    const isOccupied = occupiedLevelsCount > 0;
-
-                    if (filterType === 'OCCUPIED' && !isOccupied) return null;
-                    if (filterType === 'AGING' && !hasAgingAlert) return null;
-
-                    const isDimmed = !matchesSearch && activeQuery !== '';
-                    const isMatchHighlight = matchesSearch && activeQuery !== '';
-
-                    if (activeQuery !== '' && dimMode === 'HIDE' && isDimmed) return null;
-
-                    return (
-                      <div
-                        key={`${zone}${bayNum}`}
-                        onMouseMove={(e) => !isDimmed && handleBayMouseMove(e, zone, bayNum)}
-                        onMouseEnter={(e) => !isDimmed && handleBayMouseMove(e, zone, bayNum)}
-                        onMouseLeave={handleBayMouseLeave}
-                        onClick={() => !isDimmed && onSelectBay(zone, bayNum)}
-                        className={`group relative rounded-lg p-2.5 border text-left transition-all duration-200 shadow-sm h-[78px] flex flex-col justify-between ${
-                          isDimmed ? 'opacity-15 grayscale blur-[0.2px] cursor-not-allowed bg-slate-200 border-slate-300' : 'cursor-pointer transform hover:-translate-y-0.5 hover:shadow-md'
-                        } ${
-                          isMatchHighlight
-                            ? getPNoHeatmapBg(matchedQty)
-                            : viewMode === 'HEATMAP'
-                            ? getDensityHeatmapBg(totalQty)
-                            : hasAgingAlert
-                            ? 'bg-amber-50 border-amber-300 hover:border-amber-400'
-                            : isOccupied
-                            ? 'bg-white border-indigo-200 hover:border-indigo-500 shadow-sm'
-                            : 'bg-white/60 border-slate-200 hover:border-slate-400'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className={`font-extrabold text-xs ${isMatchHighlight ? 'text-white' : 'text-slate-800 group-hover:text-indigo-600'}`}>
-                            {zone}{bayNum}
-                          </span>
-                          {isMatchHighlight ? (
-                            <span className="text-[8px] font-black px-1 py-0.2 rounded bg-slate-950/80 text-emerald-300">
-                              🎯 {matchedQty} U
-                            </span>
-                          ) : isOccupied ? (
-                            <span className="text-[9px] font-bold px-1 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
-                              {occupiedLevelsCount}/4
-                            </span>
-                          ) : (
-                            <span className="text-[9px] text-slate-400">ว่าง</span>
-                          )}
-                        </div>
-
-                        <div className="mt-0.5 leading-tight">
-                          {isOccupied ? (
-                            <>
-                              <p className={`text-[9px] font-mono font-bold truncate ${isMatchHighlight ? 'text-amber-200' : 'text-indigo-800'}`}>
-                                {matchedItemCode || mainModel}
-                              </p>
-                              <p className={`text-[9px] font-bold ${isMatchHighlight ? 'text-white' : 'text-slate-700'}`}>
-                                {isMatchHighlight ? matchedQty.toLocaleString() : totalQty.toLocaleString()} U
-                              </p>
-                            </>
-                          ) : (
-                            <p className="text-[9px] text-slate-400 italic">0 Units</p>
-                          )}
-                        </div>
-
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onOpen3D(zone, bayNum);
-                          }}
-                          className={`mt-1 w-full py-0.5 rounded font-bold text-[9px] flex items-center justify-center space-x-1 shadow-xs transition-colors ${
-                            isMatchHighlight
-                              ? 'bg-slate-950/80 hover:bg-slate-900 text-emerald-300 border border-emerald-400/40'
-                              : 'bg-indigo-600 hover:bg-indigo-700 text-white'
-                          }`}
-                        >
-                          <Layers className="w-2.5 h-2.5" />
-                          <span>ดู 3D</span>
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Color Legend & Visual Key */}
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs space-y-3">
-            <div className="font-bold text-slate-800 flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Info className="w-4 h-4 text-blue-600" />
-                <span>คำอธิบายสัญลักษณ์ {viewMode === 'HEATMAP' ? '🔥 Density Heatmap Intensity' : 'และคำแนะนำการจัดเก็บ'}</span>
-              </div>
-            </div>
-
-            {viewMode === 'HEATMAP' ? (
-              <div className="space-y-2 pt-1">
-                <div className="text-[11px] font-semibold text-slate-600">
-                  ระดับความหนาแน่นจำนวนสินค้าในแต่ละช่อง (Density Intensity Spectrum):
-                </div>
-                <div className="grid grid-cols-5 gap-1.5 text-center text-[10px] font-bold">
-                  <div className="p-1.5 bg-slate-100 border border-slate-300 text-slate-600 rounded">0 Units (ว่าง)</div>
-                  <div className="p-1.5 bg-emerald-100 border border-emerald-300 text-emerald-900 rounded">1 - 150 Units</div>
-                  <div className="p-1.5 bg-yellow-100 border border-yellow-300 text-yellow-900 rounded">151 - 350 Units</div>
-                  <div className="p-1.5 bg-amber-200 border border-amber-400 text-amber-950 rounded">351 - 600 Units</div>
-                  <div className="p-1.5 bg-red-400 border border-red-600 text-white rounded">601+ Units (หนาแน่นสูง)</div>
-                </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-2 text-[11px]">
-                <div className="flex items-center space-x-2">
-                  <span className="w-3 h-3 rounded bg-blue-600 border border-blue-400" />
-                  <span className="text-slate-700">Rack B-F (480 Pallets)</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="w-3 h-3 rounded bg-indigo-600 border border-indigo-400" />
-                  <span className="text-slate-700">Rack G-K (200 Pallets)</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="w-3 h-3 rounded bg-amber-500 border border-amber-400 animate-pulse" />
-                  <span className="text-amber-700 font-semibold">มีเตือน Aging (&gt;30 วัน)</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="w-3 h-3 rounded bg-white border border-slate-300" />
-                  <span className="text-slate-500">ช่องว่าง (Empty Level)</span>
-                </div>
-              </div>
-            )}
-
-            <div className="pt-2 border-t border-slate-200 text-[11px] text-slate-600 leading-relaxed">
-              💡 <span className="text-blue-600 font-semibold">ฟีเจอร์ 3D:</span> แต่ละช่อง Rack (เช่น E6) จะประกอบด้วย <span className="text-slate-900 font-bold">4 ชั้นความสูง (ชั้น 1, ชั้น 2, ชั้น 3, ชั้น 4)</span> เพื่อกระจายน้ำหนักและจัดเก็บ Pallet ได้อย่างแม่นยำ Click ที่ช่องใดก็ได้เพื่อเปิด 3D Mode!
-            </div>
-          </div>
-        </div>
-      </div>
       )}
 
       {/* ========================================================================= */}
-      {/* 🚀 SMART MOUSE CURSOR HOVER POPUP (แสดงข้อมูล 4 ชั้น ข้างเมาส์ทันทีที่ชี้) */}
+      {/* 🌐 TAB 4: FULL 3D MAP VIEW */}
       {/* ========================================================================= */}
+      {a4SectionTab === 'FULL3D' && (
+        <div className="w-full relative min-w-0" style={{ height: isDashboardFullscreen ? 'calc(100vh - 180px)' : '550px' }}>
+          <Warehouse3DMap 
+            items={items} 
+            searchQuery={activeQuery}
+            onSelectBay={(z, b) => {
+              onSelectBay(z, b);
+              onOpen3D(z, b);
+            }} 
+            isDashboardFullscreen={isDashboardFullscreen}
+          />
+        </div>
+      )}
+
+      {/* FLOATING HOVER MINI-STATS OVERLAY FOR RACKS */}
       {hoveredBay && (() => {
-        const { zone, bayNumber, x, y } = hoveredBay;
+        const { zone, bayNumber } = hoveredBay;
         const bayItems = items.filter((it) => it.zone === zone && it.bayNumber === bayNumber);
-        const totalQty = bayItems.reduce((acc, curr) => acc + curr.quantity, 0);
-        const occupiedCount = bayItems.length;
-        const isFull = occupiedCount === 4;
-        const hasAging = bayItems.some((it) => it.agingDays > 30);
+        const singleItem = bayItems.length === 1 ? bayItems[0] : null;
 
-        // Smart dynamic positioning to prevent overflowing viewport edges
-        const popupWidth = 340;
-        const popupHeight = 360;
-        const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
-        const screenHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+        const overlayData: MiniStatsSlotData = {
+          title: `Rack ${zone} - Bay ${bayNumber}`,
+          locatorCode: `DA4D-1.05-${zone}${bayNumber}`,
+          zoneName: `Rack ${zone}`,
+          positionLabel: `Bay ${bayNumber} (4 Levels: L1-L4)`,
+          item: singleItem,
+          items: bayItems,
+          x: hoveredBay.x,
+          y: hoveredBay.y
+        };
 
-        let leftPos = x + 16;
-        if (leftPos + popupWidth > screenWidth - 16) {
-          leftPos = Math.max(10, x - popupWidth - 16);
-        }
-
-        let topPos = y - 40;
-        if (topPos + popupHeight > screenHeight - 16) {
-          topPos = Math.max(10, screenHeight - popupHeight - 16);
-        }
-        if (topPos < 10) topPos = 10;
-
-        return (
-          <div
-            style={{
-              position: 'fixed',
-              left: `${leftPos}px`,
-              top: `${topPos}px`,
-              width: `${popupWidth}px`,
-              pointerEvents: 'none',
-              zIndex: 9999
-            }}
-            className="bg-slate-900/95 backdrop-blur-md text-white border border-slate-700/80 rounded-2xl shadow-2xl p-4 animate-fadeIn transition-all duration-75 select-none"
-          >
-            {/* Header */}
-            <div className="flex items-start justify-between border-b border-slate-700/80 pb-2.5 mb-2.5">
-              <div>
-                <div className="flex items-center space-x-2">
-                  <span className={`px-2 py-0.5 rounded-md font-mono font-black text-xs ${
-                    purpleZones.includes(zone) ? 'bg-blue-600 text-white' : 'bg-indigo-600 text-white'
-                  }`}>
-                    RACK {zone} - BAY {bayNumber}
-                  </span>
-                  {hasAging && (
-                    <span className="flex items-center space-x-1 px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-bold animate-pulse">
-                      <AlertTriangle className="w-3 h-3" />
-                      <span>Aging &gt; 30d</span>
-                    </span>
-                  )}
-                </div>
-                <p className="text-[11px] text-slate-400 mt-1 font-mono">
-                  Locator Range: {zone}{bayNumber}-L1 ~ {zone}{bayNumber}-L4
-                </p>
-              </div>
-
-              <div className="text-right">
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                  isFull ? 'bg-red-500/20 text-red-300 border border-red-500/40' :
-                  occupiedCount > 0 ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40' :
-                  'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                }`}>
-                  {occupiedCount}/4 ชั้น ({Math.round((occupiedCount / 4) * 100)}%)
-                </span>
-                <p className="text-xs font-black text-white mt-1">
-                  {totalQty.toLocaleString()} <span className="text-[10px] font-normal text-slate-400">Units</span>
-                </p>
-              </div>
-            </div>
-
-            {/* 4 Shelf Levels Breakdown (Level 4 down to Level 1) */}
-            <div className="space-y-1.5">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
-                <span>รายละเอียดแยกตามชั้นวาง (4 Levels)</span>
-                <span className="text-slate-500">บน ⬇ ล่าง</span>
-              </div>
-
-              {[4, 3, 2, 1].map((lvl) => {
-                const itemAtLevel = bayItems.find((it) => it.level === lvl);
-                const isTop = lvl === 4;
-                const isBottom = lvl === 1;
-
-                return (
-                  <div
-                    key={lvl}
-                    className={`p-2 rounded-lg border transition-colors ${
-                      itemAtLevel
-                        ? itemAtLevel.agingDays > 30
-                          ? 'bg-amber-950/40 border-amber-500/40 text-amber-100'
-                          : 'bg-slate-800/80 border-slate-700/60 text-slate-100'
-                        : 'bg-slate-900/40 border-dashed border-slate-800 text-slate-500'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center space-x-1.5">
-                        <span className="font-mono font-bold text-[11px] px-1.5 py-0.2 rounded bg-slate-700/80 text-slate-200">
-                          L{lvl} {isTop ? '(บนสุด)' : isBottom ? '(ล่างสุด)' : ''}
-                        </span>
-                        {itemAtLevel ? (
-                          <span className="font-mono font-extrabold text-blue-300 text-xs">
-                            {itemAtLevel.modelHE}
-                          </span>
-                        ) : (
-                          <span className="text-slate-500 italic text-[11px]">
-                            [ ชั้นว่าง - พร้อมวาง Pallet ]
-                          </span>
-                        )}
-                      </div>
-
-                      {itemAtLevel && (
-                        <div className="text-right">
-                          <span className="font-mono font-black text-xs text-white">
-                            {itemAtLevel.quantity.toLocaleString()}
-                          </span>
-                          <span className="text-[10px] text-slate-400 ml-1">U</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {itemAtLevel && (
-                      <div className="mt-1 flex items-center justify-between text-[10px] text-slate-400 border-t border-slate-700/40 pt-1">
-                        <span className="truncate max-w-[170px] text-slate-300" title={itemAtLevel.partName}>
-                          {itemAtLevel.partName}
-                        </span>
-                        <div className="flex items-center space-x-2 shrink-0">
-                          <span className="bg-slate-700/50 px-1 rounded text-slate-300 font-mono">
-                            {itemAtLevel.productionLine}
-                          </span>
-                          <span className={`font-semibold ${itemAtLevel.agingDays > 30 ? 'text-amber-400 font-bold' : 'text-slate-400'}`}>
-                            ⏱ {itemAtLevel.agingDays}d
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Quick Action Hint */}
-            <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
-              <span className="flex items-center space-x-1 text-cyan-400 font-semibold">
-                <Sparkles className="w-3 h-3" />
-                <span>คลิกที่ช่องนี้เพื่อเปิดส่อง 3D (4 ชั้น)</span>
-              </span>
-              <span className="text-slate-500 font-mono">
-                {zone}{bayNumber}
-              </span>
-            </div>
-          </div>
-        );
+        return <SlotMiniStatsOverlay data={overlayData} />;
       })()}
+
+      {/* UNIFIED MODAL FOR SLOT / PALLET INSPECTION */}
+      <UnifiedSlotModal
+        isOpen={!!selectedSlotForModal}
+        onClose={() => setSelectedSlotForModal(null)}
+        slotData={selectedSlotForModal}
+        onOpenScanner={onOpenScanner}
+        onRelocateItem={onRelocateItem}
+        onOpen3D={onOpen3D}
+      />
     </div>
   );
 };
