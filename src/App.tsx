@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { InventoryItem, MovementLog, MovementType, ShelfLevel, StorageZone, WmsStats, MasterDataItem, UseLineMaster, ZoneCapacityMaster, WarehouseFacility } from './types';
+import { InventoryItem, MovementLog, MovementType, ShelfLevel, StorageZone, WmsStats, MasterDataItem, UseLineMaster, ZoneCapacityMaster, WarehouseFacility, AgingThresholdConfig, CustomRackSlot } from './types';
 import { INITIAL_ITEMS, INITIAL_LOGS, INITIAL_STATS, INITIAL_FACILITIES } from './data/mockData';
 import { Navbar } from './components/Navbar';
 import { DashboardKPIs } from './components/DashboardKPIs';
@@ -14,6 +14,7 @@ import { MasterListPanel } from './components/MasterListPanel';
 import { FlowRailFloorMap } from './components/FlowRailFloorMap';
 import { CampusMasterOverview } from './components/CampusMasterOverview';
 import { A5TentFloorStagingMap } from './components/A5TentFloorStagingMap';
+import { TopKpiSummaryBar } from './components/TopKpiSummaryBar';
 
 // Extract initial master data from INITIAL_ITEMS
 const initialMasterData: MasterDataItem[] = Array.from(new Set(INITIAL_ITEMS.map(i => i.modelHE))).map(modelHE => {
@@ -40,7 +41,7 @@ const initialZoneCapacities: ZoneCapacityMaster[] = [
 ];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const [activeTab, setActiveTab] = useState<string>('campus_overview');
   const [activeStation, setActiveStation] = useState<string>('ALL');
   const [language, setLanguage] = useState<string>('th');
   const [themeMode, setThemeMode] = useState<'light' | 'dark' | 'hdmi'>(() => {
@@ -63,9 +64,11 @@ export default function App() {
 
   const [masterData, setMasterData] = useState<MasterDataItem[]>(initialMasterData);
   const [useLines, setUseLines] = useState<UseLineMaster[]>([
-    { id: 'HE1', name: 'Line HE1', description: 'สายการผลิตเครื่องทำความร้อน HE1' },
-    { id: 'HE2', name: 'Line HE2', description: 'สายการผลิตเครื่องทำความร้อน HE2' },
-    { id: 'HE3', name: 'Line HE3', description: 'สายการผลิตเครื่องทำความร้อน HE3' },
+    { id: 'HE1', name: 'Line HE1', description: 'สายการผลิตเครื่องทำความร้อน HE1 (โรง A2)' },
+    { id: 'HE2', name: 'Line HE2', description: 'สายการผลิตเครื่องทำความร้อน HE2 (โรง A2)' },
+    { id: 'HE3', name: 'Line HE3', description: 'สายการผลิตเครื่องทำความร้อน HE3 (โรง A2)' },
+    { id: 'HE4', name: 'Line HE4', description: 'สายการผลิตเครื่องทำความร้อน HE4 (โรง A4)' },
+    { id: 'HE5', name: 'Line HE5', description: 'สายการผลิตเครื่องทำความร้อน HE5 (โรง A4)' },
     { id: 'REPAIR', name: 'Line Repair', description: 'โซนงานซ่อมแก้ไข (Repair Station)' },
   ]);
   const [zoneCapacities, setZoneCapacities] = useState<ZoneCapacityMaster[]>(initialZoneCapacities);
@@ -75,24 +78,65 @@ export default function App() {
   const [logs, setLogs] = useState<MovementLog[]>(INITIAL_LOGS);
   const [stats, setStats] = useState<WmsStats>(INITIAL_STATS);
   const [globalSearchQuery, setGlobalSearchQuery] = useState<string>('');
-  const [a4InitialTab, setA4InitialTab] = useState<'MACRO_OVERVIEW' | 'FLOOR_DA4D1' | 'RACK_ZONES' | 'FULL3D'>('MACRO_OVERVIEW');
+  const [a4InitialTab, setA4InitialTab] = useState<'FLOOR_DA4D1' | 'RACK_ZONES' | 'FULL3D'>('FLOOR_DA4D1');
+  const [a5InitialTent, setA5InitialTent] = useState<number>(1);
+
+  // Dynamic Aging Threshold Config State
+  const [agingConfig, setAgingConfig] = useState<AgingThresholdConfig>(() => {
+    const saved = localStorage.getItem('lge_wms_aging_config');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        // ignore
+      }
+    }
+    return {
+      safeDaysMax: 14,
+      warningDaysMax: 30,
+      criticalDays: 30,
+      autoAlertEnabled: true,
+      notifyOnFifoViolation: true,
+      customRuleName: 'มาตรฐาน LGE (14/30 วัน)'
+    };
+  });
+
+  useEffect(() => {
+    localStorage.setItem('lge_wms_aging_config', JSON.stringify(agingConfig));
+  }, [agingConfig]);
+
+  // Dynamic Custom Rack & Storage Slots
+  const [customSlots, setCustomSlots] = useState<CustomRackSlot[]>([
+    { id: 'RACK-B', stationId: 'STATION_1', zone: 'B', bayNumber: 12, maxLevels: 4, storageType: 'RACK', capacityPerLevel: 2, status: 'ACTIVE', description: 'Selective Rack Zone B' },
+    { id: 'RACK-C', stationId: 'STATION_1', zone: 'C', bayNumber: 12, maxLevels: 4, storageType: 'RACK', capacityPerLevel: 2, status: 'ACTIVE', description: 'Selective Rack Zone C' },
+    { id: 'RACK-D', stationId: 'STATION_1', zone: 'D', bayNumber: 12, maxLevels: 4, storageType: 'RACK', capacityPerLevel: 2, status: 'ACTIVE', description: 'Selective Rack Zone D' },
+    { id: 'RACK-E', stationId: 'STATION_1', zone: 'E', bayNumber: 12, maxLevels: 4, storageType: 'RACK', capacityPerLevel: 2, status: 'ACTIVE', description: 'Selective Rack Zone E' },
+    { id: 'RACK-F', stationId: 'STATION_1', zone: 'F', bayNumber: 12, maxLevels: 4, storageType: 'RACK', capacityPerLevel: 2, status: 'ACTIVE', description: 'Selective Rack Zone F' },
+    { id: 'RACK-G', stationId: 'STATION_1', zone: 'G', bayNumber: 5, maxLevels: 4, storageType: 'RACK', capacityPerLevel: 1, status: 'ACTIVE', description: 'Rack Zone G (Top Area)' },
+    { id: 'RACK-H', stationId: 'STATION_1', zone: 'H', bayNumber: 5, maxLevels: 4, storageType: 'RACK', capacityPerLevel: 1, status: 'ACTIVE', description: 'Rack Zone H (Top Area)' },
+    { id: 'RACK-I', stationId: 'STATION_1', zone: 'I', bayNumber: 5, maxLevels: 4, storageType: 'RACK', capacityPerLevel: 1, status: 'ACTIVE', description: 'Rack Zone I (Top Area)' },
+    { id: 'RACK-J', stationId: 'STATION_1', zone: 'J', bayNumber: 5, maxLevels: 4, storageType: 'RACK', capacityPerLevel: 1, status: 'ACTIVE', description: 'Rack Zone J (Top Area)' },
+    { id: 'RACK-K', stationId: 'STATION_1', zone: 'K', bayNumber: 5, maxLevels: 4, storageType: 'RACK', capacityPerLevel: 1, status: 'ACTIVE', description: 'Rack Zone K (Top Area)' },
+    { id: 'FLOW-01', stationId: 'STATION_2', zone: 'FR1', bayNumber: 1, maxLevels: 1, storageType: 'FLOW_RAIL', capacityPerLevel: 5, status: 'ACTIVE', description: 'Flow Roller Lane 1' },
+    { id: 'FLOW-02', stationId: 'STATION_2', zone: 'FR2', bayNumber: 1, maxLevels: 1, storageType: 'FLOW_RAIL', capacityPerLevel: 5, status: 'ACTIVE', description: 'Flow Roller Lane 2' },
+    { id: 'FLOOR-A', stationId: 'STATION_2', zone: 'FL-A', bayNumber: 4, maxLevels: 1, storageType: 'FLOOR_STAGING', capacityPerLevel: 4, status: 'ACTIVE', description: 'Floor Staging Zone A' },
+    { id: 'FLOOR-B', stationId: 'STATION_2', zone: 'FL-B', bayNumber: 4, maxLevels: 1, storageType: 'FLOOR_STAGING', capacityPerLevel: 4, status: 'ACTIVE', description: 'Floor Staging Zone B' },
+  ]);
 
   // Handle drill-down navigation from Master Campus overview to specific building/zone
-  const handleCampusZoneNavigation = (target: 'A4_MACRO' | 'A4_RACK' | 'A4_FLOOR' | 'A4_3D' | 'A2_RAIL' | 'A2_MACRO' | 'A2_SPLIT' | 'A5_TENT' | 'A5_MACRO') => {
+  const handleCampusZoneNavigation = (target: 'A4_MACRO' | 'A4_RACK' | 'A4_FLOOR' | 'A4_3D' | 'A2_RAIL' | 'A2_MACRO' | 'A2_SPLIT' | 'A5_TENT' | 'A5_MACRO', tentNum?: number) => {
     if (target === 'A4_RACK') {
       setA4InitialTab('RACK_ZONES');
       setActiveTab('layout');
-    } else if (target === 'A4_FLOOR') {
+    } else if (target === 'A4_FLOOR' || target === 'A4_MACRO') {
       setA4InitialTab('FLOOR_DA4D1');
-      setActiveTab('layout');
-    } else if (target === 'A4_MACRO') {
-      setA4InitialTab('MACRO_OVERVIEW');
       setActiveTab('layout');
     } else if (target === 'A4_3D') {
       setActiveTab('rack3d');
     } else if (target === 'A2_RAIL' || target === 'A2_MACRO' || target === 'A2_SPLIT') {
       setActiveTab('flow_floor');
     } else if (target === 'A5_TENT' || target === 'A5_MACRO') {
+      if (tentNum) setA5InitialTent(tentNum);
       setActiveTab('tent_layout');
     }
   };
@@ -381,23 +425,21 @@ export default function App() {
       />
 
       {/* Flexible Right Main Content Wrapper */}
-      <div className="flex-1 flex flex-col min-w-0 max-w-full overflow-x-hidden w-full">
-        <main className="w-full max-w-none px-2.5 sm:px-4 lg:px-6 py-3 sm:py-4 space-y-4 sm:space-y-5 transition-all min-w-0 max-w-full overflow-x-hidden flex-1">
-          {!(isFullscreen && activeTab === 'dashboard') && (
-            <div className="bg-white border border-slate-200 rounded-xl p-3 sm:p-3.5 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 w-full">
-              <div className="flex-1 relative">
-                <input
-                  type="text"
-                  value={globalSearchQuery}
-                  onChange={(e) => {
-                    setGlobalSearchQuery(e.target.value);
-                    if (activeTab !== 'inventory' && activeTab !== 'dashboard' && activeTab !== 'layout') {
-                      setActiveTab('inventory');
-                    }
-                  }}
-                  placeholder="🔍 สแกน / พิมพ์ค้นหาวัตถุดิบด่วน (Model HE, Location Code เช่น DA4D-1.02-B11-L1, QR Barcode...)"
-                  className="w-full bg-slate-50 border border-slate-300 focus:border-blue-500 rounded-lg px-3.5 py-2 text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white transition-all shadow-xs"
-                />
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden w-full">
+        {/* Sticky & Locked Top Bar (Locked on Scroll) */}
+        {!isFullscreen && (
+          <div className="shrink-0 sticky top-0 z-30 bg-slate-900 border-b border-slate-800 shadow-md">
+            <header className="px-3 sm:px-5 py-2 sm:py-2.5 flex items-center justify-between gap-2 w-full">
+              <div className="flex items-center space-x-2 min-w-0">
+                <span className="sm:hidden text-xs font-bold text-slate-200 truncate">
+                  HEX WMS
+                </span>
+                <span className="hidden sm:inline text-xs font-bold text-slate-300 truncate">
+                  ระบบจัดการคลังสินค้าอัตโนมัติ (HEX WMS Automation System)
+                </span>
+                <span className="px-1.5 sm:px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 text-[9.5px] sm:text-[10px] font-bold border border-blue-500/30 shrink-0">
+                  A2/A4/A5
+                </span>
               </div>
               
               <div className="flex items-center space-x-2 shrink-0">
@@ -426,79 +468,54 @@ export default function App() {
                     link.click();
                     document.body.removeChild(link);
                   }}
-                  className="w-full sm:w-auto justify-center px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm flex items-center space-x-1.5 transition-all active:scale-95"
+                  className="px-2.5 sm:px-3.5 py-1 sm:py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] sm:text-xs font-bold rounded-lg shadow-xs flex items-center space-x-1 sm:space-x-1.5 transition-all active:scale-95"
                 >
-                  <span>📊 ส่งออกข้อมูล Excel (.csv)</span>
+                  <span className="sm:hidden">📊 ส่งออก CSV</span>
+                  <span className="hidden sm:inline">📊 ส่งออกข้อมูล Excel (.csv)</span>
                 </button>
               </div>
-            </div>
-          )}
+            </header>
+
+            {/* Unified Global Top KPI Summary Bar (Locked at Top, Hidden on printer and master tabs) */}
+            {activeTab !== 'printer' && activeTab !== 'master' && (
+              <div className="px-2.5 sm:px-4 lg:px-6 py-2 bg-slate-950/90 border-t border-slate-800/80">
+                <TopKpiSummaryBar
+                  items={items}
+                  logs={logs}
+                  stats={stats}
+                  activeTab={activeTab}
+                  activeFacilityId={activeFacilityId}
+                  agingConfig={agingConfig}
+                  onSelectFilter={(tab) => setActiveTab(tab)}
+                  onNavigateToLayout={(target) => handleCampusZoneNavigation(target as any)}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Scrollable Main Content Container */}
+        <main className="w-full flex-1 overflow-y-auto overflow-x-hidden px-2.5 sm:px-4 lg:px-6 py-3 sm:py-4 space-y-4 transition-all">
 
           {/* Dynamic Tab Views */}
-          {activeTab === 'dashboard' && (
-            <div className="space-y-6 animate-fadeIn">
-              {/* KPI Dashboard Banner - Rendered strictly on ภาพรวม page only */}
-              <DashboardKPIs
-                stats={stats}
-                lowStockCount={lowStockCount}
-                onSelectFilter={(tab) => setActiveTab(tab)}
-                logs={logs}
-                items={displayedItems}
-              />
-
-              {/* Quick Navigation Card to Layout Map */}
-              <div className="bg-gradient-to-r from-blue-900 to-indigo-900 rounded-xl p-5 text-white flex flex-col md:flex-row items-center justify-between gap-4 shadow-md border border-blue-800">
-                <div className="space-y-1">
-                  <h3 className="font-extrabold text-base flex items-center space-x-2">
-                    <span>🗺️ แผนผังคลังสินค้าแบบโต้ตอบ (2D & 3D Interactive Layout Map)</span>
-                  </h3>
-                  <p className="text-xs text-blue-200">
-                    สำรวจตำแหน่งจัดเก็บ Zone B-K, ระบบ Heatmap แสดงความหนาแน่น และส่องภาพ 3D เสมือนจริง
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 shrink-0">
-                  <button
-                    onClick={() => setActiveTab('campus_overview')}
-                    className="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-lg text-xs shadow-md transition-all active:scale-95 flex items-center space-x-1.5"
-                  >
-                    <span>🏢 ผังรวม A2/A4/A5</span>
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('layout')}
-                    className="px-3.5 py-2 bg-blue-500 hover:bg-blue-400 text-white font-extrabold rounded-lg text-xs shadow-md transition-all active:scale-95 flex items-center space-x-1.5"
-                  >
-                    <span>🗺️ ผัง A4 (แร็ค/พื้น)</span>
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('flow_floor')}
-                    className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-lg text-xs shadow-md transition-all active:scale-95 flex items-center space-x-1.5"
-                  >
-                    <span>⚡ ผัง A2 (ราง)</span>
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('tent_layout')}
-                    className="px-3.5 py-2 bg-teal-600 hover:bg-teal-500 text-white font-extrabold rounded-lg text-xs shadow-md transition-all active:scale-95 flex items-center space-x-1.5"
-                  >
-                    <span>⛺ ผัง A5 (เต็นท์)</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'campus_overview' && (
+          {(activeTab === 'dashboard' || activeTab === 'campus_overview') && (
             <div className="space-y-6 animate-fadeIn">
               <CampusMasterOverview
                 items={displayedItems}
                 facilities={facilities}
-                searchQuery={globalSearchQuery}
+                stats={stats}
+                lowStockCount={lowStockCount}
+                logs={logs}
+                agingConfig={agingConfig}
+                customSlots={customSlots}
                 onNavigateToZone={handleCampusZoneNavigation}
                 onOpenScanner={(z, b, l, m) => handleOpenScanner(z, b, l, m)}
                 onOpen3D={(z, b) => handleOpen3DForBay(z, b)}
                 onRelocateItem={(item) => {
                   setActiveTab('master');
                 }}
+                onSelectFilter={(tab) => setActiveTab(tab)}
+                onOpenPrinter={() => setActiveTab('printer')}
               />
             </div>
           )}
@@ -545,6 +562,7 @@ export default function App() {
               <A5TentFloorStagingMap
                 items={displayedItems}
                 searchQuery={globalSearchQuery}
+                initialTentNumber={a5InitialTent}
                 onSelectSlot={(tentId, groupNumber, rowCode, columnNumber) => {
                   // Pre-set scanner target with appropriate zone/bay if scanned
                   setScannerZone('A' as StorageZone);
@@ -605,15 +623,22 @@ export default function App() {
             <div className="animate-fadeIn">
               <AgingFifoPanel
                 items={displayedItems}
+                agingConfig={agingConfig}
                 onOpen3DForLocator={(z, b) => handleOpen3DForBay(z, b)}
                 onQuickPickItem={handleQuickPickAgingItem}
+                onOpenAgingSettings={() => setActiveTab('master')}
               />
             </div>
           )}
 
           {activeTab === 'printer' && (
             <div className="animate-fadeIn">
-              <LabelPrinterPanel />
+              <LabelPrinterPanel
+                items={items}
+                agingConfig={agingConfig}
+                facilities={facilities}
+                customSlots={customSlots}
+              />
             </div>
           )}
 
@@ -633,6 +658,10 @@ export default function App() {
                 setFacilities={setFacilities}
                 activeFacilityId={activeFacilityId}
                 setActiveFacilityId={setActiveFacilityId}
+                agingConfig={agingConfig}
+                setAgingConfig={setAgingConfig}
+                customSlots={customSlots}
+                setCustomSlots={setCustomSlots}
                 onNavigateToLayout={(fac) => {
                   setActiveFacilityId(fac.id);
                   if (fac.id === 'FAC-A5-TENT' || fac.storageTypes.includes('FLOOR_STAGING') && !fac.storageTypes.includes('RACK') && !fac.storageTypes.includes('FLOW_RAIL')) {

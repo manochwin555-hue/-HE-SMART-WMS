@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { InventoryItem, MovementType, ShelfLevel, StorageZone } from '../types';
 import { UnifiedSlotModal, UnifiedSlotData } from './UnifiedSlotModal';
+import { SlotMiniStatsOverlay, MiniStatsSlotData } from './SlotMiniStatsOverlay';
 import { 
   Building2, 
   Search, 
@@ -22,7 +23,9 @@ import {
   ZoomIn, 
   ZoomOut,
   Tent,
-  ArrowUpRight
+  ArrowUpRight,
+  Flame,
+  Clock
 } from 'lucide-react';
 
 interface A5TentFloorStagingMapProps {
@@ -91,6 +94,13 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
   initialTentNumber = 1
 }) => {
   const [selectedTent, setSelectedTent] = useState<number>(initialTentNumber);
+
+  React.useEffect(() => {
+    if (initialTentNumber) {
+      setSelectedTent(initialTentNumber);
+      setViewMode('TENT_DETAIL');
+    }
+  }, [initialTentNumber]);
   const [viewMode, setViewMode] = useState<'OVERVIEW_4_TENTS' | 'TENT_DETAIL'>('TENT_DETAIL');
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'OCCUPIED' | 'EMPTY' | 'AGING'>('ALL');
   const [localSearch, setLocalSearch] = useState<string>(searchQuery);
@@ -101,6 +111,17 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
     colNum: number;
     locator: string;
     item?: InventoryItem;
+  } | null>(null);
+
+  // Hover state for SlotMiniStatsOverlay
+  const [hoveredSlot, setHoveredSlot] = useState<{
+    title: string;
+    locatorCode: string;
+    zoneName: string;
+    positionLabel: string;
+    item: InventoryItem | null;
+    x: number;
+    y: number;
   } | null>(null);
 
   // Sync external search query
@@ -232,152 +253,155 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
   const currentTentConfig = TENTS.find(t => t.number === selectedTent) || TENTS[0];
 
   return (
-    <div className="space-y-6">
-      {/* Top Banner / Header Card */}
-      <div className="bg-slate-900 text-white rounded-2xl p-4 sm:p-6 shadow-xl border border-slate-800">
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-          <div className="space-y-1.5">
-            <div className="flex items-center space-x-2.5 flex-wrap">
-              {onNavigateToCampus && (
-                <button
-                  onClick={onNavigateToCampus}
-                  className="px-3 py-1 rounded-full text-xs font-black bg-slate-800 hover:bg-slate-700 text-blue-300 border border-slate-700 flex items-center space-x-1 shadow-sm transition-all"
-                >
-                  <Compass className="w-3.5 h-3.5" />
-                  <span>🏢 ผังรวมแคมปัส A2/A4/A5</span>
-                </button>
-              )}
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-600 text-white flex items-center space-x-1 shadow-sm">
-                <Tent className="w-3.5 h-3.5" />
-                <span>A5 Tent Floor Staging</span>
-              </span>
-              <span className="text-xs text-slate-400 font-semibold">
-                ความจุ 4 เต็นท์ $\times$ 7 กลุ่ม $\times$ 28 ตำแหน่ง = 784 พาเลท
-              </span>
+    <div className="space-y-3">
+      {/* Compact Header & Unified Toolbar */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 sm:p-3 text-white shadow-xs space-y-2.5">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+          <div className="flex items-center space-x-2 flex-wrap">
+            {onNavigateToCampus && (
+              <button
+                onClick={onNavigateToCampus}
+                className="px-2.5 py-1 rounded-lg text-xs font-black bg-slate-800 hover:bg-slate-700 text-white flex items-center space-x-1 shadow-xs transition-all active:scale-95"
+              >
+                <span>🏢 ◂ รวมแคมปัส</span>
+              </button>
+            )}
+            <div className="flex items-center space-x-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              <h2 className="text-sm sm:text-base font-black tracking-tight text-white">
+                ผังเต็นท์วางพื้น A5 (Tent No. 1 - No. 4)
+              </h2>
             </div>
-
-            <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center space-x-2">
-              <span>ผังเต็นท์จัดเก็บสินค้าวางพื้น A5 (Tent No. 1 - No. 4)</span>
-            </h2>
-            <p className="text-xs text-slate-300">
-              โครงสร้างเต็นท์ 4 หลัง มีทางวิ่งโฟล์คลิฟต์ตรงกลาง แต่ละเต็นท์แบ่งเป็น 7 กลุ่ม (01-07) แถวละ 4 ช่อง (R1-R4) ลึก 7 พาเลท (01-07)
-            </p>
-          </div>
-
-          {/* Quick Overview Navigation Tabs */}
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setViewMode('OVERVIEW_4_TENTS')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center space-x-1.5 shadow-sm ${
-                viewMode === 'OVERVIEW_4_TENTS'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'
-              }`}
-            >
-              <Grid className="w-4 h-4" />
-              <span>ภาพรวม 4 เต็นท์ (Site Map)</span>
-            </button>
-
-            <div className="flex bg-slate-800 p-1 rounded-xl border border-slate-700">
-              {TENTS.map((t) => (
-                <button
-                  key={t.number}
-                  onClick={() => {
-                    setSelectedTent(t.number);
-                    setViewMode('TENT_DETAIL');
-                  }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
-                    viewMode === 'TENT_DETAIL' && selectedTent === t.number
-                      ? 'bg-emerald-600 text-white shadow-sm'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  Tent {t.number}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Real-time KPI Bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 pt-5 border-t border-slate-800 text-left">
-          <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700/60">
-            <span className="text-[11px] text-slate-400 font-bold block">ความจุทั้งหมด (A5 Cap)</span>
-            <span className="text-lg sm:text-xl font-black text-white font-mono">{stats.totalCapacity} <span className="text-xs font-normal text-slate-400">Pallets</span></span>
-          </div>
-          <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700/60">
-            <span className="text-[11px] text-slate-400 font-bold block">ใช้งานอยู่ (Occupied)</span>
-            <span className="text-lg sm:text-xl font-black text-emerald-400 font-mono">
-              {stats.occupied} <span className="text-xs text-slate-400">({stats.occupancyRate}%)</span>
+            <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              ความจุ 784 P (4 เต็นท์)
             </span>
           </div>
-          <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700/60">
-            <span className="text-[11px] text-slate-400 font-bold block">ตำแหน่งว่าง (Available)</span>
-            <span className="text-lg sm:text-xl font-black text-blue-400 font-mono">{stats.empty} <span className="text-xs font-normal text-slate-400">Slots</span></span>
-          </div>
-          <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700/60">
-            <span className="text-[11px] text-slate-400 font-bold block">เตือน Aging (&gt;30 วัน)</span>
-            <span className="text-lg sm:text-xl font-black text-amber-400 font-mono">{stats.agingCount} <span className="text-xs font-normal text-slate-400">Items</span></span>
+
+          {/* Compact Inline Capacity Indicators */}
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="px-2.5 py-1 rounded-lg font-bold text-[11px] bg-blue-950/80 text-blue-300 border border-blue-800">
+              จัดเก็บ {stats.occupied}/{stats.totalCapacity} P ({stats.occupancyRate}%)
+            </span>
+            <span className="px-2.5 py-1 rounded-lg font-bold text-[11px] bg-emerald-950/80 text-emerald-300 border border-emerald-800">
+              ว่าง {stats.empty} P
+            </span>
+            {stats.agingCount > 0 && (
+              <span className="px-2.5 py-1 rounded-lg font-bold text-[11px] bg-rose-950/80 text-rose-300 border border-rose-800 animate-pulse">
+                Aging {stats.agingCount} P
+              </span>
+            )}
           </div>
         </div>
-      </div>
 
-      {/* Filter & Search Bar */}
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-3 text-left">
-        <div className="relative w-full md:w-80">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={localSearch}
-            onChange={(e) => setLocalSearch(e.target.value)}
-            placeholder="ค้นหา Model, Part Name, QR หรือ รหัส DA5T..."
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
+        {/* Compact View Switcher, Filter & Search Toolbar */}
+        <div className="pt-2 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+          {/* Tent & Status Filter Chips */}
+          <div className="flex items-center flex-wrap gap-1 font-bold">
+            <button
+              onClick={() => setViewMode('OVERVIEW_4_TENTS')}
+              className={`px-2.5 py-1 rounded-lg border transition-all text-xs flex items-center space-x-1 ${
+                viewMode === 'OVERVIEW_4_TENTS'
+                  ? 'bg-blue-600 text-white border-blue-500 font-black shadow-xs'
+                  : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+              }`}
+            >
+              <Grid className="w-3.5 h-3.5" />
+              <span>ภาพรวม 4 เต็นท์</span>
+            </button>
 
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-          <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
+            <div className="h-4 w-px bg-slate-700 mx-0.5 hidden sm:block"></div>
+
+            {TENTS.map((t) => (
+              <button
+                key={t.number}
+                onClick={() => {
+                  setSelectedTent(t.number);
+                  setViewMode('TENT_DETAIL');
+                }}
+                className={`px-2 py-1 rounded-lg border text-xs transition-all ${
+                  viewMode === 'TENT_DETAIL' && selectedTent === t.number
+                    ? 'bg-emerald-600 text-white border-emerald-500 font-black shadow-xs'
+                    : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                }`}
+              >
+                Tent {t.number}
+              </button>
+            ))}
+
+            <div className="h-4 w-px bg-slate-700 mx-0.5 hidden sm:block"></div>
+
+            {/* Status filters */}
             <button
               onClick={() => setFilterStatus('ALL')}
-              className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${
-                filterStatus === 'ALL' ? 'bg-white shadow text-slate-900' : 'text-slate-600 hover:text-slate-900'
+              className={`px-2 py-1 rounded-lg border text-[11px] transition-all ${
+                filterStatus === 'ALL'
+                  ? 'bg-slate-700 text-white border-slate-600 font-bold'
+                  : 'text-slate-400 border-transparent hover:text-slate-200'
               }`}
             >
               ทั้งหมด
             </button>
             <button
               onClick={() => setFilterStatus('OCCUPIED')}
-              className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${
-                filterStatus === 'OCCUPIED' ? 'bg-white shadow text-emerald-700' : 'text-slate-600 hover:text-slate-900'
+              className={`px-2 py-1 rounded-lg border text-[11px] transition-all ${
+                filterStatus === 'OCCUPIED'
+                  ? 'bg-emerald-700 text-white border-emerald-600 font-bold'
+                  : 'text-emerald-400 border-transparent hover:text-emerald-300'
               }`}
             >
               มีสินค้า ({stats.occupied})
             </button>
             <button
               onClick={() => setFilterStatus('EMPTY')}
-              className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${
-                filterStatus === 'EMPTY' ? 'bg-white shadow text-blue-700' : 'text-slate-600 hover:text-slate-900'
+              className={`px-2 py-1 rounded-lg border text-[11px] transition-all ${
+                filterStatus === 'EMPTY'
+                  ? 'bg-blue-700 text-white border-blue-600 font-bold'
+                  : 'text-blue-400 border-transparent hover:text-blue-300'
               }`}
             >
               ว่าง ({stats.empty})
             </button>
             <button
               onClick={() => setFilterStatus('AGING')}
-              className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${
-                filterStatus === 'AGING' ? 'bg-white shadow text-amber-700' : 'text-slate-600 hover:text-slate-900'
+              className={`px-2 py-1 rounded-lg border text-[11px] transition-all ${
+                filterStatus === 'AGING'
+                  ? 'bg-rose-700 text-white border-rose-600 font-bold'
+                  : 'text-rose-400 border-transparent hover:text-rose-300'
               }`}
             >
-              Aging Alert ({stats.agingCount})
+              Aging ({stats.agingCount})
             </button>
           </div>
 
-          <button
-            onClick={() => onOpenScanner('T1-01', 1, 1, 'IN')}
-            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold shadow flex items-center space-x-1.5 active:scale-95 transition-all"
-          >
-            <QrCode className="w-3.5 h-3.5" />
-            <span>สแกนรับเข้าเต็นท์</span>
-          </button>
+          {/* Quick Search & Scan Button */}
+          <div className="flex items-center gap-1.5 flex-1 sm:flex-initial">
+            <div className="relative min-w-[180px] flex-1 sm:flex-initial">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="ค้นหา Model, DA5T..."
+                value={localSearch}
+                onChange={(e) => setLocalSearch(e.target.value)}
+                className="w-full bg-slate-800 border border-slate-700 text-white placeholder-slate-400 text-xs rounded-lg pl-8 pr-7 py-1 focus:outline-none focus:border-emerald-500"
+              />
+              {localSearch && (
+                <button
+                  onClick={() => setLocalSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-white"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            <button
+              onClick={() => onOpenScanner('T1-01', 1, 1, 'IN')}
+              className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold shadow-xs flex items-center space-x-1 active:scale-95 transition-all whitespace-nowrap"
+            >
+              <QrCode className="w-3.5 h-3.5" />
+              <span>สแกนรับ</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -720,17 +744,14 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
                               selectedSlotData.rowCode === rowCode &&
                               selectedSlotData.colNum === colNum;
 
-                            // Distinct styling matching Image 2 (Red cell for occupied / item)
-                            let cellBg = 'bg-white hover:bg-slate-100';
-                            let cellBorder = 'border-slate-400';
+                            // Distinct styling matching unified floor maps (Dark/Light consistent)
+                            let cellBg = 'bg-slate-50 hover:bg-amber-50/60 border-slate-300 text-slate-700';
 
                             if (item) {
-                              // If aging warning
                               if (item.agingDays > 30 || item.agingStatus === 'WARNING' || item.agingStatus === 'OVERDUE') {
-                                cellBg = 'bg-amber-600 hover:bg-amber-500 text-white';
+                                cellBg = 'bg-amber-100 hover:bg-amber-200 border-amber-500 text-slate-900 shadow-2xs';
                               } else {
-                                // Default occupied red box like image 2
-                                cellBg = 'bg-red-700 hover:bg-red-600 text-white';
+                                cellBg = 'bg-rose-700 hover:bg-rose-600 border-rose-900 text-white shadow-xs font-bold';
                               }
                             }
 
@@ -743,20 +764,56 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
                             return (
                               <button
                                 key={rowCode}
+                                id={`slot-tent${selectedTent}-g${grpNum}-${rowCode}-c${colNum}`}
                                 onClick={() => handleCellClick(selectedTent, grpNum, rowCode, colNum)}
-                                className={`h-8 sm:h-9 border border-slate-900 flex items-center justify-center transition-all relative ${cellBg} ${
+                                onMouseEnter={(e) => {
+                                  setHoveredSlot({
+                                    title: `เต็นท์ A5 Tent ${selectedTent} (กลุ่ม ${String(grpNum).padStart(2, '0')}) - ${rowCode} เสา ${String(colNum).padStart(2, '0')}`,
+                                    locatorCode: locator,
+                                    zoneName: `ลานเต็นท์ A5 (DA5T-${selectedTent})`,
+                                    positionLabel: `กลุ่ม ${grpNum} • แถว ${rowCode} • ลำดับที่ ${colNum} จาก 7 ช่อง`,
+                                    item: item || null,
+                                    x: e.clientX,
+                                    y: e.clientY
+                                  });
+                                }}
+                                onMouseMove={(e) => {
+                                  if (hoveredSlot) {
+                                    setHoveredSlot(prev => prev ? { ...prev, x: e.clientX, y: e.clientY } : null);
+                                  }
+                                }}
+                                onMouseLeave={() => setHoveredSlot(null)}
+                                className={`h-7.5 sm:h-8 border rounded p-0.5 flex flex-col justify-between items-center text-center transition-all cursor-pointer relative overflow-hidden select-none ${cellBg} ${
                                   !isVisible ? 'opacity-20' : 'opacity-100'
                                 }`}
-                                title={`${locator}${item ? ` | ${item.modelHE} - ${item.partName}` : ' (ว่าง)'}`}
+                                title={`Locator: ${locator}${item ? ` | ${item.modelHE} - ${item.partName}` : ' (ว่าง)'}`}
                               >
+                                <div className="w-full flex items-center justify-between text-[7px] font-mono leading-none">
+                                  <span className="font-black opacity-80">{rowCode}</span>
+                                  {item && (
+                                    <span className="text-[6.5px] font-mono font-black bg-black/25 px-0.5 rounded leading-none">
+                                      {item.useLine || '1P'}
+                                    </span>
+                                  )}
+                                </div>
+
                                 {item ? (
-                                  <span className="text-[9px] font-black leading-none drop-shadow-xs">
-                                    {rowCode}
-                                  </span>
+                                  <>
+                                    <div className="w-full leading-tight truncate my-auto">
+                                      <span className="text-[7.5px] sm:text-[8px] font-mono font-black tracking-tight truncate block drop-shadow-2xs">
+                                        {item.modelHE}
+                                      </span>
+                                    </div>
+                                    <div className="w-full text-center pt-0.2 border-t border-black/10 text-[7px] font-mono font-black leading-none">
+                                      {item.quantity}U
+                                    </div>
+                                  </>
                                 ) : (
-                                  <span className="text-[8px] font-mono text-slate-300">
-                                    •
-                                  </span>
+                                  <div className="my-auto">
+                                    <span className="text-[7px] text-slate-300 font-sans">
+                                      ว่าง
+                                    </span>
+                                  </div>
                                 )}
                               </button>
                             );
@@ -813,6 +870,11 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* FLOATING HOVER MINI-STATS OVERLAY FOR TENT SLOTS */}
+      {hoveredSlot && (
+        <SlotMiniStatsOverlay data={hoveredSlot} />
       )}
 
       {/* ========================================================================= */}

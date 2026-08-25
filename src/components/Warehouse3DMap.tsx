@@ -44,12 +44,44 @@ export const Warehouse3DMap: React.FC<Warehouse3DMapProps> = ({
   const [isAutoRotate, setIsAutoRotate] = useState<boolean>(false);
   const [viewPreset, setViewPreset] = useState<'3D' | 'ISO' | 'TOP' | 'AISLE1' | 'AISLE2'>('3D');
   const [isControlsOpen, setIsControlsOpen] = useState<boolean>(true);
+  const [isSelfFullscreen, setIsSelfFullscreen] = useState<boolean>(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const toggleFullscreen = () => {
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
+    if (isSelfFullscreen) {
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
+      setIsSelfFullscreen(false);
+    } else {
+      if (containerRef.current && containerRef.current.requestFullscreen) {
+        containerRef.current.requestFullscreen().catch(() => {
+          // Fallback to overlay fullscreen
+        });
+      }
+      setIsSelfFullscreen(true);
     }
   };
+
+  // Listen for escape key or fullscreen change
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement) {
+        setIsSelfFullscreen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isSelfFullscreen) {
+        setIsSelfFullscreen(false);
+      }
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isSelfFullscreen]);
 
   useEffect(() => {
     if (!mountRef.current) return;
@@ -511,10 +543,16 @@ export const Warehouse3DMap: React.FC<Warehouse3DMapProps> = ({
   };
 
   return (
-    <div className="relative w-full h-full bg-slate-950 rounded-2xl shadow-2xl border border-slate-800 overflow-hidden">
-      
-      {/* AI HUD Header Banner (Top Left) with Collapsible Toggle */}
-      <div className="absolute top-3 sm:top-4 left-3 sm:left-4 z-10 pointer-events-none">
+    <div 
+      ref={containerRef}
+      className={`relative w-full bg-slate-950 rounded-2xl shadow-2xl border border-slate-800 overflow-hidden transition-all duration-300 ${
+        isSelfFullscreen 
+          ? 'fixed inset-0 z-[99999] w-screen h-screen rounded-none border-0' 
+          : 'h-full'
+      }`}
+    >
+      {/* AI HUD Header Banner (Top Left) with Collapsible Toggle & Fullscreen Button */}
+      <div className="absolute top-3 sm:top-4 left-3 sm:left-4 z-20 pointer-events-none">
         {isControlsOpen ? (
           <div className="bg-slate-900/95 backdrop-blur-md border border-cyan-500/30 p-3 sm:p-3.5 rounded-2xl shadow-2xl flex flex-col pointer-events-auto space-y-2 max-w-xs sm:max-w-sm animate-fadeIn">
             <div className="flex items-center justify-between gap-2 text-white">
@@ -531,19 +569,29 @@ export const Warehouse3DMap: React.FC<Warehouse3DMapProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center space-x-1">
-                {isDashboardFullscreen && (
-                  <button 
-                    onClick={toggleFullscreen} 
-                    className="p-1.5 bg-slate-800 text-slate-300 rounded-lg hover:text-white transition-colors"
-                    title="ออกจากการแสดงเต็มจอ"
-                  >
-                    <Minimize className="w-3.5 h-3.5" />
-                  </button>
-                )}
+              <div className="flex items-center space-x-1.5">
+                {/* Fullscreen Button */}
+                <button
+                  onClick={toggleFullscreen}
+                  className="flex items-center space-x-1 px-2 py-1 bg-cyan-600 hover:bg-cyan-500 text-slate-950 rounded-lg text-[10px] font-black shadow-md border border-cyan-300 transition-all active:scale-95"
+                  title={isSelfFullscreen ? "ออกจากโหมดเต็มจอ (Esc)" : "กดดูแบบเต็มจอ (Fullscreen)"}
+                >
+                  {isSelfFullscreen ? (
+                    <>
+                      <Minimize className="w-3 h-3" />
+                      <span>ปิดเต็มจอ</span>
+                    </>
+                  ) : (
+                    <>
+                      <Maximize2 className="w-3 h-3" />
+                      <span>เต็มจอ</span>
+                    </>
+                  )}
+                </button>
+
                 <button
                   onClick={() => setIsControlsOpen(false)}
-                  className="flex items-center space-x-1 px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-[10px] font-bold border border-slate-700 transition-all"
+                  className="flex items-center space-x-1 px-1.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-[10px] font-bold border border-slate-700 transition-all"
                   title="ซ่อนแถบเครื่องมือปรับมุม"
                 >
                   <EyeOff className="w-3 h-3 text-cyan-400" />

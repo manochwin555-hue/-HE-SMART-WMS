@@ -71,7 +71,7 @@ const translations: Record<string, Record<string, string>> = {
     totalCapacity: 'ความจุรวม:',
   },
   en: {
-    dashboard: 'Dashboard (KPIs)',
+    dashboard: 'Executive Hub (GMES & KPIs)',
     layout: 'A4 Map (Rack/Floor)',
     campus: 'Campus (A2/A4/A5)',
     flow: 'A2 Map (Flow Rail)',
@@ -163,8 +163,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const activeFacility = facilities.find(f => f.id === activeFacilityId);
 
   const navItems = [
-    { id: 'dashboard', label: t.dashboard, icon: Warehouse },
-    { id: 'campus_overview', label: t.campus, icon: Compass, badge: 'SITE' },
+    { id: 'campus_overview', label: t.campus, icon: Warehouse, badge: 'SITE' },
     { id: 'layout', label: t.layout, icon: Map, badge: 'A4' },
     { id: 'flow_floor', label: t.flow, icon: GitCommit, badge: 'A2' },
     { id: 'tent_layout', label: t.tent, icon: Tent, badge: 'A5' },
@@ -188,7 +187,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             {isMobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
-          <div className="flex items-center space-x-2 cursor-pointer" onClick={() => setActiveTab('dashboard')}>
+          <div className="flex items-center space-x-2 cursor-pointer" onClick={() => setActiveTab('campus_overview')}>
             <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white text-xs">
               HEX
             </div>
@@ -225,7 +224,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="p-3.5 border-b border-slate-800/80 flex items-center justify-between">
           <div
             onClick={() => {
-              setActiveTab('dashboard');
+              setActiveTab('campus_overview');
               setIsMobileOpen(false);
             }}
             className="flex items-center space-x-2.5 cursor-pointer overflow-hidden text-left"
@@ -271,55 +270,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             <QrCode className="w-4 h-4 shrink-0 text-white" />
             {!isCollapsed && <span className="text-xs truncate">สแกน QR (IN/OUT)</span>}
           </button>
-
-          {/* Global Warehouse Site / Facility Dropdown */}
-          {!isCollapsed && setActiveFacilityId && (
-            <div id="global-facility-dropdown-container" className="bg-slate-800/90 p-2 rounded-xl border border-slate-700/80 space-y-1.5 text-left shadow-sm">
-              <div className="flex items-center justify-between text-[10px] text-slate-300 font-bold px-1">
-                <span className="flex items-center space-x-1.5 text-blue-400">
-                  <Building2 className="w-3.5 h-3.5" />
-                  <span>คลัง / อาคารจัดเก็บ (Facility):</span>
-                </span>
-                {activeFacility && (
-                  <span className="px-1.5 py-0.2 bg-blue-500/20 text-blue-300 font-mono text-[9px] rounded border border-blue-500/30">
-                    {activeFacility.code}
-                  </span>
-                )}
-              </div>
-              <select
-                id="global-facility-select"
-                value={activeFacilityId}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setActiveFacilityId(val);
-                  const selected = facilities.find(f => f.id === val);
-                  if (selected) {
-                    if (selected.storageTypes.includes('FLOW_RAIL') && !selected.storageTypes.includes('RACK') && activeTab === 'layout') {
-                      setActiveTab('flow_floor');
-                    } else if (selected.storageTypes.includes('RACK') && activeTab === 'flow_floor') {
-                      setActiveTab('layout');
-                    }
-                  }
-                }}
-                className="w-full bg-slate-900 border border-slate-700 text-slate-100 text-xs font-bold rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors cursor-pointer"
-              >
-                <option value="ALL">🌐 ทุกสถานที่รวมกัน (All Facilities)</option>
-                {facilities.map((fac) => (
-                  <option key={fac.id} value={fac.id}>
-                    🏢 {fac.name} ({fac.totalCapacityPallets}P)
-                  </option>
-                ))}
-              </select>
-
-              {/* Active Facility Zone hint */}
-              {activeFacility && (
-                <div className="px-1 text-[10px] text-slate-400 flex items-center justify-between">
-                  <span className="truncate max-w-[130px]">{activeFacility.building}</span>
-                  <span className="font-mono text-slate-300 font-semibold">{activeFacility.totalCapacityPallets} Pallets</span>
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Left-Aligned Menu Tabs */}

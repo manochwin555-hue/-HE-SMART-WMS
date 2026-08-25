@@ -59,6 +59,15 @@ export interface UseLineMaster {
   description?: string;
 }
 
+export interface AgingThresholdConfig {
+  safeDaysMax: number; // e.g. 14 (<= 14 is Safe)
+  warningDaysMax: number; // e.g. 30 (15 - 30 is Warning)
+  criticalDays: number; // e.g. 30 (> 30 is Overdue)
+  autoAlertEnabled: boolean;
+  notifyOnFifoViolation?: boolean;
+  customRuleName?: string;
+}
+
 export interface ZoneCapacityMaster {
   zone: StorageZone;
   standardPalletsPerBay: number; // ความจุมาตรฐานกี่พาเลท ต่อ 1 Bay (e.g. 8 พาเลท/Bay)
@@ -154,3 +163,4 @@ export interface WmsStats {
   rackJGOccupied: number;
   rackJGCapacity: number;
 }
+

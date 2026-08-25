@@ -1,6 +1,16 @@
 import React, { useState, useMemo } from 'react';
 import { InventoryItem, CycleCountRecord } from '../types';
-import { Scale, AlertCircle, CheckCircle2, RefreshCw, FileText, Check, ArrowDownUp, Search, Filter } from 'lucide-react';
+import { 
+  Scale, 
+  AlertCircle, 
+  CheckCircle2, 
+  RefreshCw, 
+  Download, 
+  Check, 
+  Search, 
+  AlertTriangle,
+  FileSpreadsheet
+} from 'lucide-react';
 
 interface StockVariancePanelProps {
   items: InventoryItem[];
@@ -16,21 +26,20 @@ export const StockVariancePanel: React.FC<StockVariancePanelProps> = ({ items, o
   // Derive initial cycle count data with realistic variances for demonstration
   const [cycleData, setCycleData] = useState<CycleCountRecord[]>(() => {
     return items.map((it, idx) => {
-      // Create variance for some items (e.g. index 1, 3, 5, 8)
       let physicalQty = it.quantity;
       let status: 'MATCH' | 'SURPLUS' | 'SHORTAGE' = 'MATCH';
 
       if (idx === 1) {
-        physicalQty = it.quantity - 18; // Shortage of 18 units
+        physicalQty = it.quantity - 18;
         status = 'SHORTAGE';
       } else if (idx === 3) {
-        physicalQty = it.quantity + 25; // Surplus of 25 units
+        physicalQty = it.quantity + 25;
         status = 'SURPLUS';
       } else if (idx === 5) {
-        physicalQty = it.quantity - 42; // Shortage of 42 units
+        physicalQty = it.quantity - 42;
         status = 'SHORTAGE';
       } else if (idx === 8) {
-        physicalQty = it.quantity + 10; // Surplus of 10 units
+        physicalQty = it.quantity + 10;
         status = 'SURPLUS';
       } else if (idx % 4 === 0 && idx > 0) {
         physicalQty = it.quantity - (12 + (idx * 3) % 20);
@@ -75,7 +84,6 @@ export const StockVariancePanel: React.FC<StockVariancePanelProps> = ({ items, o
     return cycleData.filter((rec) => {
       const isResolved = resolvedIds.has(rec.id);
 
-      // Search match
       const q = searchQuery.toLowerCase().trim();
       const matchesSearch =
         !q ||
@@ -139,211 +147,213 @@ export const StockVariancePanel: React.FC<StockVariancePanelProps> = ({ items, o
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
-      {/* Header & KPI Summary */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-3">
-        <div className="flex items-center space-x-2.5">
-          <div className="p-2 bg-amber-50 text-amber-600 rounded-lg border border-amber-200">
-            <Scale className="w-5 h-5" />
+    <div className="bg-white border border-slate-200 rounded-xl p-3.5 sm:p-5 lg:p-6 shadow-sm text-slate-900 space-y-4 w-full min-w-0 max-w-full">
+      {/* Header & Controls */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between pb-3 sm:pb-4 border-b border-slate-200 gap-3 sm:gap-4">
+        <div>
+          <div className="flex items-center space-x-2">
+            <Scale className="w-5 h-5 text-blue-600" />
+            <h2 className="text-lg font-bold text-slate-800">
+              วิเคราะห์ผลต่างสต็อกนับจริง (Stock Variance & Cycle Count)
+            </h2>
           </div>
-          <div>
-            <h3 className="text-sm font-bold text-slate-800 flex items-center space-x-2">
-              <span>วิเคราะห์ผลต่างสต็อกนับจริง (Stock Variance Analysis)</span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-extrabold border border-amber-300">
-                Cycle Count Discrepancy
-              </span>
-            </h3>
-            <p className="text-[11px] text-slate-500">
-              เปรียบเทียบยอดคงเหลือในระบบ WMS กับ ยอดนับจริงล่าสุด (Cycle Count) เพื่อตรวจสอบความถูกต้องทันที
-            </p>
-          </div>
+          <p className="text-xs text-slate-500 mt-0.5">
+            เปรียบเทียบยอดคงเหลือในระบบ WMS กับยอดนับจริงล่าสุด เพื่อตรวจสอบความถูกต้องและปรับยอดอัตโนมัติ
+          </p>
         </div>
 
-        <div className="flex items-center space-x-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={handleReAudit}
             disabled={isAuditing}
-            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg border border-slate-300 flex items-center space-x-1.5 transition-all"
+            className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg border border-slate-300 flex items-center space-x-1.5 transition-all active:scale-95"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isAuditing ? 'animate-spin text-blue-600' : ''}`} />
             <span>รีเฟรชการตรวจสอบ</span>
           </button>
+
           <button
             onClick={handleExportAudit}
-            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm flex items-center space-x-1.5 transition-all"
+            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm flex items-center space-x-1.5 transition-all"
           >
-            <FileText className="w-3.5 h-3.5" />
-            <span>ส่งออกรายงาน Audit CSV</span>
+            <Download className="w-4 h-4 text-white" />
+            <span>ส่งออก Excel (.csv)</span>
           </button>
         </div>
       </div>
 
-      {/* KPI Stats Widgets Banner */}
+      {/* Summary KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
-          <div className="text-[10px] font-bold text-slate-500 uppercase">อัตราความถูกต้องสต็อก (Accuracy)</div>
-          <div className="text-lg font-black text-emerald-600">{stats.accuracyRate}%</div>
-          <div className="text-[10px] text-slate-400 font-medium">ตรงกัน {stats.matchCount} / {stats.total} รายการ</div>
+        <div className="bg-emerald-50/70 border border-emerald-200 rounded-lg p-3.5 shadow-2xs">
+          <div className="text-[11px] font-bold text-emerald-800 uppercase">ความถูกต้องสต็อก (Accuracy)</div>
+          <div className="text-xl font-bold text-emerald-600 mt-0.5">{stats.accuracyRate}%</div>
+          <div className="text-[10px] text-slate-500 font-medium">ตรงกัน {stats.matchCount} / {stats.total} รายการ</div>
         </div>
 
-        <div className="bg-amber-50 p-3 rounded-lg border border-amber-200">
-          <div className="text-[10px] font-bold text-amber-800 uppercase">รายการที่มีผลต่าง (Discrepancies)</div>
-          <div className="text-lg font-black text-amber-700">{stats.discrepancyCount} รายการ</div>
-          <div className="text-[10px] text-amber-600 font-medium">ต้องรอการตรวจสอบปรับยอด</div>
+        <div className="bg-amber-50/70 border border-amber-200 rounded-lg p-3.5 shadow-2xs">
+          <div className="text-[11px] font-bold text-amber-800 uppercase">มีผลต่าง (Discrepancy)</div>
+          <div className="text-xl font-bold text-amber-700 mt-0.5">{stats.discrepancyCount} รายการ</div>
+          <div className="text-[10px] text-amber-700 font-medium">รอการตรวจสอบปรับยอด</div>
         </div>
 
-        <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-          <div className="text-[10px] font-bold text-blue-800 uppercase">ผลต่างสุทธิ (Net Variance)</div>
-          <div className={`text-lg font-black ${stats.netVariance < 0 ? 'text-red-600' : stats.netVariance > 0 ? 'text-emerald-600' : 'text-slate-800'}`}>
+        <div className="bg-blue-50/70 border border-blue-200 rounded-lg p-3.5 shadow-2xs">
+          <div className="text-[11px] font-bold text-blue-800 uppercase">ผลต่างสุทธิ (Net Variance)</div>
+          <div className={`text-xl font-bold mt-0.5 ${stats.netVariance < 0 ? 'text-red-600' : stats.netVariance > 0 ? 'text-emerald-600' : 'text-slate-800'}`}>
             {stats.netVariance > 0 ? `+${stats.netVariance}` : stats.netVariance} Units
           </div>
-          <div className="text-[10px] text-blue-600 font-medium">ส่วนต่างระหว่าง Physical - System</div>
+          <div className="text-[10px] text-blue-700 font-medium">Physical - System</div>
         </div>
 
-        <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex flex-col justify-center">
-          <div className="text-[10px] font-bold text-slate-500 uppercase">สถานะ Audit ล่าสุด</div>
-          <div className="text-xs font-bold text-slate-800 mt-1 flex items-center space-x-1">
+        <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 flex flex-col justify-center shadow-2xs">
+          <div className="text-[11px] font-bold text-slate-600 uppercase">สถานะ Audit ล่าสุด</div>
+          <div className="text-xs font-bold text-slate-800 mt-1 flex items-center space-x-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>พร้อมใช้งาน (Live Synced)</span>
           </div>
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-1">
-        <div className="flex items-center space-x-1 overflow-x-auto no-scrollbar">
-          <button
-            onClick={() => setFilterType('DISCREPANCY')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
-              filterType === 'DISCREPANCY'
-                ? 'bg-amber-500 text-white shadow-sm'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            ⚠️ มีผลต่าง ({stats.discrepancyCount})
-          </button>
-          <button
-            onClick={() => setFilterType('SHORTAGE')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
-              filterType === 'SHORTAGE'
-                ? 'bg-red-600 text-white shadow-sm'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            🔻 ยอดขาด (Shortage)
-          </button>
-          <button
-            onClick={() => setFilterType('SURPLUS')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
-              filterType === 'SURPLUS'
-                ? 'bg-emerald-600 text-white shadow-sm'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            🔺 ยอดเกิน (Surplus)
-          </button>
-          <button
-            onClick={() => setFilterType('ALL')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
-              filterType === 'ALL'
-                ? 'bg-slate-800 text-white shadow-sm'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            ทั้งหมด ({stats.total})
-          </button>
-        </div>
+      {/* Search & Filter Bar */}
+      <div className="space-y-3 bg-slate-50 border border-slate-200 rounded-xl p-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="ค้นหาตาม Model HE, Part Name, Locator..."
+              className="w-full bg-white border border-slate-300 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-blue-500 shadow-sm"
+            />
+          </div>
 
-        <div className="relative w-full sm:w-64">
-          <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="ค้นหา Model, Locator..."
-            className="w-full bg-slate-50 border border-slate-300 focus:border-blue-500 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none"
-          />
+          {/* Filter Status Segmented Buttons */}
+          <div className="flex bg-slate-200/80 p-1 rounded-lg border border-slate-200 text-xs">
+            {[
+              { id: 'DISCREPANCY', label: `มีผลต่าง (${stats.discrepancyCount})` },
+              { id: 'SHORTAGE', label: 'ยอดขาด (Short)' },
+              { id: 'SURPLUS', label: 'ยอดเกิน (Surplus)' },
+              { id: 'ALL', label: `ทั้งหมด (${stats.total})` }
+            ].map((st) => (
+              <button
+                key={st.id}
+                onClick={() => setFilterType(st.id as any)}
+                className={`flex-1 py-1 rounded-md font-medium transition-all ${
+                  filterType === st.id ? 'bg-blue-600 text-white shadow-sm font-semibold' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {st.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Variance Table */}
-      <div className="overflow-x-auto border border-slate-200 rounded-xl">
-        <table className="w-full text-left text-xs">
-          <thead className="bg-slate-100/80 text-slate-700 font-bold border-b border-slate-200 uppercase text-[10px]">
+      {/* Variance Data Table */}
+      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+        <table className="w-full text-left text-xs text-slate-700">
+          <thead className="bg-slate-50 text-slate-600 font-bold uppercase text-[11px] border-b border-slate-200">
             <tr>
-              <th className="py-2.5 px-3">Model HE / Name</th>
-              <th className="py-2.5 px-3">Location Code</th>
-              <th className="py-2.5 px-3 text-right">ยอดในระบบ (WMS)</th>
-              <th className="py-2.5 px-3 text-right">ยอดนับจริง (Cycle Count)</th>
-              <th className="py-2.5 px-3 text-right">ผลต่าง (Variance Δ)</th>
-              <th className="py-2.5 px-3 text-center">สถานะ</th>
-              <th className="py-2.5 px-3 text-center">ผู้ตรวจสอบ / วันที่</th>
-              <th className="py-2.5 px-3 text-center">การจัดการ</th>
+              <th className="px-3.5 py-3">รหัสวัตถุดิบ (Model HE)</th>
+              <th className="px-3.5 py-3">ชื่อ Tool (Tool Name)</th>
+              <th className="px-3.5 py-3">ตำแหน่ง (Locator Code)</th>
+              <th className="px-3.5 py-3 text-right">ยอดในระบบ (WMS)</th>
+              <th className="px-3.5 py-3 text-right">ยอดนับจริง (Count)</th>
+              <th className="px-3.5 py-3 text-right">ผลต่าง (&Delta; Variance)</th>
+              <th className="px-3.5 py-3 text-center">สถานะ</th>
+              <th className="px-3.5 py-3 text-center">ผู้ตรวจสอบ / วันที่</th>
+              <th className="px-3.5 py-3 text-center">การจัดการ</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200 bg-white">
+          <tbody className="divide-y divide-slate-100">
             {filteredRecords.length > 0 ? (
               filteredRecords.map((rec) => {
                 const isResolved = resolvedIds.has(rec.id);
                 return (
                   <tr key={rec.id} className={`hover:bg-slate-50 transition-colors ${isResolved ? 'bg-slate-50/50 opacity-60' : ''}`}>
-                    <td className="py-2.5 px-3 font-bold text-slate-800">
-                      <div>{rec.modelHE}</div>
-                      <div className="text-[10px] text-slate-500 font-normal truncate max-w-[150px]">{rec.partName}</div>
+                    {/* Model HE */}
+                    <td className="px-3.5 py-2.5 font-mono font-bold text-slate-900">
+                      {rec.modelHE}
                     </td>
-                    <td className="py-2.5 px-3 font-mono font-bold text-blue-700">{rec.locatorCode}</td>
-                    <td className="py-2.5 px-3 text-right font-bold text-slate-700">{rec.systemQty.toLocaleString()} U</td>
-                    <td className="py-2.5 px-3 text-right font-bold text-slate-900">{rec.physicalQty.toLocaleString()} U</td>
-                    <td className="py-2.5 px-3 text-right font-extrabold">
+
+                    {/* Part Name */}
+                    <td className="px-3.5 py-2.5 font-medium text-slate-800">
+                      <div>{rec.partName}</div>
+                    </td>
+
+                    {/* Locator Code */}
+                    <td className="px-3.5 py-2.5 font-mono font-bold text-blue-700">
+                      {rec.locatorCode}
+                    </td>
+
+                    {/* System Qty */}
+                    <td className="px-3.5 py-2.5 text-right font-mono font-bold text-slate-700">
+                      {rec.systemQty.toLocaleString()} U
+                    </td>
+
+                    {/* Physical Qty */}
+                    <td className="px-3.5 py-2.5 text-right font-mono font-bold text-slate-900">
+                      {rec.physicalQty.toLocaleString()} U
+                    </td>
+
+                    {/* Variance Qty */}
+                    <td className="px-3.5 py-2.5 text-right font-mono font-extrabold">
                       {isResolved ? (
                         <span className="text-emerald-600 font-bold">0 (ปรับยอดแล้ว)</span>
                       ) : rec.varianceQty < 0 ? (
-                        <span className="text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-200">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded bg-rose-50 text-rose-700 font-extrabold border border-rose-200 text-[10px]">
                           {rec.varianceQty} U
                         </span>
                       ) : rec.varianceQty > 0 ? (
-                        <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-extrabold border border-emerald-200 text-[10px]">
                           +{rec.varianceQty} U
                         </span>
                       ) : (
-                        <span className="text-slate-500">0 U</span>
+                        <span className="text-slate-400 font-normal">0 U</span>
                       )}
                     </td>
-                    <td className="py-2.5 px-3 text-center">
+
+                    {/* Status Badge */}
+                    <td className="px-3.5 py-2.5 text-center">
                       {isResolved ? (
-                        <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                          <CheckCircle2 className="w-3 h-3" />
+                        <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-extrabold border border-emerald-200 text-[10px]">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                           <span>ปรับยอดแล้ว</span>
                         </span>
                       ) : rec.varianceQty < 0 ? (
-                        <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-red-100 text-red-800 text-[10px] font-bold">
-                          <AlertCircle className="w-3 h-3" />
-                          <span>ขาดสต็อก (Shortage)</span>
+                        <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-rose-50 text-rose-700 font-extrabold border border-rose-200 text-[10px]">
+                          <AlertCircle className="w-3 h-3 text-rose-600" />
+                          <span>ขาดสต็อก</span>
                         </span>
                       ) : rec.varianceQty > 0 ? (
-                        <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">
-                          <AlertCircle className="w-3 h-3" />
-                          <span>สต็อกเกิน (Surplus)</span>
+                        <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-amber-50 text-amber-800 font-extrabold border border-amber-200 text-[10px]">
+                          <AlertCircle className="w-3 h-3 text-amber-600" />
+                          <span>สต็อกเกิน</span>
                         </span>
                       ) : (
-                        <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold">
+                        <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-extrabold border border-emerald-200 text-[10px]">
                           <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                          <span>ตรงกัน (Match)</span>
+                          <span>ตรงกัน</span>
                         </span>
                       )}
                     </td>
-                    <td className="py-2.5 px-3 text-center text-[10px] text-slate-500">
+
+                    {/* Auditor / Date */}
+                    <td className="px-3.5 py-2.5 text-center text-[10px] text-slate-500">
                       <div>{rec.counterName}</div>
                       <div className="font-mono text-slate-400">{rec.lastCountDate}</div>
                     </td>
-                    <td className="py-2.5 px-3 text-center">
+
+                    {/* Action */}
+                    <td className="px-3.5 py-2.5 text-center">
                       {!isResolved && rec.varianceQty !== 0 ? (
                         <button
                           onClick={() => handleResolve(rec)}
-                          className="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white font-bold text-[10px] rounded shadow-xs transition-all flex items-center space-x-1 mx-auto"
+                          className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg shadow-sm transition-all flex items-center space-x-1 mx-auto active:scale-95"
                           title="อนุมัติปรับยอดคงเหลือใน WMS ให้ตรงกับ Cycle Count"
                         >
-                          <Check className="w-3 h-3" />
+                          <Check className="w-3.5 h-3.5" />
                           <span>อนุมัติปรับยอด</span>
                         </button>
                       ) : (
@@ -355,12 +365,8 @@ export const StockVariancePanel: React.FC<StockVariancePanelProps> = ({ items, o
               })
             ) : (
               <tr>
-                <td colSpan={8} className="py-8 text-center text-slate-400 text-xs">
-                  <div className="flex flex-col items-center space-y-1">
-                    <CheckCircle2 className="w-8 h-8 text-emerald-500" />
-                    <span className="font-bold text-slate-700">ไม่พบผลต่างสต็อก หรือปรับยอดเสร็จสิ้นแล้ว</span>
-                    <span className="text-[11px] text-slate-400">ยอดคงเหลือใน WMS ตรงกับผลการนับ Cycle Count ทุกรายการ</span>
-                  </div>
+                <td colSpan={9} className="py-8 text-center text-slate-500 font-medium">
+                  ไม่พบผลต่างสต็อก หรือปรับยอดเสร็จสิ้นแล้ว
                 </td>
               </tr>
             )}

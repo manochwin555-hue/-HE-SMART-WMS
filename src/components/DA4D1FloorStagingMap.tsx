@@ -238,101 +238,58 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
   });
 
   return (
-    <div className="space-y-4">
-      {/* Header Banner & Capacity Summary */}
-      <div className="bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-yellow-500/10 border-2 border-amber-400/60 rounded-2xl p-4 sm:p-5 shadow-xs">
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center space-x-2 flex-wrap">
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-500 text-slate-950 flex items-center space-x-1 shadow-xs">
-                <Building2 className="w-3.5 h-3.5" />
-                <span>A4 Building • โซนวางพื้นสีเหลือง</span>
-              </span>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-100 text-amber-900 border border-amber-300">
-                DA4D-1 (กลุ่ม X1 ถึง X8)
-              </span>
-              <span className="text-[11px] font-mono text-slate-600">
-                รูปแบบพิกัด: <span className="text-blue-700 font-black">DA4D-1-R[Row]-[Column]</span> (เช่น <span className="text-rose-700 font-bold">DA4D-1-R8-06</span>)
-              </span>
-            </div>
-            <h3 className="text-base sm:text-lg font-black text-slate-900 flex items-center space-x-2">
-              <span>MCS Heat Exchanger Inventory Layout (ผังจัดวางพื้น DA4D-1)</span>
-            </h3>
-            <p className="text-xs text-slate-600 max-w-3xl">
-              โครงสร้างจัดวางบนพื้นรวม 8 กลุ่ม (X1 - X8) ความจุรวม <span className="font-bold text-slate-900">432 พาเลท</span> (1 กล่อง = 1 พาเลท) แบ่งเป็นบล็อกบน X5-X8 (12 เสา) และบล็อกล่าง X1-X4 (7 เสา)
-            </p>
-          </div>
-
-          {/* Area Capacity Breakdown Cards */}
-          <div className="flex items-center flex-wrap gap-2 text-xs">
-            <div className="bg-white border-2 border-amber-400 px-3.5 py-2 rounded-xl text-center shadow-xs min-w-[95px]">
-              <span className="text-[10px] text-amber-900 block font-bold">DA4D-1 Capacity</span>
-              <span className="text-base font-black text-slate-900 font-mono">432</span>
-              <span className="text-[9px] text-slate-500 ml-0.5">Pallets</span>
-            </div>
-            <div className="bg-blue-50 border border-blue-200 px-3 py-2 rounded-xl text-center min-w-[90px]">
-              <span className="text-[10px] text-blue-700 block font-bold">จัดเก็บแล้ว</span>
-              <span className="text-sm font-black text-blue-900 font-mono">{stats.occupiedSlots}</span>
-              <span className="text-[9px] text-blue-700 ml-0.5">({stats.utilizationRate}%)</span>
-            </div>
-            <div className="bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-xl text-center min-w-[85px]">
-              <span className="text-[10px] text-emerald-700 block font-bold">ช่องว่าง</span>
-              <span className="text-sm font-black text-emerald-900 font-mono">{stats.emptySlots}</span>
-              <span className="text-[9px] text-emerald-700 ml-0.5">P</span>
-            </div>
-            {stats.agingCount > 0 && (
-              <div className="bg-rose-50 border border-rose-300 px-3 py-2 rounded-xl text-center min-w-[85px] animate-pulse">
-                <span className="text-[10px] text-rose-700 block font-bold">Aging Alert</span>
-                <span className="text-sm font-black text-rose-900 font-mono">{stats.agingCount}</span>
-                <span className="text-[9px] text-rose-700 ml-0.5">P</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Filter Controls Bar */}
-        <div className="mt-4 pt-3 border-t border-amber-300/60 flex flex-wrap items-center justify-between gap-3 text-xs">
+    <div className="space-y-3">
+      {/* Compact Unified Filter & Staging Strip */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 sm:p-3 text-white shadow-xs">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5 text-xs">
+          
           {/* Group Filter Chips */}
-          <div className="flex items-center flex-wrap gap-1.5 font-bold">
-            <span className="text-slate-600 text-[11px] mr-1">กลุ่มพื้นที่:</span>
+          <div className="flex items-center flex-wrap gap-1 font-bold">
+            <span className="text-amber-400 text-[11px] font-black mr-1 flex items-center space-x-1">
+              <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+              <span>กลุ่มเสา:</span>
+            </span>
             <button
               onClick={() => setSelectedGroupFilter('ALL')}
-              className={`px-2.5 py-1 rounded-lg border transition-all ${
+              className={`px-2.5 py-1 rounded-lg border transition-all text-xs ${
                 selectedGroupFilter === 'ALL'
-                  ? 'bg-amber-500 text-slate-950 border-amber-600 font-black shadow-xs'
-                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                  ? 'bg-amber-500 text-slate-950 border-amber-500 font-black shadow-xs'
+                  : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
               }`}
             >
-              ทั้งหมด (X1 - X8)
+              ทั้งหมด (X1-X8)
             </button>
             <button
               onClick={() => setSelectedGroupFilter('TOP')}
-              className={`px-2.5 py-1 rounded-lg border transition-all ${
+              className={`px-2 py-1 rounded-lg border transition-all text-xs ${
                 selectedGroupFilter === 'TOP'
-                  ? 'bg-amber-500 text-slate-950 border-amber-600 font-black shadow-xs'
-                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                  ? 'bg-amber-500 text-slate-950 border-amber-500 font-black shadow-xs'
+                  : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
               }`}
             >
-              บล็อกบน (X5-X8: 264P)
+              บล็อกบน (X5-X8)
             </button>
             <button
               onClick={() => setSelectedGroupFilter('BOTTOM')}
-              className={`px-2.5 py-1 rounded-lg border transition-all ${
+              className={`px-2 py-1 rounded-lg border transition-all text-xs ${
                 selectedGroupFilter === 'BOTTOM'
-                  ? 'bg-amber-500 text-slate-950 border-amber-600 font-black shadow-xs'
-                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                  ? 'bg-amber-500 text-slate-950 border-amber-500 font-black shadow-xs'
+                  : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
               }`}
             >
-              บล็อกล่าง (X1-X4: 168P)
+              บล็อกล่าง (X1-X4)
             </button>
+
+            <div className="h-4 w-px bg-slate-700 mx-1 hidden sm:block"></div>
+
             {DA4D1_GROUPS.map(g => (
               <button
                 key={g.id}
                 onClick={() => setSelectedGroupFilter(g.id)}
-                className={`px-2 py-1 rounded-lg border text-[11px] transition-all ${
+                className={`px-2 py-1 rounded-lg border text-[11px] font-mono transition-all ${
                   selectedGroupFilter === g.id
-                    ? 'bg-blue-600 text-white border-blue-700 font-black'
-                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    ? 'bg-blue-600 text-white border-blue-500 font-black'
+                    : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:bg-slate-700'
                 }`}
               >
                 {g.id}
@@ -341,41 +298,49 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
           </div>
 
           {/* Quick Search in DA4D-1 */}
-          <div className="relative min-w-[220px]">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+          <div className="relative min-w-[200px] flex-1 sm:flex-initial">
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               placeholder="ค้นหา Model, Locator (DA4D-1-R8-06...)"
               value={localSearch}
               onChange={(e) => setLocalSearch(e.target.value)}
-              className="w-full bg-white border border-slate-300 text-slate-900 text-xs rounded-xl pl-8 pr-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-2xs"
+              className="w-full bg-slate-800 border border-slate-700 text-white placeholder-slate-400 text-xs rounded-lg pl-8 pr-7 py-1 focus:outline-none focus:border-amber-400"
             />
+            {localSearch && (
+              <button
+                onClick={() => setLocalSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            )}
           </div>
         </div>
       </div>
 
       {/* MATRIX OF X GROUPS (TOP TO BOTTOM: X8 down to X1) */}
-      <div className="bg-amber-50/40 border-2 border-amber-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-6">
+      <div className="bg-amber-50/40 border border-amber-200 rounded-xl p-2.5 sm:p-3 shadow-xs space-y-3">
         
         {/* Top 12 Columns Indicator Header */}
-        <div className="flex items-center justify-between px-2 pb-2 border-b border-amber-200/80">
+        <div className="flex items-center justify-between px-1 pb-1.5 border-b border-amber-200/80">
           <div className="flex items-center space-x-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-            <span className="text-xs font-black text-slate-800">
+            <span className="w-2 h-2 rounded-full bg-amber-500" />
+            <span className="text-[11px] font-black text-slate-800">
               DA4D-1 Floor Staging Matrix (1 Box = 1 Pallet Slot)
             </span>
           </div>
-          <div className="flex items-center space-x-3 text-[11px] font-bold">
+          <div className="flex items-center space-x-3 text-[10px] font-bold">
             <span className="flex items-center space-x-1 text-slate-600">
-              <span className="w-3 h-3 bg-white border border-slate-300 rounded-xs inline-block" />
+              <span className="w-2.5 h-2.5 bg-white border border-slate-300 rounded-xs inline-block" />
               <span>ว่าง</span>
             </span>
             <span className="flex items-center space-x-1 text-blue-800">
-              <span className="w-3 h-3 bg-blue-100 border border-blue-400 rounded-xs inline-block" />
+              <span className="w-2.5 h-2.5 bg-blue-100 border border-blue-400 rounded-xs inline-block" />
               <span>จัดเก็บ</span>
             </span>
             <span className="flex items-center space-x-1 text-rose-800">
-              <span className="w-3 h-3 bg-rose-600 rounded-xs inline-block" />
+              <span className="w-2.5 h-2.5 bg-rose-600 rounded-xs inline-block" />
               <span>Sample Highlight</span>
             </span>
           </div>
@@ -389,30 +354,30 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
           return (
             <div 
               key={group.id}
-              className="bg-white p-3 sm:p-4 rounded-xl border border-amber-200/90 shadow-2xs space-y-2.5"
+              className="bg-white p-2 sm:p-2.5 rounded-lg border border-amber-200 shadow-2xs space-y-1.5"
             >
               {/* Group Title Bar */}
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2.5">
-                  <span className="px-2.5 py-0.5 rounded-md text-xs font-black bg-amber-100 text-amber-950 border border-amber-300 font-mono">
+                <div className="flex items-center space-x-2">
+                  <span className="px-2 py-0.2 rounded text-[10.5px] font-black bg-amber-100 text-amber-950 border border-amber-300 font-mono">
                     {group.label} ({group.rowCode})
                   </span>
-                  <span className="text-[11px] font-mono text-slate-500 font-bold">
-                    Rows R{group.startRow} - R{group.endRow} • {colsCount} Columns ({group.slotsPerGroup} Pallets)
+                  <span className="text-[10px] font-mono text-slate-500 font-bold">
+                    Rows R{group.startRow} - R{group.endRow} • {colsCount} Cols ({group.slotsPerGroup} P)
                   </span>
                 </div>
-                <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+                <span className="text-[9px] font-mono font-bold text-slate-400 bg-slate-100 px-1.5 py-0.2 rounded">
                   {group.locatorPrefix}
                 </span>
               </div>
 
               {/* Column Numbers Header */}
-              <div className="flex items-center pl-12 pr-2 text-center text-[10px] font-mono font-bold text-slate-500">
+              <div className="flex items-center pl-9 pr-1 text-center text-[9px] font-mono font-bold text-slate-500">
                 {Array.from({ length: colsCount }, (_, i) => {
                   const colNum = String(i + 1).padStart(2, '0');
                   return (
                     <div key={colNum} className="flex-1">
-                      <span className="px-1.5 py-0.5 bg-slate-100 rounded text-slate-700">
+                      <span className="px-1 py-0.2 bg-slate-100 rounded text-slate-700">
                         {colNum}
                       </span>
                     </div>
@@ -421,19 +386,19 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
               </div>
 
               {/* Rows in this group */}
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 {Array.from({ length: group.endRow - group.startRow + 1 }, (_, rowIdx) => {
                   const rowNum = group.startRow + rowIdx;
                   
                   return (
-                    <div key={rowNum} className="flex items-center space-x-2">
+                    <div key={rowNum} className="flex items-center space-x-1.5">
                       {/* Row Label (Left) */}
-                      <div className="w-10 text-center font-mono font-black text-xs text-slate-700 bg-slate-100 py-1.5 rounded-md border border-slate-200">
+                      <div className="w-8 text-center font-mono font-black text-[10px] text-slate-700 bg-slate-100 py-1 rounded border border-slate-200 shrink-0">
                         R{rowNum}
                       </div>
 
                       {/* Columns Grid */}
-                      <div className={`flex-1 grid gap-1 ${
+                      <div className={`flex-1 grid gap-0.5 sm:gap-1 ${
                         colsCount === 12 ? 'grid-cols-12' : 'grid-cols-7'
                       }`}>
                         {Array.from({ length: colsCount }, (_, colIdx) => {
@@ -475,12 +440,12 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
                               }}
                               onMouseLeave={() => setHoveredSlot(null)}
                               title={`Locator: ${locatorCode}${item ? `\nModel: ${item.modelHE}\nQty: ${item.quantity} U\nLine: ${item.useLine}` : ' (ว่าง - คลิกเพื่อรับเข้า)'}`}
-                              className={`h-16 rounded-md p-1 flex flex-col justify-between text-left transition-all cursor-pointer relative overflow-hidden border select-none ${
+                              className={`h-7.5 sm:h-8 rounded p-0.5 flex flex-col justify-between text-left transition-all cursor-pointer relative overflow-hidden border select-none ${
                                 !isMatch
                                   ? 'opacity-25'
                                   : item
                                   ? isDiagramRedSample
-                                    ? 'bg-rose-700 text-white border-rose-900 shadow-md ring-2 ring-rose-500/50 hover:brightness-110' // EXACT RED SAMPLE from Image 2!
+                                    ? 'bg-rose-700 text-white border-rose-900 shadow-xs ring-1 ring-rose-500/50 hover:brightness-110'
                                     : item.agingDays > 30
                                     ? 'bg-amber-100 text-slate-900 border-amber-500 shadow-2xs hover:border-amber-600'
                                     : 'bg-blue-50 text-slate-900 border-blue-400 shadow-2xs hover:border-blue-600'
@@ -490,37 +455,35 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
                               {item ? (
                                 <>
                                   {/* Slot top info */}
-                                  <div className="flex items-center justify-between">
-                                    <span className={`text-[8px] font-mono font-black ${
-                                      isDiagramRedSample ? 'text-rose-100' : 'text-slate-600'
+                                  <div className="flex items-center justify-between leading-none">
+                                    <span className={`text-[7.5px] font-mono font-black ${
+                                      isDiagramRedSample ? 'text-rose-100' : 'text-slate-800'
                                     }`}>
                                       {formattedCol}
                                     </span>
-                                    <span className={`text-[7px] font-black px-1 rounded ${
-                                      isDiagramRedSample ? 'bg-rose-950 text-rose-100' : 'bg-blue-200 text-blue-900'
+                                    <span className={`text-[6.5px] font-mono font-black px-0.5 rounded leading-none ${
+                                      isDiagramRedSample ? 'bg-rose-950 text-rose-100' : 'bg-blue-200 text-blue-950'
                                     }`}>
                                       {item.useLine}
                                     </span>
                                   </div>
 
-                                  {/* Model HE */}
-                                  <div className="leading-tight py-0.2">
-                                    <p className={`text-[8px] font-mono font-extrabold truncate ${
-                                      isDiagramRedSample ? 'text-white' : 'text-blue-950'
+                                  {/* Model HE - Compact */}
+                                  <div className="w-full leading-tight truncate my-auto">
+                                    <span className={`text-[7.5px] sm:text-[8px] font-mono font-black tracking-tight truncate block ${
+                                      isDiagramRedSample ? 'text-white drop-shadow-2xs' : 'text-blue-950'
                                     }`}>
                                       {item.modelHE}
-                                    </p>
+                                    </span>
                                   </div>
 
                                   {/* Qty & Aging */}
-                                  <div className="flex items-center justify-between pt-0.5 border-t border-black/10">
-                                    <span className={`text-[8px] font-mono font-black ${
-                                      isDiagramRedSample ? 'text-white' : 'text-slate-900'
-                                    }`}>
+                                  <div className="flex items-center justify-between pt-0.2 border-t border-black/10 text-[7px] font-mono font-black leading-none">
+                                    <span className={isDiagramRedSample ? 'text-rose-100' : 'text-slate-900'}>
                                       {item.quantity}U
                                     </span>
                                     {item.agingDays > 30 && (
-                                      <span className={`text-[7px] font-bold px-0.5 rounded ${
+                                      <span className={`text-[6px] font-bold px-0.5 rounded-full ${
                                         isDiagramRedSample ? 'bg-white text-rose-900' : 'bg-amber-200 text-amber-900'
                                       }`}>
                                         {item.agingDays}d
@@ -529,12 +492,17 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
                                   </div>
                                 </>
                               ) : (
-                                /* Vacant slot */
-                                <div className="h-full flex flex-col items-center justify-center text-slate-400">
-                                  <span className="text-[9px] font-mono font-bold text-slate-300">
-                                    {formattedCol}
-                                  </span>
-                                  <span className="text-[7px] font-semibold text-slate-400">ว่าง</span>
+                                /* Empty Slot Placeholder */
+                                <div className="h-full flex flex-col items-center justify-between text-slate-400 select-none">
+                                  <div className="w-full text-left">
+                                    <span className="text-[7.5px] font-mono font-bold text-slate-400">
+                                      {formattedCol}
+                                    </span>
+                                  </div>
+                                  <span className="text-[7px] font-sans text-slate-300 leading-none">ว่าง</span>
+                                  <div className="text-[6px] font-mono text-slate-300 text-right w-full">
+                                    -
+                                  </div>
                                 </div>
                               )}
                             </div>

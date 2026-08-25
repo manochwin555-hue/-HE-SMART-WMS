@@ -31,14 +31,13 @@ import {
 } from 'lucide-react';
 import { Warehouse3DMap } from './Warehouse3DMap';
 import { DA4D1FloorStagingMap } from './DA4D1FloorStagingMap';
-import { DynamicLegendPanel } from './DynamicLegendPanel';
 import { UnifiedSlotModal, UnifiedSlotData } from './UnifiedSlotModal';
 import { SlotMiniStatsOverlay, MiniStatsSlotData } from './SlotMiniStatsOverlay';
 
 interface RackLayout2DProps {
   items: InventoryItem[];
   searchQuery?: string;
-  initialSectionTab?: 'MACRO_OVERVIEW' | 'FLOOR_DA4D1' | 'RACK_ZONES' | 'FULL3D';
+  initialSectionTab?: 'FLOOR_DA4D1' | 'RACK_ZONES' | 'FULL3D';
   onSelectBay: (zone: StorageZone, bayNumber: number) => void;
   onOpen3D: (zone: StorageZone, bayNumber: number) => void;
   onOpenScanner?: (zone: StorageZone, bay: number, level: ShelfLevel, mode: MovementType) => void;
@@ -57,7 +56,7 @@ interface HoveredBayData {
 export const RackLayout2D: React.FC<RackLayout2DProps> = ({
   items,
   searchQuery = '',
-  initialSectionTab = 'MACRO_OVERVIEW',
+  initialSectionTab = 'FLOOR_DA4D1',
   onSelectBay,
   onOpen3D,
   onOpenScanner,
@@ -65,8 +64,8 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
   onNavigateToCampus,
   isDashboardFullscreen
 }) => {
-  // A4 Building Main Section Switcher: Macro Plan, Floor Staging (DA4D-1), Rack Zones (DA4D-2 & DA4D-3), or Full 3D
-  const [a4SectionTab, setA4SectionTab] = useState<'MACRO_OVERVIEW' | 'FLOOR_DA4D1' | 'RACK_ZONES' | 'FULL3D'>(initialSectionTab);
+  // A4 Building Main Section Switcher: Floor Staging (DA4D-1), Rack Zones (DA4D-2 & DA4D-3), or Full 3D
+  const [a4SectionTab, setA4SectionTab] = useState<'FLOOR_DA4D1' | 'RACK_ZONES' | 'FULL3D'>(initialSectionTab);
   
   useEffect(() => {
     if (initialSectionTab) {
@@ -294,161 +293,108 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-5 shadow-xs text-slate-900 space-y-4 sm:space-y-5 min-w-0 max-w-full w-full">
+    <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 shadow-xs text-slate-900 space-y-3 min-w-0 max-w-full w-full">
       
-      {/* 1. TOP HEADER & MULTI-ZONE CAPACITY BREAKDOWN CARDS */}
-      <div className="space-y-4 border-b border-slate-200 pb-4">
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center space-x-2 flex-wrap">
-              {onNavigateToCampus && (
-                <button
-                  onClick={onNavigateToCampus}
-                  className="px-2.5 py-0.5 rounded-full text-xs font-black bg-slate-800 hover:bg-slate-700 text-white flex items-center space-x-1 shadow-sm transition-all"
-                >
-                  <span>🏢 ◂ ผังรวมแคมปัส A2/A4</span>
-                </button>
-              )}
-              <span className="w-3 h-3 rounded-full bg-blue-600 animate-pulse" />
-              <h2 className="text-lg sm:text-xl font-black tracking-tight text-slate-900">
-                ผังคลังสินค้า A4 Building (อาคารคลังหลัก & โครงสร้าง Rack + ลานวางพื้น)
+      {/* 1. COMPACT TOP HEADER & STREAMLINED TOOLBAR */}
+      <div className="space-y-2.5 border-b border-slate-200 pb-2.5">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+          <div className="flex items-center space-x-2 flex-wrap">
+            {onNavigateToCampus && (
+              <button
+                onClick={onNavigateToCampus}
+                className="px-2.5 py-1 rounded-lg text-xs font-black bg-slate-800 hover:bg-slate-700 text-white flex items-center space-x-1 shadow-xs transition-all active:scale-95"
+              >
+                <span>🏢 ◂ รวมแคมปัส</span>
+              </button>
+            )}
+            <div className="flex items-center space-x-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse" />
+              <h2 className="text-sm sm:text-base font-black tracking-tight text-slate-900">
+                ผังคลัง A4 Building (Rack + ลานวางพื้น)
               </h2>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-blue-100 text-blue-900 border border-blue-200">
-                ความจุรวม 1,112 พาเลท
-              </span>
             </div>
-            <p className="text-xs text-slate-500 mt-1">
-              โครงสร้าง Selective Rack DA4D-2 (480P), DA4D-3 (200P) รวม 680 พาเลท และโซนลานวางพื้นสีเหลือง DA4D-1 (X1-X8 รวม 432 พาเลท)
-            </p>
+            <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-blue-100 text-blue-900 border border-blue-200">
+              ความจุ 1,112 P
+            </span>
           </div>
 
-          {/* Area Capacity Breakdown Badges */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs w-full lg:w-auto">
-            {/* Total A4 Building */}
-            <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-2.5 rounded-xl text-center shadow-xs">
-              <span className="text-[10px] text-slate-300 block font-bold">อาคาร A4 รวมทั้งหมด</span>
-              <span className="text-sm sm:text-base font-black font-mono">{a4CapacitySummary.totalA4Capacity}</span>
-              <span className="text-[10px] text-slate-300 block font-medium mt-0.5">
-                จัดเก็บ {a4CapacitySummary.totalA4Occupied} ({a4CapacitySummary.totalA4Percent}%)
-              </span>
-            </div>
-
-            {/* DA4D-1 Floor Staging */}
-            <div 
+          {/* Compact Inline Capacity Indicators */}
+          <div className="flex items-center gap-1.5 text-xs">
+            <button
               onClick={() => setA4SectionTab('FLOOR_DA4D1')}
-              className={`p-2.5 rounded-xl text-center border-2 transition-all cursor-pointer shadow-xs ${
+              className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition-all flex items-center space-x-1 ${
                 a4SectionTab === 'FLOOR_DA4D1'
-                  ? 'bg-amber-500 text-slate-950 border-amber-600 ring-2 ring-amber-400'
-                  : 'bg-amber-50 text-slate-900 border-amber-300 hover:bg-amber-100'
+                  ? 'bg-amber-500 text-slate-950 shadow-xs font-black ring-1 ring-amber-600'
+                  : 'bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100'
               }`}
-              title="คลิกเพื่อเปิดผังโซนวางพื้น DA4D-1"
             >
-              <span className="text-[10px] font-bold block">🟨 วางพื้น DA4D-1 (X1-X8)</span>
-              <span className="text-sm sm:text-base font-black font-mono">{a4CapacitySummary.floorCapacity} P</span>
-              <span className="text-[10px] block font-medium mt-0.5">
-                จัดเก็บ {a4CapacitySummary.floorOccupied} ({a4CapacitySummary.floorPercent}%)
-              </span>
-            </div>
-
-            {/* DA4D-2 Selective Rack */}
-            <div 
+              <span>🟨 วางพื้น {a4CapacitySummary.floorOccupied}/{a4CapacitySummary.floorCapacity}P ({a4CapacitySummary.floorPercent}%)</span>
+            </button>
+            <button
               onClick={() => setA4SectionTab('RACK_ZONES')}
-              className={`p-2.5 rounded-xl text-center border-2 transition-all cursor-pointer shadow-xs ${
+              className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition-all flex items-center space-x-1 ${
                 a4SectionTab === 'RACK_ZONES'
-                  ? 'bg-blue-600 text-white border-blue-700 ring-2 ring-blue-400'
-                  : 'bg-blue-50 text-slate-900 border-blue-200 hover:bg-blue-100'
+                  ? 'bg-blue-600 text-white shadow-xs font-black ring-1 ring-blue-700'
+                  : 'bg-blue-50 text-blue-900 border border-blue-200 hover:bg-blue-100'
               }`}
-              title="คลิกเพื่อเปิดผังแร็ค Zone B-F"
             >
-              <span className="text-[10px] font-bold block">🏗️ Rack DA4D-2 (B-F)</span>
-              <span className="text-sm sm:text-base font-black font-mono">{a4CapacitySummary.da4d2Capacity} P</span>
-              <span className="text-[10px] block font-medium mt-0.5">
-                จัดเก็บ {a4CapacitySummary.da4d2Occupied} ({a4CapacitySummary.da4d2Percent}%)
-              </span>
-            </div>
-
-            {/* DA4D-3 Selective Rack */}
-            <div 
-              onClick={() => setA4SectionTab('RACK_ZONES')}
-              className={`p-2.5 rounded-xl text-center border-2 transition-all cursor-pointer shadow-xs ${
-                a4SectionTab === 'RACK_ZONES'
-                  ? 'bg-indigo-600 text-white border-indigo-700 ring-2 ring-indigo-400'
-                  : 'bg-indigo-50 text-slate-900 border-indigo-200 hover:bg-indigo-100'
-              }`}
-              title="คลิกเพื่อเปิดผังแร็ค Zone G-K"
-            >
-              <span className="text-[10px] font-bold block">🏗️ Rack DA4D-3 (G-K)</span>
-              <span className="text-sm sm:text-base font-black font-mono">{a4CapacitySummary.da4d3Capacity} P</span>
-              <span className="text-[10px] block font-medium mt-0.5">
-                จัดเก็บ {a4CapacitySummary.da4d3Occupied} ({a4CapacitySummary.da4d3Percent}%)
-              </span>
-            </div>
+              <span>🏗️ แร็ค {a4CapacitySummary.totalRackOccupied}/{a4CapacitySummary.totalRackCapacity}P ({a4CapacitySummary.totalRackPercent}%)</span>
+            </button>
           </div>
         </div>
 
-        {/* 2. PRIMARY VIEW SWITCHER TABS */}
-        <div className="flex flex-wrap items-center justify-between gap-3 text-xs bg-slate-100 p-1.5 rounded-xl border border-slate-200">
+        {/* 2. COMPACT VIEW SWITCHER & SEARCH TOOLBAR */}
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs bg-slate-900 text-white p-1.5 rounded-xl border border-slate-800">
           <div className="flex flex-wrap items-center gap-1 font-bold">
             <button
-              onClick={() => setA4SectionTab('MACRO_OVERVIEW')}
-              className={`px-3 py-2 rounded-lg transition-all flex items-center space-x-1.5 ${
-                a4SectionTab === 'MACRO_OVERVIEW'
-                  ? 'bg-blue-600 text-white shadow-xs font-black'
-                  : 'text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              <Building2 className="w-3.5 h-3.5" />
-              <span>🏢 ผังรวมอาคาร A4 (Macro Floor & Rack Layout)</span>
-            </button>
-            <button
               onClick={() => setA4SectionTab('FLOOR_DA4D1')}
-              className={`px-3 py-2 rounded-lg transition-all flex items-center space-x-1.5 ${
+              className={`px-2.5 py-1 rounded-lg transition-all flex items-center space-x-1.5 text-xs ${
                 a4SectionTab === 'FLOOR_DA4D1'
-                  ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
-                  : 'text-slate-700 hover:bg-slate-200'
+                  ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
+                  : 'text-slate-300 hover:bg-slate-800'
               }`}
             >
               <LayoutGrid className="w-3.5 h-3.5" />
-              <span>🟨 โซนวางพื้น DA4D-1 (X1-X8: 432 พาเลท)</span>
+              <span>🟨 วางพื้น DA4D-1 (432 P)</span>
             </button>
             <button
               onClick={() => setA4SectionTab('RACK_ZONES')}
-              className={`px-3 py-2 rounded-lg transition-all flex items-center space-x-1.5 ${
+              className={`px-2.5 py-1 rounded-lg transition-all flex items-center space-x-1.5 text-xs ${
                 a4SectionTab === 'RACK_ZONES'
-                  ? 'bg-blue-600 text-white shadow-xs font-black'
-                  : 'text-slate-700 hover:bg-slate-200'
+                  ? 'bg-blue-600 text-white font-black shadow-xs'
+                  : 'text-slate-300 hover:bg-slate-800'
               }`}
             >
               <Layers className="w-3.5 h-3.5" />
-              <span>🏗️ โซนแร็ค DA4D-2 & DA4D-3 (Zone B-K: 680 พาเลท)</span>
+              <span>🏗️ แร็ค Zone B-K (680 P)</span>
             </button>
             <button
               onClick={() => setA4SectionTab('FULL3D')}
-              className={`px-3 py-2 rounded-lg transition-all flex items-center space-x-1.5 ${
+              className={`px-2.5 py-1 rounded-lg transition-all flex items-center space-x-1.5 text-xs ${
                 a4SectionTab === 'FULL3D'
-                  ? 'bg-blue-600 text-white shadow-xs font-black'
-                  : 'text-slate-700 hover:bg-slate-200'
+                  ? 'bg-purple-600 text-white font-black shadow-xs'
+                  : 'text-slate-300 hover:bg-slate-800'
               }`}
             >
               <Box className="w-3.5 h-3.5" />
-              <span>🌐 3D Virtual Warehouse (โมเดล 3 มิติ)</span>
+              <span>🌐 โมเดล 3 มิติ</span>
             </button>
           </div>
 
           {/* Quick Search */}
-          <div className="relative min-w-[220px]">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <div className="relative min-w-[200px] flex-1 sm:flex-initial">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={localSearch}
               onChange={(e) => setLocalSearch(e.target.value)}
               placeholder="ค้นหา P/No, Model, Locator..."
-              className="w-full bg-white border border-slate-300 focus:border-blue-500 rounded-lg pl-8 pr-7 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none shadow-2xs"
+              className="w-full bg-slate-800 border border-slate-700 focus:border-blue-500 rounded-lg pl-8 pr-7 py-1 text-xs text-white placeholder-slate-400 focus:outline-none"
             />
             {localSearch && (
               <button
                 onClick={() => setLocalSearch('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-white"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -457,254 +403,8 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
         </div>
       </div>
 
-      {/* DYNAMIC LEGEND & LOCATOR GUIDE PANEL */}
-      <DynamicLegendPanel />
-
       {/* ========================================================================= */}
-      {/* 🏢 TAB 1: MACRO OVERVIEW (ผังรวมอาคาร A4 - สถาปัตยกรรม & แผนที่พื้นที่รวม) */}
-      {/* ========================================================================= */}
-      {a4SectionTab === 'MACRO_OVERVIEW' && (
-        <div className="space-y-4 animate-fadeIn">
-          {/* Architectural Layout Map Canvas */}
-          <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-5 sm:p-6 text-white shadow-lg space-y-6 relative overflow-hidden">
-            
-            {/* Background Blueprint Grid Line Pattern */}
-            <div className="absolute inset-0 opacity-10 pointer-events-none bg-[radial-gradient(#3b82f6_1px,transparent_1px)] [background-size:16px_16px]" />
-
-            {/* Macro Header */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 relative z-10 border-b border-slate-800 pb-3">
-              <div>
-                <div className="flex items-center space-x-2">
-                  <Compass className="w-4 h-4 text-blue-400" />
-                  <h3 className="text-base font-black text-white">
-                    A4 BUILDING ARCHITECTURAL LAYOUT & STORAGE MAPPING
-                  </h3>
-                </div>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  ผังรวมอาคาร A4 แสดงความสัมพันธ์ระหว่าง Selective Racks (DA4D-2, DA4D-3), ลานวางพื้น (DA4D-1), และเส้นทางลำเลียง Forklift / AGV
-                </p>
-              </div>
-
-              {/* Sample Locator Legend */}
-              <div className="flex items-center space-x-2 text-[11px] font-mono">
-                <span className="px-2 py-1 rounded bg-rose-950 border border-rose-500 text-rose-300 font-bold flex items-center space-x-1">
-                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-                  <span>ตัวอย่าง DA4D-2-D2-L1 & DA4D-1-R8-06</span>
-                </span>
-              </div>
-            </div>
-
-            {/* A4 Macro Schematic Container */}
-            <div className="relative z-10 border-2 border-slate-700 bg-slate-950/80 rounded-xl p-4 sm:p-6 space-y-6 min-h-[480px]">
-              
-              {/* Outer Walls & Door Markers */}
-              <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 px-4">
-                <span className="px-2 py-0.5 bg-slate-800 rounded border border-slate-700 text-emerald-400">
-                  🚪 Door 1 (Raw Material Gate)
-                </span>
-                <span className="px-2 py-0.5 bg-slate-800 rounded border border-slate-700 text-blue-400">
-                  🚛 Receiving & Dock Area A4
-                </span>
-                <span className="px-2 py-0.5 bg-slate-800 rounded border border-slate-700 text-emerald-400">
-                  🚪 Door 2 (Assembly Transfer Gate)
-                </span>
-              </div>
-
-              {/* Top Row: RACK ZONES (DA4D-2 on left, DA4D-3 on right) */}
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                
-                {/* DA4D-2 Selective Rack Block (Zone B, C, D, E, F: 12 Bays each) */}
-                <div 
-                  onClick={() => setA4SectionTab('RACK_ZONES')}
-                  className="md:col-span-8 bg-blue-950/40 border-2 border-blue-500/60 hover:border-blue-400 rounded-xl p-4 cursor-pointer transition-all hover:bg-blue-950/60 group shadow-md"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <span className="px-2 py-0.5 bg-blue-600 text-white rounded text-xs font-black">
-                        DA4D-2
-                      </span>
-                      <span className="text-xs font-bold text-blue-200">
-                        Selective Rack Zone B, C, D, E, F
-                      </span>
-                    </div>
-                    <span className="text-xs font-mono font-black text-blue-400 group-hover:text-blue-300 flex items-center space-x-1">
-                      <span>480 Pallets (12 Bays x 4 Levels)</span>
-                      <ArrowUpRight className="w-3.5 h-3.5" />
-                    </span>
-                  </div>
-
-                  {/* Visual Rack Preview Bars */}
-                  <div className="grid grid-cols-5 gap-1.5 mt-3 text-center text-[10px] font-mono">
-                    {['Rack B (Single)', 'Rack C (Back)', 'Rack D (Back)', 'Rack E (Back)', 'Rack F (Single)'].map((rName, idx) => {
-                      const z = ['B', 'C', 'D', 'E', 'F'][idx];
-                      const isD2Sample = z === 'D';
-                      return (
-                        <div 
-                          key={rName} 
-                          className={`p-2 rounded-lg border transition-all ${
-                            isD2Sample 
-                              ? 'bg-rose-950/80 border-rose-500 text-white ring-1 ring-rose-500' 
-                              : 'bg-blue-900/40 border-blue-700/60 text-blue-200'
-                          }`}
-                        >
-                          <div className="font-bold text-xs">{rName.split(' ')[0]} {rName.split(' ')[1]}</div>
-                          <div className="text-[9px] text-slate-400">12 Bays • L1-L4</div>
-                          {isD2Sample && (
-                            <div className="mt-1 text-[8px] bg-rose-600 text-white font-bold px-1 py-0.5 rounded animate-pulse">
-                              Sample D2-L1
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="mt-2 text-right">
-                    <span className="text-[10px] text-blue-300/80 italic font-sans">
-                      คลิกเพื่อเปิดดูรายละเอียดและชั้นวางแร็ค DA4D-2 →
-                    </span>
-                  </div>
-                </div>
-
-                {/* DA4D-3 Selective Rack Block (Zone G, H, I, J, K: 5 Bays each) */}
-                <div 
-                  onClick={() => setA4SectionTab('RACK_ZONES')}
-                  className="md:col-span-4 bg-indigo-950/40 border-2 border-indigo-500/60 hover:border-indigo-400 rounded-xl p-4 cursor-pointer transition-all hover:bg-indigo-950/60 group shadow-md"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <span className="px-2 py-0.5 bg-indigo-600 text-white rounded text-xs font-black">
-                        DA4D-3
-                      </span>
-                      <span className="text-xs font-bold text-indigo-200">
-                        Rack G, H, I, J, K
-                      </span>
-                    </div>
-                    <span className="text-xs font-mono font-black text-indigo-400 group-hover:text-indigo-300 flex items-center space-x-1">
-                      <span>200 Pallets</span>
-                      <ArrowUpRight className="w-3.5 h-3.5" />
-                    </span>
-                  </div>
-
-                  {/* Visual Rack Preview Bars */}
-                  <div className="grid grid-cols-5 gap-1 mt-3 text-center text-[10px] font-mono">
-                    {['G', 'H', 'I', 'J', 'K'].map((z) => (
-                      <div key={z} className="p-2 rounded-lg bg-indigo-900/40 border border-indigo-700/60 text-indigo-200">
-                        <div className="font-bold text-xs">Rack {z}</div>
-                        <div className="text-[9px] text-slate-400">5 Bays</div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-2 text-right">
-                    <span className="text-[10px] text-indigo-300/80 italic font-sans">
-                      คลิกเพื่อเปิดดูแร็ค DA4D-3 →
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Middle Aisle: FORKLIFT & AGV MAIN AISLE */}
-              <div className="border-y-2 border-dashed border-amber-500/40 py-2 px-4 flex items-center justify-between text-xs font-mono text-amber-400/90 bg-amber-950/20 rounded-lg">
-                <span className="flex items-center space-x-2">
-                  <span>🚜 MAIN FORKLIFT AISLE (ทางวิ่งรถยก & รถโฟล์คลิฟท์)</span>
-                </span>
-                <span className="text-[10px] text-amber-300/70">
-                  ◀ AGV & Pallet Truck Transfer Pathway ▶
-                </span>
-              </div>
-
-              {/* Bottom Row: FLOOR STAGING DA4D-1 (Yellow Zone) & OFFICE */}
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch">
-                
-                {/* DA4D-1 FLOOR STAGING ZONE (X1 to X8: 432 Pallets) */}
-                <div 
-                  onClick={() => setA4SectionTab('FLOOR_DA4D1')}
-                  className="md:col-span-9 bg-amber-950/30 border-2 border-amber-400 hover:border-amber-300 rounded-xl p-4 cursor-pointer transition-all hover:bg-amber-950/50 group shadow-md"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <span className="px-2 py-0.5 bg-amber-500 text-slate-950 rounded text-xs font-black">
-                        DA4D-1
-                      </span>
-                      <span className="text-xs font-bold text-amber-200">
-                        โซนวางพื้นสีเหลือง (Floor Staging Group X1 - X8)
-                      </span>
-                    </div>
-                    <span className="text-xs font-mono font-black text-amber-400 group-hover:text-amber-300 flex items-center space-x-1">
-                      <span>432 Pallets (1 กล่อง = 1 พาเลท)</span>
-                      <ArrowUpRight className="w-3.5 h-3.5" />
-                    </span>
-                  </div>
-
-                  {/* Preview Matrix of X1..X8 */}
-                  <div className="space-y-1.5 mt-3">
-                    {/* Top block X5-X8 */}
-                    <div className="grid grid-cols-4 gap-1.5 text-center text-[10px] font-mono">
-                      {['X8 (1212)', 'X7 (1211)', 'X6 (1210)', 'X5 (1209)'].map((xName) => (
-                        <div key={xName} className="p-1.5 rounded bg-amber-900/40 border border-amber-600/50 text-amber-100">
-                          <div className="font-bold text-[11px]">{xName}</div>
-                          <div className="text-[9px] text-amber-300/80">12 Cols • 66 Pallets</div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Bottom block X1-X4 */}
-                    <div className="grid grid-cols-4 gap-1.5 text-center text-[10px] font-mono">
-                      {['X4 (1208)', 'X3 (1207)', 'X2 (1206)', 'X1 (1205)'].map((xName) => {
-                        const isX2Sample = xName.startsWith('X2');
-                        return (
-                          <div 
-                            key={xName} 
-                            className={`p-1.5 rounded border transition-all ${
-                              isX2Sample 
-                                ? 'bg-rose-950/80 border-rose-500 text-white ring-1 ring-rose-500' 
-                                : 'bg-amber-900/40 border-amber-600/50 text-amber-100'
-                            }`}
-                          >
-                            <div className="font-bold text-[11px]">{xName}</div>
-                            <div className="text-[9px] text-amber-300/80">7 Cols • 42 Pallets</div>
-                            {isX2Sample && (
-                              <div className="text-[8px] bg-rose-600 text-white font-bold px-1 rounded mt-0.5 animate-pulse">
-                                Sample R8-06
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="mt-2.5 flex items-center justify-between text-[10px] text-amber-300/80">
-                    <span>💡 รูปแบบรหัสพิกัด: DA4D-1-R[Row]-[Col] (เช่น DA4D-1-R8-06)</span>
-                    <span className="font-bold underline text-amber-300">คลิกเพื่อเปิดดู Matrix ผังวางพื้นเต็มรูปแบบ →</span>
-                  </div>
-                </div>
-
-                {/* OFFICE / CONTROL ROOM BLOCK (Bottom Right matching image) */}
-                <div className="md:col-span-3 bg-sky-950/60 border-2 border-sky-500/70 rounded-xl p-4 flex flex-col justify-between text-center">
-                  <div className="space-y-1">
-                    <span className="px-2 py-0.5 bg-sky-600 text-white rounded text-[10px] font-bold">
-                      OFFICE & QA
-                    </span>
-                    <h4 className="text-xs font-black text-sky-200 mt-2">
-                      ห้องสำนักงาน & ควบคุมคลัง A4 (Office)
-                    </h4>
-                    <p className="text-[10px] text-sky-300/70">
-                      จุดประสานงานจ่ายงาน Forklift, ตรวจสอบเอกสารนำเข้า และบันทึก WMS
-                    </p>
-                  </div>
-
-                  <div className="mt-4 pt-3 border-t border-sky-800 text-[10px] text-sky-400 font-mono">
-                    ประตูทางเข้าสำนักงาน 🚪
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* 🟨 TAB 2: FLOOR STAGING DA4D-1 (1 กล่อง แทน 1 พาเลท: X1 - X8 รวม 432 พาเลท) */}
+      {/* 🟨 TAB 1: FLOOR STAGING DA4D-1 (1 กล่อง แทน 1 พาเลท: X1 - X8 รวม 432 พาเลท) */}
       {/* ========================================================================= */}
       {a4SectionTab === 'FLOOR_DA4D1' && (
         <div className="space-y-4 animate-fadeIn">
@@ -835,7 +535,7 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
                         return (
                           <div
                             key={`${zone}-empty-${rowIndex}`}
-                            className="h-[46px] sm:h-[50px] rounded-md border border-dashed border-slate-200 bg-slate-100/40 flex items-center justify-center text-[10px] text-slate-300 font-mono select-none"
+                            className="h-12 sm:h-13 rounded-md border border-dashed border-slate-300/60 bg-slate-100/30 flex items-center justify-center text-[10px] text-slate-300 font-mono select-none"
                           >
                             -
                           </div>
@@ -852,7 +552,7 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
                           onClick={() => onSelectBay(zone, bayNum)}
                           onMouseMove={(e) => handleBayMouseMove(e, zone, bayNum)}
                           onMouseLeave={handleBayMouseLeave}
-                          className={`h-[46px] sm:h-[50px] rounded-md p-1 flex flex-col justify-between text-left transition-all cursor-pointer relative overflow-hidden border select-none ${
+                          className={`h-12 sm:h-13 rounded-md p-1 flex flex-col justify-between text-left transition-all cursor-pointer relative overflow-hidden border select-none ${
                             isD2RedSample
                               ? 'bg-rose-700 text-white border-rose-900 shadow-md ring-2 ring-rose-500/60 font-black' // Red sample matching DA4D-2-D2-L1
                               : viewMode === 'HEATMAP'
@@ -864,27 +564,42 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
                               : 'bg-white border-dashed border-slate-300 hover:border-blue-400'
                           }`}
                         >
-                          <div className="flex items-center justify-between">
+                          {/* Top Row: Bay Code & Occupied Levels Badge */}
+                          <div className="flex items-center justify-between leading-none">
                             <span className={`text-[9px] font-mono font-black ${
-                              isD2RedSample ? 'text-rose-100' : 'text-slate-700'
+                              isD2RedSample ? 'text-rose-100' : 'text-slate-800'
                             }`}>
                               {zone}{bayNum}
                             </span>
-                            <span className={`text-[8px] font-black px-1 rounded ${
-                              isD2RedSample ? 'bg-rose-950 text-rose-100' : 'bg-blue-100 text-blue-900'
+                            <span className={`text-[8px] font-mono font-black px-1 py-0.2 rounded leading-none ${
+                              isD2RedSample ? 'bg-rose-950 text-rose-100' : 'bg-blue-200 text-blue-950'
                             }`}>
                               {bayInfo.occupiedLevelsCount}/4 L
                             </span>
                           </div>
 
-                          <div className="leading-none truncate text-[8px] font-mono font-bold">
-                            {bayInfo.mainModel || 'ว่าง'}
+                          {/* Middle Row: Large & Readable Model HE */}
+                          <div className="w-full leading-tight truncate my-auto">
+                            {bayInfo.mainModel ? (
+                              <span className={`text-[10px] sm:text-[11px] font-mono font-black tracking-tight truncate block ${
+                                isD2RedSample ? 'text-white drop-shadow-2xs' : 'text-blue-950'
+                              }`}>
+                                {bayInfo.mainModel}
+                              </span>
+                            ) : (
+                              <span className="text-[9px] text-slate-300 font-sans block">
+                                ว่าง
+                              </span>
+                            )}
                           </div>
 
-                          <div className="flex items-center justify-between pt-0.5 border-t border-black/10 text-[8px] font-mono">
-                            <span>{bayInfo.totalQty} U</span>
+                          {/* Bottom Row: Quantity & Aging Indicator */}
+                          <div className="flex items-center justify-between pt-0.5 border-t border-black/10 text-[9px] font-mono font-black leading-none">
+                            <span className={isD2RedSample ? 'text-rose-100' : 'text-slate-900'}>
+                              {bayInfo.totalQty > 0 ? `${bayInfo.totalQty} U` : '0 U'}
+                            </span>
                             {bayInfo.hasAgingAlert && (
-                              <span className="text-rose-600 font-black">!</span>
+                              <span className="text-rose-600 font-black text-[10px]">!</span>
                             )}
                           </div>
                         </div>

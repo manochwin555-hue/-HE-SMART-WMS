@@ -71,7 +71,6 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
   onRelocateItem,
   onNavigateToCampus
 }) => {
-  const [viewMode, setViewMode] = useState<'RAIL_GRID' | 'SPLIT' | 'BUILDING_MAP'>('RAIL_GRID');
   const [selectedBankFilter, setSelectedBankFilter] = useState<'ALL' | 'BANK_4' | 'BANK_3' | 'BANK_2' | 'BANK_1'>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'OCCUPIED' | 'EMPTY' | 'AGING'>('ALL');
   const [localSearch, setLocalSearch] = useState<string>('');
@@ -161,117 +160,57 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
   }, [items]);
 
   return (
-    <div className="space-y-5 animate-fadeIn">
-      {/* Header & Overview Card */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white p-5 rounded-2xl shadow-lg border border-slate-700/80">
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-          <div className="space-y-1.5">
-            <div className="flex items-center space-x-2.5 flex-wrap">
-              {onNavigateToCampus && (
-                <button
-                  onClick={onNavigateToCampus}
-                  className="px-2.5 py-0.5 rounded-full text-xs font-black bg-slate-700 hover:bg-slate-600 text-white flex items-center space-x-1 shadow-sm transition-all"
-                >
-                  <span>🏢 ◂ ผังรวมแคมปัส A2/A4</span>
-                </button>
-              )}
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-blue-500 text-white flex items-center space-x-1 shadow-sm">
-                <Building2 className="w-3.5 h-3.5" />
-                <span>A2 Building</span>
-              </span>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                โซน DA2D-1 (20 ราง x 8 ตำแหน่ง = 160 พาเลท)
-              </span>
-              <span className="text-[11px] font-mono text-slate-400">
-                รูปแบบ Locator: <span className="text-blue-300 font-bold">DA2D-1-R[ราง]-[ตำแหน่ง 01-08]</span>
-              </span>
+    <div className="space-y-3 animate-fadeIn">
+      {/* Compact Header & Unified Toolbar */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 sm:p-3 text-white shadow-xs space-y-2.5">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+          <div className="flex items-center space-x-2 flex-wrap">
+            {onNavigateToCampus && (
+              <button
+                onClick={onNavigateToCampus}
+                className="px-2.5 py-1 rounded-lg text-xs font-black bg-slate-800 hover:bg-slate-700 text-white flex items-center space-x-1 shadow-xs transition-all active:scale-95"
+              >
+                <span>🏢 ◂ รวมแคมปัส</span>
+              </button>
+            )}
+            <div className="flex items-center space-x-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
+              <h2 className="text-sm sm:text-base font-black tracking-tight text-white">
+                ผังรางเลื่อน A2 Building (DA2D-1 Flow Rail)
+              </h2>
             </div>
-            <h2 className="text-lg sm:text-xl font-black text-white flex items-center space-x-2">
-              <span>ผังวางงานแบบรางเลื่อน A2 Building (DA2D-1 Flow Rail Layout)</span>
-            </h2>
-            <p className="text-xs text-slate-300 max-w-3xl">
-              โครงสร้างจัดเก็บแบบรางเลื่อนลูกกลิ้ง 20 ราง (R1 ถึง R20) แต่ละรางมี 8 ตำแหน่งพาเลท (1 กล่อง = 1 พาเลท) ไหลตามระบบ FIFO Infeed ➡️ Outfeed
-            </p>
+            <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-blue-500/20 text-blue-300 border border-blue-500/30">
+              ความจุ 160 P (20 ราง)
+            </span>
           </div>
 
-          {/* KPI Snapshot Pills */}
-          <div className="flex items-center flex-wrap gap-2 text-xs">
-            <div className="bg-slate-800/90 border border-slate-700 px-3 py-2 rounded-xl text-center min-w-[90px]">
-              <span className="text-[10px] text-slate-400 block font-semibold">ความจุรวม</span>
-              <span className="text-sm font-black text-white font-mono">{stats.totalSlots}</span>
-              <span className="text-[9px] text-slate-400 ml-0.5">Pallets</span>
-            </div>
-            <div className="bg-blue-950/80 border border-blue-600/50 px-3 py-2 rounded-xl text-center min-w-[90px]">
-              <span className="text-[10px] text-blue-300 block font-semibold">จัดเก็บแล้ว</span>
-              <span className="text-sm font-black text-blue-400 font-mono">{stats.occupiedSlots}</span>
-              <span className="text-[9px] text-blue-300 ml-0.5">({stats.utilizationRate}%)</span>
-            </div>
-            <div className="bg-emerald-950/80 border border-emerald-600/50 px-3 py-2 rounded-xl text-center min-w-[85px]">
-              <span className="text-[10px] text-emerald-300 block font-semibold">ช่องว่าง</span>
-              <span className="text-sm font-black text-emerald-400 font-mono">{stats.emptySlots}</span>
-              <span className="text-[9px] text-emerald-300 ml-0.5">P</span>
-            </div>
+          {/* Compact Inline Capacity Indicators */}
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="px-2.5 py-1 rounded-lg font-bold text-[11px] bg-blue-950/80 text-blue-300 border border-blue-800">
+              จัดเก็บ {stats.occupiedSlots}/{stats.totalSlots} P ({stats.utilizationRate}%)
+            </span>
+            <span className="px-2.5 py-1 rounded-lg font-bold text-[11px] bg-emerald-950/80 text-emerald-300 border border-emerald-800">
+              ว่าง {stats.emptySlots} P
+            </span>
             {stats.agingCount > 0 && (
-              <div className="bg-rose-950/80 border border-rose-600/50 px-3 py-2 rounded-xl text-center min-w-[85px] animate-pulse">
-                <span className="text-[10px] text-rose-300 block font-semibold">Aging Alert</span>
-                <span className="text-sm font-black text-rose-400 font-mono">{stats.agingCount}</span>
-                <span className="text-[9px] text-rose-300 ml-0.5">P</span>
-              </div>
+              <span className="px-2.5 py-1 rounded-lg font-bold text-[11px] bg-rose-950/80 text-rose-300 border border-rose-800 animate-pulse">
+                Aging {stats.agingCount} P
+              </span>
             )}
           </div>
         </div>
 
-        {/* Toolbar & View Mode Switcher */}
-        <div className="mt-4 pt-3 border-t border-slate-700/70 flex flex-wrap items-center justify-between gap-3">
-          {/* View Mode Buttons */}
-          <div className="flex items-center bg-slate-950/80 p-1 rounded-xl border border-slate-700 gap-1 text-xs font-bold">
-            <button
-              id="view-mode-rail-grid"
-              onClick={() => setViewMode('RAIL_GRID')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition-all ${
-                viewMode === 'RAIL_GRID' 
-                  ? 'bg-blue-600 text-white shadow-xs' 
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Grid className="w-3.5 h-3.5" />
-              <span>ผังราง 20 เลน (DA2D-1 Detail Grid)</span>
-            </button>
-            <button
-              id="view-mode-split"
-              onClick={() => setViewMode('SPLIT')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition-all ${
-                viewMode === 'SPLIT' 
-                  ? 'bg-blue-600 text-white shadow-xs' 
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Columns className="w-3.5 h-3.5" />
-              <span>ผังอาคาร + ผังราง (Split View)</span>
-            </button>
-            <button
-              id="view-mode-building"
-              onClick={() => setViewMode('BUILDING_MAP')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition-all ${
-                viewMode === 'BUILDING_MAP' 
-                  ? 'bg-blue-600 text-white shadow-xs' 
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Building2 className="w-3.5 h-3.5" />
-              <span>ผังรวมอาคาร A2 (Building Plan)</span>
-            </button>
-          </div>
-
+        {/* Compact Filter Strip */}
+        <div className="pt-2 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
           {/* Filter by Bank */}
-          <div className="flex items-center flex-wrap gap-1.5 text-xs font-bold">
+          <div className="flex items-center flex-wrap gap-1 font-bold">
             <span className="text-slate-400 text-[11px] mr-1">กลุ่มราง:</span>
             <button
               onClick={() => setSelectedBankFilter('ALL')}
-              className={`px-2.5 py-1 rounded-lg border transition-all ${
+              className={`px-2.5 py-1 rounded-lg border transition-all text-xs ${
                 selectedBankFilter === 'ALL'
-                  ? 'bg-slate-200 text-slate-900 border-slate-300'
-                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                  ? 'bg-blue-600 text-white border-blue-500 font-black shadow-xs'
+                  : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
               }`}
             >
               ทั้งหมด (R1-R20)
@@ -280,10 +219,10 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
               <button
                 key={bank.bankId}
                 onClick={() => setSelectedBankFilter(bank.bankId as any)}
-                className={`px-2.5 py-1 rounded-lg border transition-all ${
+                className={`px-2.5 py-1 rounded-lg border transition-all text-xs font-mono ${
                   selectedBankFilter === bank.bankId
-                    ? 'bg-blue-600 text-white border-blue-500'
-                    : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                    ? 'bg-blue-600 text-white border-blue-500 font-black'
+                    : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
                 }`}
               >
                 {bank.title.split(':')[0]}
@@ -292,175 +231,30 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
           </div>
 
           {/* Quick Search */}
-          <div className="relative min-w-[200px] flex-1 max-w-xs">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+          <div className="relative min-w-[200px] flex-1 sm:flex-initial">
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               placeholder="ค้นหา Model, Locator (DA2D-1-R20...)"
               value={localSearch}
               onChange={(e) => setLocalSearch(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-700 text-slate-100 text-xs rounded-xl pl-8 pr-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full bg-slate-800 border border-slate-700 text-white placeholder-slate-400 text-xs rounded-lg pl-8 pr-7 py-1 focus:outline-none focus:border-blue-500"
             />
+            {localSearch && (
+              <button
+                onClick={() => setLocalSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* MAIN CONTAINER LAYOUT */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        
-        {/* LEFT COLUMN: A2 BUILDING ARCHITECTURAL MAP (VISIBLE IN 'SPLIT' OR 'BUILDING_MAP') */}
-        {(viewMode === 'BUILDING_MAP' || viewMode === 'SPLIT') && (
-          <div className={`${viewMode === 'SPLIT' ? 'lg:col-span-4' : 'lg:col-span-12'} bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5 space-y-4`}>
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center space-x-2">
-                <Building2 className="w-5 h-5 text-blue-600" />
-                <div>
-                  <h3 className="text-sm font-black text-slate-900">A2 Building Macro Plan</h3>
-                  <p className="text-[11px] text-slate-500">ผังพื้นที่รวมอาคาร A2 และตำแหน่งพื้นที่วางรางเลื่อน DA2D-1</p>
-                </div>
-              </div>
-              <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
-                Floor Plan
-              </span>
-            </div>
-
-            {/* Architectural Building Diagram (Matches the uploaded reference image) */}
-            <div className="bg-slate-50 rounded-xl border-2 border-slate-800 p-4 relative min-h-[460px] flex flex-col justify-between overflow-hidden shadow-inner">
-              
-              {/* Building Title */}
-              <div className="text-center font-black text-slate-900 text-base tracking-wider py-1 border-b border-slate-300/80 bg-white/70 rounded-lg">
-                A2 Building
-              </div>
-
-              {/* Doors / Gates on Left and Right Walls */}
-              {/* Left Wall Doors */}
-              <div className="absolute left-0 top-[28%] -translate-x-1/2 w-3.5 h-10 bg-amber-300 border-2 border-amber-600 rounded-sm shadow-xs flex items-center justify-center">
-                <span className="text-[7px] font-black text-amber-950 rotate-90">DOOR</span>
-              </div>
-              <div className="absolute left-0 top-[60%] -translate-x-1/2 w-3.5 h-10 bg-amber-300 border-2 border-amber-600 rounded-sm shadow-xs flex items-center justify-center">
-                <span className="text-[7px] font-black text-amber-950 rotate-90">DOOR</span>
-              </div>
-              <div className="absolute left-0 top-[82%] -translate-x-1/2 w-3.5 h-10 bg-amber-300 border-2 border-amber-600 rounded-sm shadow-xs flex items-center justify-center">
-                <span className="text-[7px] font-black text-amber-950 rotate-90">DOOR</span>
-              </div>
-
-              {/* Right Wall Doors */}
-              <div className="absolute right-0 top-[28%] translate-x-1/2 w-3.5 h-10 bg-amber-300 border-2 border-amber-600 rounded-sm shadow-xs flex items-center justify-center">
-                <span className="text-[7px] font-black text-amber-950 -rotate-90">DOOR</span>
-              </div>
-              <div className="absolute right-0 top-[60%] translate-x-1/2 w-3.5 h-10 bg-amber-300 border-2 border-amber-600 rounded-sm shadow-xs flex items-center justify-center">
-                <span className="text-[7px] font-black text-amber-950 -rotate-90">DOOR</span>
-              </div>
-              <div className="absolute right-0 top-[82%] translate-x-1/2 w-3.5 h-10 bg-amber-300 border-2 border-amber-600 rounded-sm shadow-xs flex items-center justify-center">
-                <span className="text-[7px] font-black text-amber-950 -rotate-90">DOOR</span>
-              </div>
-
-              {/* Center Open Staging / Main Walkway */}
-              <div className="my-auto grid grid-cols-12 gap-3 p-2">
-                {/* Left side walkway & staging */}
-                <div className="col-span-5 flex flex-col justify-center items-center text-center p-3 border border-dashed border-slate-300 rounded-xl bg-white/50 space-y-2">
-                  <span className="text-[11px] font-bold text-slate-500">ทางสัญจร &amp; ขนถ่ายหลัก</span>
-                  <span className="text-[10px] text-slate-400">Main Forklift / AGV Path</span>
-                  <div className="w-full flex items-center justify-center space-x-1 py-4 border-y border-dashed border-slate-200 text-slate-400">
-                    <ArrowRight className="w-4 h-4 text-blue-500 rotate-90 animate-bounce" />
-                  </div>
-                  <span className="text-[9px] font-mono text-slate-400">Receiving Staging Zone</span>
-                </div>
-
-                {/* Right side DA2D-1 & Assembly Area */}
-                <div className="col-span-7 space-y-3">
-                  
-                  {/* DA2D-1 FLOW RAIL STORAGE AREA (Red Outline Box from reference) */}
-                  <div 
-                    onClick={() => setViewMode('RAIL_GRID')}
-                    className="p-3 bg-rose-50/70 border-2 border-rose-600 rounded-xl shadow-md hover:ring-2 hover:ring-rose-500 transition-all cursor-pointer relative group"
-                  >
-                    {/* Area Badge */}
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-black text-blue-700 font-mono bg-blue-100 px-2 py-0.5 rounded border border-blue-300">
-                        DA2D-1
-                      </span>
-                      <span className="text-[10px] font-bold text-rose-800 bg-rose-200/80 px-2 py-0.5 rounded-full flex items-center space-x-1">
-                        <GitCommit className="w-3 h-3" />
-                        <span>พื้นที่วางราง (Flow Rail)</span>
-                      </span>
-                    </div>
-
-                    {/* Micro illustration of 20 Rails */}
-                    <div className="space-y-1 bg-white/80 p-2 rounded-lg border border-rose-200 shadow-inner">
-                      <div className="text-[9px] font-bold text-slate-600 flex justify-between">
-                        <span>20 Rails (R1 - R20)</span>
-                        <span className="text-blue-600 font-mono font-black">{stats.occupiedSlots}/160 P</span>
-                      </div>
-                      <div className="grid grid-rows-4 gap-1">
-                        {[4, 3, 2, 1].map(b => (
-                          <div key={b} className="h-3 bg-slate-200 rounded flex space-x-0.5 p-0.5 border border-slate-300">
-                            {Array.from({ length: 8 }, (_, i) => (
-                              <div 
-                                key={i} 
-                                className={`flex-1 rounded-[2px] ${
-                                  b === 1 && i === 1 
-                                    ? 'bg-rose-600' // Highlight R3-02 matching diagram!
-                                    : (b + i) % 3 === 0 ? 'bg-blue-500' : 'bg-white'
-                                }`} 
-                              />
-                            ))}
-                          </div>
-                        ))}
-                      </div>
-                      <div className="text-[8px] text-slate-400 flex items-center justify-between pt-0.5">
-                        <span>⬅️ Outfeed</span>
-                        <span className="font-mono text-rose-700 font-bold">R3-02 Sample</span>
-                        <span>Infeed ➡️</span>
-                      </div>
-                    </div>
-
-                    <div className="mt-2 text-center text-[10px] font-bold text-blue-700 group-hover:underline flex items-center justify-center space-x-1">
-                      <span>คลิกเพื่อดูผังซูมแบบละเอียด</span>
-                      <ChevronRight className="w-3 h-3" />
-                    </div>
-                  </div>
-
-                  {/* Production / Assembly Line Layout Diagram (Below DA2D-1) */}
-                  <div className="p-3 bg-slate-100 rounded-xl border border-slate-300/80 space-y-1.5 text-center">
-                    <div className="flex items-center justify-between text-[10px] font-bold text-slate-700">
-                      <span>⚙️ ไลน์ประกอบ &amp; ผลิต (Assembly Line)</span>
-                      <span className="text-[9px] bg-slate-200 px-1.5 py-0.2 rounded">HE1 / HE2 / HE3</span>
-                    </div>
-                    {/* Visual Assembly Tracks */}
-                    <div className="grid grid-cols-3 gap-1.5 py-1">
-                      <div className="h-16 bg-white border border-slate-300 rounded p-1 flex flex-col justify-between text-[8px] text-slate-500">
-                        <span className="font-bold text-blue-800">Station A</span>
-                        <div className="h-1 bg-emerald-400 rounded-full" />
-                        <span>Pre-Assembly</span>
-                      </div>
-                      <div className="h-16 bg-white border border-slate-300 rounded p-1 flex flex-col justify-between text-[8px] text-slate-500">
-                        <span className="font-bold text-blue-800">Station B</span>
-                        <div className="h-1 bg-blue-400 rounded-full" />
-                        <span>Main Insertion</span>
-                      </div>
-                      <div className="h-16 bg-white border border-slate-300 rounded p-1 flex flex-col justify-between text-[8px] text-slate-500">
-                        <span className="font-bold text-blue-800">Station C</span>
-                        <div className="h-1 bg-amber-400 rounded-full" />
-                        <span>Quality QA</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Bottom Section: Office Area (Light Blue block matching user's image) */}
-              <div className="bg-sky-100 border-2 border-dashed border-sky-400 text-sky-950 font-bold py-3 px-4 rounded-xl text-center shadow-xs flex items-center justify-center space-x-2">
-                <span className="text-sm font-black tracking-wide">Office</span>
-                <span className="text-[10px] font-normal text-sky-700">(สำนักงาน &amp; ฝ่ายควบคุมคลังสินค้า A2)</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* RIGHT / MAIN COLUMN: DA2D-1 20-RAIL DETAILED GRID (1 BOX = 1 PALLET) */}
-        {(viewMode === 'RAIL_GRID' || viewMode === 'SPLIT') && (
-          <div className={`${viewMode === 'SPLIT' ? 'lg:col-span-8' : 'lg:col-span-12'} bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5 space-y-5`}>
+      {/* MAIN CONTAINER LAYOUT: DA2D-1 20-RAIL DETAILED GRID (1 BOX = 1 PALLET) */}
+      <div className="w-full">
+        <div className="w-full bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5 space-y-5">
             
             {/* Detail Section Header */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-3 border-b border-slate-200 gap-2">
@@ -587,59 +381,52 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
                                     }}
                                     onMouseLeave={() => setHoveredSlot(null)}
                                     title={`Locator: ${locatorCode}${item ? `\nModel: ${item.modelHE}\nQty: ${item.quantity} U\nLine: ${item.useLine}` : ' (ว่าง - คลิกเพื่อรับเข้า)'}`}
-                                    className={`h-20 rounded-lg p-1.5 flex flex-col justify-between text-left transition-all cursor-pointer relative overflow-hidden border-2 select-none ${
+                                    className={`h-7.5 sm:h-8 rounded p-0.5 flex flex-col justify-between text-left transition-all cursor-pointer relative overflow-hidden border select-none ${
                                       !isMatch
                                         ? 'opacity-30'
                                         : item
                                         ? isDiagramRedSample
-                                          ? 'bg-rose-700 text-white border-rose-900 shadow-md ring-2 ring-rose-500/50 hover:brightness-110' // EXACT RED BOX from diagram!
+                                          ? 'bg-rose-700 text-white border-rose-900 shadow-xs ring-1 ring-rose-500/50 hover:brightness-110' // EXACT RED BOX from diagram!
                                           : item.agingDays > 30
-                                          ? 'bg-amber-100 text-slate-900 border-amber-500 shadow-xs hover:border-amber-600'
-                                          : 'bg-blue-50 text-slate-900 border-blue-400 shadow-xs hover:border-blue-600'
+                                          ? 'bg-amber-100 text-slate-900 border-amber-500 shadow-2xs hover:border-amber-600'
+                                          : 'bg-blue-50 text-slate-900 border-blue-400 shadow-2xs hover:border-blue-600'
                                         : 'bg-slate-50/70 border-dashed border-slate-300 hover:border-blue-400 hover:bg-blue-50/40'
                                     }`}
                                   >
                                     {item ? (
                                       <>
                                         {/* Top bar in box: Slot Position and Line */}
-                                        <div className="flex items-center justify-between">
-                                          <span className={`text-[9px] font-mono font-black truncate ${
-                                            isDiagramRedSample ? 'text-rose-100' : 'text-slate-700'
+                                        <div className="flex items-center justify-between leading-none">
+                                          <span className={`text-[7.5px] font-mono font-black truncate ${
+                                            isDiagramRedSample ? 'text-rose-100' : 'text-slate-800'
                                           }`}>
                                             {formattedPos}
                                           </span>
-                                          <span className={`text-[8px] font-black px-1 rounded ${
+                                          <span className={`text-[6.5px] font-mono font-black px-0.5 rounded leading-none ${
                                             isDiagramRedSample 
                                               ? 'bg-rose-950 text-rose-100 border border-rose-400/40' 
-                                              : 'bg-blue-200 text-blue-900'
+                                              : 'bg-blue-200 text-blue-950'
                                           }`}>
                                             {item.useLine}
                                           </span>
                                         </div>
 
-                                        {/* Middle info: Model HE & Qty */}
-                                        <div className="leading-tight py-0.5">
-                                          <p className={`text-[9px] font-mono font-extrabold truncate ${
-                                            isDiagramRedSample ? 'text-white' : 'text-blue-950'
+                                        {/* Middle info: Model HE - Bold & Compact */}
+                                        <div className="w-full leading-tight truncate my-auto">
+                                          <span className={`text-[7.5px] sm:text-[8px] font-mono font-black tracking-tight truncate block ${
+                                            isDiagramRedSample ? 'text-white drop-shadow-2xs' : 'text-blue-950'
                                           }`}>
                                             {item.modelHE}
-                                          </p>
-                                          <p className={`text-[8px] truncate font-medium ${
-                                            isDiagramRedSample ? 'text-rose-100' : 'text-slate-600'
-                                          }`}>
-                                            {item.partName}
-                                          </p>
+                                          </span>
                                         </div>
 
                                         {/* Bottom info: Quantity & Locator */}
-                                        <div className="flex items-center justify-between pt-0.5 border-t border-black/10">
-                                          <span className={`text-[9px] font-mono font-black ${
-                                            isDiagramRedSample ? 'text-white' : 'text-slate-900'
-                                          }`}>
-                                            {item.quantity} U
+                                        <div className="flex items-center justify-between pt-0.2 border-t border-black/10 text-[7px] font-mono font-black leading-none">
+                                          <span className={isDiagramRedSample ? 'text-rose-100' : 'text-slate-900'}>
+                                            {item.quantity}U
                                           </span>
                                           {item.agingDays > 30 && (
-                                            <span className={`text-[7px] font-bold px-1 rounded-full ${
+                                            <span className={`text-[6px] font-bold px-0.5 rounded-full ${
                                               isDiagramRedSample ? 'bg-white text-rose-900' : 'bg-amber-200 text-amber-900'
                                             }`}>
                                               {item.agingDays}d
@@ -649,11 +436,16 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
                                       </>
                                     ) : (
                                       /* Empty Slot Placeholder */
-                                      <div className="h-full flex flex-col items-center justify-center text-slate-400 group-hover:text-blue-600">
-                                        <span className="text-[11px] font-mono font-black text-slate-300">
-                                          {formattedPos}
-                                        </span>
-                                        <span className="text-[8px] font-semibold text-slate-400">ว่าง</span>
+                                      <div className="h-full flex flex-col items-center justify-between text-slate-400 select-none">
+                                        <div className="w-full text-left">
+                                          <span className="text-[7.5px] font-mono font-bold text-slate-400">
+                                            {formattedPos}
+                                          </span>
+                                        </div>
+                                        <span className="text-[7px] font-sans text-slate-300 leading-none">ว่าง</span>
+                                        <div className="text-[6px] font-mono text-slate-300 text-right w-full">
+                                          -
+                                        </div>
                                       </div>
                                     )}
                                   </div>
@@ -683,8 +475,22 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
               })}
             </div>
           </div>
-        )}
-      </div>
+        </div>
+
+      {/* FLOATING HOVER MINI-STATS OVERLAY FOR FLOW RAILS */}
+      {hoveredSlot && (
+        <SlotMiniStatsOverlay
+          data={{
+            title: `รางเลื่อน R${hoveredSlot.railNumber} - ช่อง ${String(hoveredSlot.positionNumber).padStart(2, '0')}`,
+            locatorCode: hoveredSlot.locatorCode,
+            zoneName: `Flow Rail R${hoveredSlot.railNumber} (อาคาร A2)`,
+            positionLabel: `ตำแหน่งรางลำดับที่ ${hoveredSlot.positionNumber} จาก 8 ช่อง (FIFO Flow)`,
+            item: hoveredSlot.item,
+            x: hoveredSlot.x,
+            y: hoveredSlot.y
+          }}
+        />
+      )}
 
       {/* UNIFIED PALLET SLOT ACTION MODAL */}
       <UnifiedSlotModal

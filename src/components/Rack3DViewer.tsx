@@ -6,6 +6,7 @@ import {
   Layers, 
   RotateCcw, 
   Maximize2, 
+  Minimize,
   Package, 
   QrCode, 
   AlertTriangle, 
@@ -39,9 +40,44 @@ export const Rack3DViewer: React.FC<Rack3DViewerProps> = ({
   onBackToDashboard,
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [selectedLevel, setSelectedLevel] = useState<ShelfLevel>(1);
   const [isAutoRotate, setIsAutoRotate] = useState<boolean>(false);
   const [hoveredLevel, setHoveredLevel] = useState<ShelfLevel | null>(null);
+  const [isSelfFullscreen, setIsSelfFullscreen] = useState<boolean>(false);
+
+  const toggleFullscreen = () => {
+    if (isSelfFullscreen) {
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
+      setIsSelfFullscreen(false);
+    } else {
+      if (containerRef.current && containerRef.current.requestFullscreen) {
+        containerRef.current.requestFullscreen().catch(() => {});
+      }
+      setIsSelfFullscreen(true);
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement) {
+        setIsSelfFullscreen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isSelfFullscreen) {
+        setIsSelfFullscreen(false);
+      }
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isSelfFullscreen]);
 
   // Compute all available racks in sequential order for Prev/Next navigation
   const ALL_ZONES: StorageZone[] = ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'];
@@ -393,7 +429,12 @@ export const Rack3DViewer: React.FC<Rack3DViewerProps> = ({
   }, [selectedZone, selectedBayNumber, items, selectedLevel, isAutoRotate]);
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-3.5 sm:p-5 lg:p-6 shadow-sm text-slate-900 space-y-4 sm:space-y-6 w-full min-w-0 max-w-full">
+    <div 
+      ref={containerRef}
+      className={`bg-white border border-slate-200 rounded-xl p-3.5 sm:p-5 lg:p-6 shadow-sm text-slate-900 space-y-4 sm:space-y-6 w-full min-w-0 max-w-full transition-all duration-300 ${
+        isSelfFullscreen ? 'fixed inset-0 z-[99999] w-screen h-screen overflow-y-auto bg-slate-50 p-6' : ''
+      }`}
+    >
       {/* Top Header & Selector */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between pb-3 sm:pb-4 border-b border-slate-200 gap-3 sm:gap-4">
         <div>
@@ -412,7 +453,26 @@ export const Rack3DViewer: React.FC<Rack3DViewerProps> = ({
         </div>
 
         {/* Rack Locator Switcher */}
-        <div className="flex flex-wrap items-center gap-3 text-xs">
+        <div className="flex flex-wrap items-center gap-2.5 text-xs">
+          {/* Fullscreen Button */}
+          <button
+            onClick={toggleFullscreen}
+            className="px-3 py-1.5 rounded-lg font-bold transition-all flex items-center space-x-1.5 bg-cyan-600 hover:bg-cyan-500 text-white shadow-sm border border-cyan-400 active:scale-95"
+            title={isSelfFullscreen ? "ออกจากโหมดเต็มจอ (Esc)" : "กดดูโมเดล 3D แบบเต็มจอ (Fullscreen)"}
+          >
+            {isSelfFullscreen ? (
+              <>
+                <Minimize className="w-3.5 h-3.5" />
+                <span>ออกจากเต็มจอ</span>
+              </>
+            ) : (
+              <>
+                <Maximize2 className="w-3.5 h-3.5" />
+                <span>ดูแบบเต็มจอ (Fullscreen)</span>
+              </>
+            )}
+          </button>
+
           {onBackToDashboard && (
             <button
               onClick={onBackToDashboard}

@@ -140,29 +140,87 @@ export const MovementLogsTable: React.FC<MovementLogsTableProps> = ({
         </div>
       </div>
 
-      {/* Search & Filter Bar */}
-      <div className="space-y-3 bg-slate-50 border border-slate-200 rounded-xl p-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      {/* Compact Search & Filter Toolbar */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 sm:p-3 text-white shadow-xs space-y-2.5">
+        <div className="flex flex-wrap items-center gap-2 text-xs">
           {/* Search Bar */}
-          <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="ค้นหาตาม Model, Locator, Scan Code..."
-              className="w-full bg-white border border-slate-300 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-blue-500 shadow-sm"
+              placeholder="ค้นหา Model, Locator, QR..."
+              className="w-full bg-slate-800 border border-slate-700 focus:border-blue-500 rounded-lg pl-8 pr-7 py-1 text-xs text-white placeholder-slate-400 focus:outline-none"
             />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            )}
           </div>
 
-          {/* Status Filter */}
-          <div className="flex bg-slate-200/80 p-1 rounded-lg border border-slate-200 text-xs">
+          {/* Type Filter */}
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className="bg-slate-800 border border-slate-700 text-slate-200 font-bold px-2 py-1 rounded-lg text-xs focus:outline-none focus:border-blue-500"
+          >
+            <option value="ALL">ทั้ง IN/OUT</option>
+            <option value="IN">📥 รับเข้า (IN)</option>
+            <option value="OUT">📤 เบิกออก (OUT)</option>
+          </select>
+
+          {/* Zone Filter */}
+          <select
+            value={zoneFilter}
+            onChange={(e) => setZoneFilter(e.target.value)}
+            className="bg-slate-800 border border-slate-700 text-slate-200 font-bold px-2 py-1 rounded-lg text-xs focus:outline-none focus:border-blue-500"
+          >
+            <option value="ALL">ทุก Zone</option>
+            {(['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'] as StorageZone[]).map((z) => (
+              <option key={z} value={z}>Zone {z}</option>
+            ))}
+          </select>
+
+          {/* Line Filter */}
+          <select
+            value={lineFilter}
+            onChange={(e) => setLineFilter(e.target.value)}
+            className="bg-slate-800 border border-slate-700 text-slate-200 font-bold px-2 py-1 rounded-lg text-xs focus:outline-none focus:border-blue-500"
+          >
+            <option value="ALL">ทุก Line</option>
+            <option value="HE1">Line HE1</option>
+            <option value="HE2">Line HE2</option>
+            <option value="HE3">Line HE3</option>
+          </select>
+
+          {/* Gap Filter */}
+          <select
+            value={gapFilter}
+            onChange={(e) => setGapFilter(e.target.value)}
+            className="bg-slate-800 border border-slate-700 text-slate-200 font-bold px-2 py-1 rounded-lg text-xs focus:outline-none focus:border-blue-500"
+          >
+            <option value="ALL">Gap ทั้งหมด</option>
+            <option value="MATCH">✅ ยอดตรง (Gap = 0)</option>
+            <option value="DISCREPANCY">⚠️ ยอดต่าง (Gap ≠ 0)</option>
+          </select>
+        </div>
+
+        {/* Row 2: Status Filter Chips */}
+        <div className="pt-2 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="flex items-center flex-wrap gap-1 font-bold">
             {['ALL', 'DONE', 'WAIT_QR'].map((st) => (
               <button
                 key={st}
                 onClick={() => setStatusFilter(st)}
-                className={`flex-1 py-1 rounded-md font-medium transition-all ${
-                  statusFilter === st ? 'bg-blue-600 text-white shadow-sm font-semibold' : 'text-slate-600 hover:text-slate-900'
+                className={`px-2.5 py-1 rounded-lg border text-xs transition-all ${
+                  statusFilter === st
+                    ? 'bg-blue-600 text-white border-blue-500 font-black shadow-xs'
+                    : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
                 }`}
               >
                 {st === 'ALL' ? 'ทุกสถานะ' : st === 'DONE' ? 'เสร็จสิ้น (DONE)' : 'รอ QR'}
@@ -170,85 +228,26 @@ export const MovementLogsTable: React.FC<MovementLogsTableProps> = ({
             ))}
           </div>
 
-          {/* Movement Type Filter */}
-          <div className="flex bg-slate-200/80 p-1 rounded-lg border border-slate-200 text-xs">
-            {['ALL', 'IN', 'OUT'].map((tp) => (
+          <div className="flex items-center gap-1.5 ml-auto">
+            <span className="text-[11px] text-slate-400">
+              แสดง {filteredLogs.length} รายการ
+            </span>
+            {(searchTerm || statusFilter !== 'ALL' || typeFilter !== 'ALL' || zoneFilter !== 'ALL' || lineFilter !== 'ALL' || gapFilter !== 'ALL') && (
               <button
-                key={tp}
-                onClick={() => setTypeFilter(tp)}
-                className={`flex-1 py-1 rounded-md font-medium transition-all ${
-                  typeFilter === tp ? 'bg-blue-600 text-white shadow-sm font-semibold' : 'text-slate-600 hover:text-slate-900'
-                }`}
+                onClick={() => {
+                  setSearchTerm('');
+                  setStatusFilter('ALL');
+                  setTypeFilter('ALL');
+                  setZoneFilter('ALL');
+                  setLineFilter('ALL');
+                  setGapFilter('ALL');
+                }}
+                className="px-2 py-1 bg-red-900/40 hover:bg-red-900/60 text-red-300 rounded-lg text-[11px] font-bold transition-all border border-red-800"
               >
-                {tp === 'ALL' ? 'ทั้ง IN/OUT' : tp === 'IN' ? 'รับเข้า (IN)' : 'เบิกออก (OUT)'}
+                ล้างตัวกรอง
               </button>
-            ))}
+            )}
           </div>
-        </div>
-
-        {/* Secondary Dropdowns: Zone, Line, Gap Discrepancy */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-200 text-xs">
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Zone Filter */}
-            <div className="flex items-center space-x-1.5">
-              <span className="text-slate-500 font-medium">Zone:</span>
-              <select
-                value={zoneFilter}
-                onChange={(e) => setZoneFilter(e.target.value)}
-                className="bg-white border border-slate-300 text-slate-800 font-bold px-2 py-1 rounded-lg focus:outline-none focus:border-blue-500 shadow-sm"
-              >
-                <option value="ALL">ทุก Zone (B-K)</option>
-                {(['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'] as StorageZone[]).map((z) => (
-                  <option key={z} value={z}>Zone {z}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Line Filter */}
-            <div className="flex items-center space-x-1.5">
-              <span className="text-slate-500 font-medium">Line:</span>
-              <select
-                value={lineFilter}
-                onChange={(e) => setLineFilter(e.target.value)}
-                className="bg-white border border-slate-300 text-slate-800 font-bold px-2 py-1 rounded-lg focus:outline-none focus:border-blue-500 shadow-sm"
-              >
-                <option value="ALL">ทุก Line (HE1-3)</option>
-                <option value="HE1">Line HE1</option>
-                <option value="HE2">Line HE2</option>
-                <option value="HE3">Line HE3</option>
-              </select>
-            </div>
-
-            {/* Gap Filter */}
-            <div className="flex items-center space-x-1.5">
-              <span className="text-slate-500 font-medium">ผลต่างจำนวน (Gap):</span>
-              <select
-                value={gapFilter}
-                onChange={(e) => setGapFilter(e.target.value)}
-                className="bg-white border border-slate-300 text-slate-800 font-bold px-2 py-1 rounded-lg focus:outline-none focus:border-blue-500 shadow-sm"
-              >
-                <option value="ALL">ทั้งหมด (Gap)</option>
-                <option value="MATCH">ตรงตามป้าย (Gap = 0)</option>
-                <option value="DISCREPANCY">มีผลต่าง (Gap ≠ 0)</option>
-              </select>
-            </div>
-          </div>
-
-          {(searchTerm || statusFilter !== 'ALL' || typeFilter !== 'ALL' || zoneFilter !== 'ALL' || lineFilter !== 'ALL' || gapFilter !== 'ALL') && (
-            <button
-              onClick={() => {
-                setSearchTerm('');
-                setStatusFilter('ALL');
-                setTypeFilter('ALL');
-                setZoneFilter('ALL');
-                setLineFilter('ALL');
-                setGapFilter('ALL');
-              }}
-              className="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg text-[11px] transition-all"
-            >
-              ล้างตัวกรอง
-            </button>
-          )}
         </div>
       </div>
 

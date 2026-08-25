@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { MasterDataItem, UseLineMaster, ZoneCapacityMaster, StorageZone, InventoryItem, CustomRackSlot, StorageLocationType, WarehouseFacility } from '../types';
+import { MasterDataItem, UseLineMaster, ZoneCapacityMaster, StorageZone, InventoryItem, CustomRackSlot, StorageLocationType, WarehouseFacility, AgingThresholdConfig } from '../types';
 import { FacilityManager } from './FacilityManager';
+import { DynamicLegendPanel } from './DynamicLegendPanel';
 import { 
   Settings, 
   Save, 
@@ -20,7 +21,14 @@ import {
   AlertCircle,
   FolderPlus,
   RefreshCw,
-  Building2
+  Building2,
+  BookOpen,
+  HelpCircle,
+  Sparkles,
+  Flame,
+  Clock,
+  Sliders,
+  ShieldAlert
 } from 'lucide-react';
 
 interface MasterListPanelProps {
@@ -38,6 +46,10 @@ interface MasterListPanelProps {
   activeFacilityId?: string;
   setActiveFacilityId?: (id: string) => void;
   onNavigateToLayout?: (facility: WarehouseFacility) => void;
+  agingConfig?: AgingThresholdConfig;
+  setAgingConfig?: React.Dispatch<React.SetStateAction<AgingThresholdConfig>>;
+  customSlots?: CustomRackSlot[];
+  setCustomSlots?: React.Dispatch<React.SetStateAction<CustomRackSlot[]>>;
 }
 
 export const MasterListPanel: React.FC<MasterListPanelProps> = ({
@@ -54,10 +66,25 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
   setFacilities,
   activeFacilityId = 'ALL',
   setActiveFacilityId = () => {},
-  onNavigateToLayout
+  onNavigateToLayout,
+  agingConfig = { safeDaysMax: 14, warningDaysMax: 30, criticalDays: 30, autoAlertEnabled: true, notifyOnFifoViolation: true, customRuleName: 'มาตรฐาน LGE (14/30 วัน)' },
+  setAgingConfig,
+  customSlots: propCustomSlots,
+  setCustomSlots: propSetCustomSlots
 }) => {
-  const [activeTab, setActiveTab] = useState<'FACILITIES' | 'ITEMS' | 'LINES' | 'ZONE_CAPACITY' | 'RACK_LOCATIONS' | 'RELOCATE'>('FACILITIES');
+  const [activeTab, setActiveTab] = useState<'FACILITIES' | 'AGING_CONFIG' | 'GUIDE_LEGEND' | 'ITEMS' | 'LINES' | 'ZONE_CAPACITY' | 'RACK_LOCATIONS' | 'RELOCATE'>('AGING_CONFIG');
   
+  // Local Aging Config State for editing
+  const [tempAgingConfig, setTempAgingConfig] = useState<AgingThresholdConfig>(() => ({
+    safeDaysMax: agingConfig.safeDaysMax || 14,
+    warningDaysMax: agingConfig.warningDaysMax || 30,
+    criticalDays: agingConfig.criticalDays || 30,
+    autoAlertEnabled: agingConfig.autoAlertEnabled ?? true,
+    notifyOnFifoViolation: agingConfig.notifyOnFifoViolation ?? true,
+    customRuleName: agingConfig.customRuleName || 'มาตรฐาน LGE (14/30 วัน)'
+  }));
+  const [agingSaveSuccessMsg, setAgingSaveSuccessMsg] = useState<string | null>(null);
+
   // States for Master Item list
   const [search, setSearch] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -72,8 +99,8 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
   const [editingZone, setEditingZone] = useState<StorageZone | null>(null);
   const [editZoneForm, setEditZoneForm] = useState<ZoneCapacityMaster | null>(null);
 
-  // States for Custom Rack / Slot Creation
-  const [customSlots, setCustomSlots] = useState<CustomRackSlot[]>([
+  // Initial custom slots if not provided from parent
+  const [localCustomSlots, setLocalCustomSlots] = useState<CustomRackSlot[]>([
     { id: 'RACK-B', stationId: 'STATION_1', zone: 'B', bayNumber: 12, maxLevels: 4, storageType: 'RACK', capacityPerLevel: 2, status: 'ACTIVE', description: 'Selective Rack Zone B' },
     { id: 'RACK-C', stationId: 'STATION_1', zone: 'C', bayNumber: 12, maxLevels: 4, storageType: 'RACK', capacityPerLevel: 2, status: 'ACTIVE', description: 'Selective Rack Zone C' },
     { id: 'RACK-D', stationId: 'STATION_1', zone: 'D', bayNumber: 12, maxLevels: 4, storageType: 'RACK', capacityPerLevel: 2, status: 'ACTIVE', description: 'Selective Rack Zone D' },
@@ -89,6 +116,9 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
     { id: 'FLOOR-A', stationId: 'STATION_2', zone: 'FL-A', bayNumber: 4, maxLevels: 1, storageType: 'FLOOR_STAGING', capacityPerLevel: 4, status: 'ACTIVE', description: 'Floor Staging Zone A' },
     { id: 'FLOOR-B', stationId: 'STATION_2', zone: 'FL-B', bayNumber: 4, maxLevels: 1, storageType: 'FLOOR_STAGING', capacityPerLevel: 4, status: 'ACTIVE', description: 'Floor Staging Zone B' },
   ]);
+
+  const customSlots = propCustomSlots || localCustomSlots;
+  const setCustomSlots = propSetCustomSlots || setLocalCustomSlots;
 
   const [newSlotForm, setNewSlotForm] = useState<{
     zone: string;
@@ -319,22 +349,46 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
           </div>
 
           {/* Sub Tab Buttons */}
-          <div className="flex flex-wrap bg-slate-200/80 p-1 rounded-lg border border-slate-300 gap-1">
+          <div className="flex overflow-x-auto sm:flex-wrap bg-slate-200/80 p-1 rounded-lg border border-slate-300 gap-1 scrollbar-thin">
             <button
               id="tab-btn-facilities"
               onClick={() => setActiveTab('FACILITIES')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
                 activeTab === 'FACILITIES'
                   ? 'bg-blue-600 text-white shadow-sm ring-1 ring-blue-700'
                   : 'text-slate-700 hover:text-slate-900 hover:bg-slate-300/60'
               }`}
             >
               <Building2 className="w-3.5 h-3.5" />
-              <span>🏢 จัดการคลัง & อาคาร (Facility Manager)</span>
+              <span>🏢 จัดการคลัง & อาคาร</span>
+            </button>
+            <button
+              id="tab-btn-aging-config"
+              onClick={() => setActiveTab('AGING_CONFIG')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
+                activeTab === 'AGING_CONFIG'
+                  ? 'bg-amber-500 text-slate-950 shadow-sm ring-1 ring-amber-600 font-black'
+                  : 'text-slate-700 hover:text-slate-900 hover:bg-slate-300/60'
+              }`}
+            >
+              <Flame className="w-3.5 h-3.5 text-amber-950" />
+              <span>⏱️ กำหนดเกณฑ์ Aging FIFO</span>
+            </button>
+            <button
+              id="tab-btn-guide-legend"
+              onClick={() => setActiveTab('GUIDE_LEGEND')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
+                activeTab === 'GUIDE_LEGEND'
+                  ? 'bg-indigo-700 text-white shadow-sm ring-1 ring-indigo-800'
+                  : 'text-slate-700 hover:text-slate-900 hover:bg-slate-300/60'
+              }`}
+            >
+              <BookOpen className="w-3.5 h-3.5 text-amber-300" />
+              <span>📘 คู่มือโค้ดสี & รหัสพิกัด</span>
             </button>
             <button
               onClick={() => setActiveTab('ITEMS')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
                 activeTab === 'ITEMS'
                   ? 'bg-white text-blue-700 shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
@@ -345,7 +399,7 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
             </button>
             <button
               onClick={() => setActiveTab('LINES')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
                 activeTab === 'LINES'
                   ? 'bg-emerald-600 text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
@@ -356,7 +410,7 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
             </button>
             <button
               onClick={() => setActiveTab('ZONE_CAPACITY')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
                 activeTab === 'ZONE_CAPACITY'
                   ? 'bg-purple-600 text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
@@ -367,7 +421,7 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
             </button>
             <button
               onClick={() => setActiveTab('RACK_LOCATIONS')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
                 activeTab === 'RACK_LOCATIONS'
                   ? 'bg-indigo-600 text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
@@ -378,14 +432,14 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
             </button>
             <button
               onClick={() => setActiveTab('RELOCATE')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
                 activeTab === 'RELOCATE'
                   ? 'bg-amber-500 text-slate-950 shadow-sm font-black'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <ArrowLeftRight className="w-3.5 h-3.5" />
-              <span>🔄 ย้ายตำแหน่ง (Relocate)</span>
+              <span>🔄 ย้ายตำแหน่ง</span>
             </button>
           </div>
         </div>
@@ -396,6 +450,14 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
             <div className="text-xs text-slate-600 font-medium flex items-center space-x-2">
               <span className="font-bold text-slate-800">ศูนย์ควบคุมสถานที่จัดเก็บ (Warehouse Facility Hub):</span>
               <span>เพิ่ม/แก้ไข อาคารคลังสินค้าและรูปแบบการจัดเก็บ (Rack, Flow Rail, Floor Staging)</span>
+            </div>
+          </div>
+        )}
+        {activeTab === 'GUIDE_LEGEND' && (
+          <div className="flex items-center justify-between gap-3 pt-1">
+            <div className="text-xs text-slate-600 font-medium flex items-center space-x-2">
+              <span className="font-bold text-slate-800">📘 คู่มือโค้ดสี &amp; โครงสร้างรหัสตำแหน่ง (Dynamic Legend &amp; Naming Convention):</span>
+              <span>มาตรฐานรหัสพิกัดทั้ง 3 โซน (A4 แร็ค/พื้น, A2 รางเลื่อน FIFO, A5 ลานกองเต็นท์) และโค้ดสีแสดงความหนาแน่น</span>
             </div>
           </div>
         )}
@@ -488,6 +550,333 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
           />
         )}
 
+        {/* TAB 0.1: DYNAMIC AGING THRESHOLD CONFIGURATION */}
+        {activeTab === 'AGING_CONFIG' && (
+          <div className="space-y-6 animate-fadeIn">
+            
+            {/* Top Info Banner */}
+            <div className="bg-amber-500/10 border-2 border-amber-500/30 rounded-2xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-center space-x-3.5">
+                <div className="p-3 bg-amber-500 text-slate-950 rounded-xl font-bold shadow-sm">
+                  <Flame className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 tracking-tight flex items-center space-x-2">
+                    <span>กำหนดเกณฑ์อายุสินค้า (Custom Aging & FIFO Thresholds)</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-100 text-amber-900 rounded-full border border-amber-300">
+                      Real-Time Sync
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    ปรับแต่งจำนวนวันเตือนอายุสต็อกด้วยตนเอง ระบบจะนำเกณฑ์นี้ไปคำนวณในหน้าผังรวม, หน้า FIFO Aging, และหน้าพิมพ์ฉลาก QR Code ทันที
+                  </p>
+                </div>
+              </div>
+
+              {/* Quick Presets */}
+              <div className="flex flex-wrap items-center gap-1.5 self-start md:self-auto">
+                <span className="text-[11px] font-bold text-slate-500 mr-1">แม่แบบด่วน:</span>
+                <button
+                  type="button"
+                  onClick={() => setTempAgingConfig({
+                    ...tempAgingConfig,
+                    safeDaysMax: 14,
+                    warningDaysMax: 30,
+                    criticalDays: 30,
+                    customRuleName: 'มาตรฐาน LGE (14/30 วัน)'
+                  })}
+                  className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-slate-800 transition-all shadow-2xs"
+                >
+                  มาตรฐาน 14/30 วัน
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTempAgingConfig({
+                    ...tempAgingConfig,
+                    safeDaysMax: 7,
+                    warningDaysMax: 14,
+                    criticalDays: 14,
+                    customRuleName: 'Fast-Moving (7/14 วัน)'
+                  })}
+                  className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-slate-800 transition-all shadow-2xs"
+                >
+                  ชิ้นส่วนด่วน 7/14 วัน
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTempAgingConfig({
+                    ...tempAgingConfig,
+                    safeDaysMax: 30,
+                    warningDaysMax: 60,
+                    criticalDays: 60,
+                    customRuleName: 'Long-Cycle (30/60 วัน)'
+                  })}
+                  className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-slate-800 transition-all shadow-2xs"
+                >
+                  สต็อกยาว 30/60 วัน
+                </button>
+              </div>
+            </div>
+
+            {/* Config Form Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              
+              {/* Left Column: Input Sliders & Options (col-span-7) */}
+              <div className="lg:col-span-7 bg-white border border-slate-200 rounded-2xl p-5 space-y-5 shadow-sm">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <h4 className="text-sm font-bold text-slate-800 flex items-center space-x-2">
+                    <Sliders className="w-4 h-4 text-blue-600" />
+                    <span>ตั้งค่าตัวเลขเกณฑ์วัน (Threshold Parameters)</span>
+                  </h4>
+                  <span className="text-xs font-mono font-bold text-slate-500">
+                    Rule: {tempAgingConfig.customRuleName || 'กำหนดเอง'}
+                  </span>
+                </div>
+
+                {/* Rule Name Input */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700">ชื่อเกณฑ์ / ชื่อนโยบาย (Rule Name):</label>
+                  <input
+                    type="text"
+                    value={tempAgingConfig.customRuleName || ''}
+                    onChange={(e) => setTempAgingConfig({ ...tempAgingConfig, customRuleName: e.target.value })}
+                    placeholder="เช่น มาตรฐานชิ้นส่วน HE ประจำโรงงาน..."
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                </div>
+
+                {/* Safe Days Threshold */}
+                <div className="p-4 bg-emerald-50/50 border border-emerald-200 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-black text-emerald-900 flex items-center space-x-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        <span>1. เกณฑ์ระยะปลอดภัย (Safe Fresh Stock):</span>
+                      </span>
+                      <p className="text-[11px] text-emerald-700 mt-0.5">
+                        อายุจัดเก็บตั้งแต่ 0 ถึง <strong>{tempAgingConfig.safeDaysMax} วัน</strong> ถือเป็นสถานะปกติ (Safe)
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-1 font-mono">
+                      <input
+                        type="number"
+                        min={1}
+                        max={90}
+                        value={tempAgingConfig.safeDaysMax}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setTempAgingConfig({
+                            ...tempAgingConfig,
+                            safeDaysMax: val,
+                            warningDaysMax: Math.max(val, tempAgingConfig.warningDaysMax)
+                          });
+                        }}
+                        className="w-16 bg-white border border-emerald-300 rounded-lg px-2 py-1 text-center text-xs font-black text-emerald-900"
+                      />
+                      <span className="text-xs font-bold text-emerald-800">วัน</span>
+                    </div>
+                  </div>
+                  <input
+                    type="range"
+                    min={1}
+                    max={60}
+                    value={tempAgingConfig.safeDaysMax}
+                    onChange={(e) => setTempAgingConfig({ ...tempAgingConfig, safeDaysMax: Number(e.target.value) })}
+                    className="w-full accent-emerald-600 cursor-pointer"
+                  />
+                </div>
+
+                {/* Critical Overdue Days Threshold */}
+                <div className="p-4 bg-rose-50/50 border border-rose-200 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-black text-rose-900 flex items-center space-x-1.5">
+                        <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                        <span>2. เกณฑ์สต็อกค้างเกินกำหนด (Critical Overdue):</span>
+                      </span>
+                      <p className="text-[11px] text-rose-700 mt-0.5">
+                        อายุจัดเก็บมากกว่า <strong>{tempAgingConfig.criticalDays} วัน</strong> จะถูกเตือนเป็นสต็อกค้างวิกฤต (Critical FIFO Action)
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-1 font-mono">
+                      <input
+                        type="number"
+                        min={tempAgingConfig.safeDaysMax}
+                        max={180}
+                        value={tempAgingConfig.criticalDays}
+                        onChange={(e) => setTempAgingConfig({ ...tempAgingConfig, criticalDays: Number(e.target.value), warningDaysMax: Number(e.target.value) })}
+                        className="w-16 bg-white border border-rose-300 rounded-lg px-2 py-1 text-center text-xs font-black text-rose-900"
+                      />
+                      <span className="text-xs font-bold text-rose-800">วัน</span>
+                    </div>
+                  </div>
+                  <input
+                    type="range"
+                    min={tempAgingConfig.safeDaysMax}
+                    max={120}
+                    value={tempAgingConfig.criticalDays}
+                    onChange={(e) => setTempAgingConfig({ ...tempAgingConfig, criticalDays: Number(e.target.value), warningDaysMax: Number(e.target.value) })}
+                    className="w-full accent-rose-600 cursor-pointer"
+                  />
+                </div>
+
+                {/* Notification Toggles */}
+                <div className="space-y-2 pt-1">
+                  <label className="flex items-center space-x-2.5 text-xs font-bold text-slate-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={tempAgingConfig.autoAlertEnabled}
+                      onChange={(e) => setTempAgingConfig({ ...tempAgingConfig, autoAlertEnabled: e.target.checked })}
+                      className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>เปิดระบบแจ้งเตือนสีแดงกะพริบในหน้าผังเมื่อพบสต็อกค้างเกินเกณฑ์</span>
+                  </label>
+
+                  <label className="flex items-center space-x-2.5 text-xs font-bold text-slate-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={tempAgingConfig.notifyOnFifoViolation}
+                      onChange={(e) => setTempAgingConfig({ ...tempAgingConfig, notifyOnFifoViolation: e.target.checked })}
+                      className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>แจ้งเตือนเมื่อเจ้าหน้าที่สแกนเบิกสินค้าใหม่ก่อนสินค้าเก่า (FIFO Violation Prevention)</span>
+                  </label>
+                </div>
+
+                {/* Save Button & Message */}
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                  {agingSaveSuccessMsg && (
+                    <div className="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 flex items-center space-x-1.5 animate-fadeIn">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      <span>{agingSaveSuccessMsg}</span>
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (setAgingConfig) {
+                        setAgingConfig(tempAgingConfig);
+                      }
+                      setAgingSaveSuccessMsg(`✅ บันทึกเกณฑ์ Aging สำเร็จ! เกณฑ์ใหม่: ${tempAgingConfig.safeDaysMax} / ${tempAgingConfig.criticalDays} วัน`);
+                      setTimeout(() => setAgingSaveSuccessMsg(null), 4000);
+                    }}
+                    className="ml-auto px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-md flex items-center space-x-2 transition-transform active:scale-95"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>บันทึกและปรับใช้เกณฑ์ทันที (Save & Apply)</span>
+                  </button>
+                </div>
+
+              </div>
+
+              {/* Right Column: Live Impact Analyzer across Inventory (col-span-5) */}
+              <div className="lg:col-span-5 bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center space-x-2 pb-3 border-b border-slate-200">
+                    <ShieldAlert className="w-4 h-4 text-amber-600" />
+                    <h4 className="text-sm font-bold text-slate-800">
+                      การวิเคราะห์ผลกระทบ Real-Time (Live Impact)
+                    </h4>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-2 mb-4">
+                    จากสต็อกทั้งหมด <strong>{items.length} รายการ</strong> ในคลังสินค้า การจัดกลุ่มตามเกณฑ์ที่เลือกมีผลลัพธ์ดังนี้:
+                  </p>
+
+                  {/* Impact Breakdown Cards */}
+                  {(() => {
+                    const safeCount = items.filter(it => it.agingDays <= tempAgingConfig.safeDaysMax).length;
+                    const warningCount = items.filter(it => it.agingDays > tempAgingConfig.safeDaysMax && it.agingDays <= tempAgingConfig.criticalDays).length;
+                    const criticalCount = items.filter(it => it.agingDays > tempAgingConfig.criticalDays).length;
+                    const total = items.length || 1;
+
+                    return (
+                      <div className="space-y-3">
+                        {/* 1. Safe Tier */}
+                        <div className="p-3 bg-white border border-emerald-200 rounded-xl shadow-xs flex items-center justify-between">
+                          <div>
+                            <div className="text-xs font-bold text-emerald-800">🟢 กลุ่มปลอดภัย (0 - {tempAgingConfig.safeDaysMax} วัน)</div>
+                            <div className="text-[10px] text-slate-500">หมุนเวียนตามแผนปกติ</div>
+                          </div>
+                          <div className="text-right font-mono">
+                            <div className="text-base font-black text-emerald-600">{safeCount} รายการ</div>
+                            <div className="text-[10px] text-slate-400 font-bold">{Math.round((safeCount / total) * 100)}%</div>
+                          </div>
+                        </div>
+
+                        {/* 2. Warning Tier */}
+                        <div className="p-3 bg-white border border-amber-200 rounded-xl shadow-xs flex items-center justify-between">
+                          <div>
+                            <div className="text-xs font-bold text-amber-800">🟡 กลุ่มเฝ้าระวัง ({tempAgingConfig.safeDaysMax + 1} - {tempAgingConfig.criticalDays} วัน)</div>
+                            <div className="text-[10px] text-slate-500">ควรเตรียมเบิกจ่ายตามลำดับ</div>
+                          </div>
+                          <div className="text-right font-mono">
+                            <div className="text-base font-black text-amber-600">{warningCount} รายการ</div>
+                            <div className="text-[10px] text-slate-400 font-bold">{Math.round((warningCount / total) * 100)}%</div>
+                          </div>
+                        </div>
+
+                        {/* 3. Critical Overdue Tier */}
+                        <div className="p-3 bg-white border border-rose-200 rounded-xl shadow-xs flex items-center justify-between">
+                          <div>
+                            <div className="text-xs font-bold text-rose-800">🔴 กลุ่มค้างเกินเกณฑ์ (&gt; {tempAgingConfig.criticalDays} วัน)</div>
+                            <div className="text-[10px] text-slate-500">ต้องเร่งระบายเข้าไลน์ผลิตด่วน</div>
+                          </div>
+                          <div className="text-right font-mono">
+                            <div className="text-base font-black text-rose-600">{criticalCount} รายการ</div>
+                            <div className="text-[10px] text-slate-400 font-bold">{Math.round((criticalCount / total) * 100)}%</div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-[11px] text-blue-900 space-y-1">
+                  <div className="font-bold flex items-center space-x-1">
+                    <Clock className="w-3.5 h-3.5 text-blue-600" />
+                    <span>ระบบ FIFO Real-Time Dynamic:</span>
+                  </div>
+                  <p className="text-blue-800/80">
+                    เมื่อมีการปรับเปลี่ยนเกณฑ์ ตัวเลขการแจ้งเตือน Overdue ในแถบหัวข้อและป้ายสถานะในหน้าสแกนจะอัพเดตทันที
+                  </p>
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+        )}
+
+        {/* TAB 0.5: DYNAMIC LEGEND & NAMING CONVENTION GUIDE */}
+        {activeTab === 'GUIDE_LEGEND' && (
+          <div className="space-y-4 animate-fadeIn">
+            <div className="bg-blue-50/70 border border-blue-200 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-2xs">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-blue-600 text-white rounded-lg shadow-xs">
+                  <BookOpen className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-blue-950">
+                    📘 ศูนย์รวมคู่มือโค้ดสี & มาตรฐานรหัสตำแหน่งคลัง (Dynamic Legend & Naming Guide)
+                  </h3>
+                  <p className="text-xs text-blue-800/80 mt-0.5">
+                    คู่มือนี้ถูกย้ายมารวมไว้ที่หน้าตั้งค่า (Settings) เพื่อความสะอาดและไม่เกะกะสายตาในหน้าผังแผนที่หลัก
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-[11px] font-mono bg-white px-2.5 py-1 rounded-md border border-blue-200 text-blue-900 font-bold">
+                  3 อาคารหลัก: A4 (Selective Rack) • A2 (Flow Rail) • A5 (Tent Staging)
+                </span>
+              </div>
+            </div>
+
+            <DynamicLegendPanel />
+          </div>
+        )}
+
         {/* TAB 1: MASTER ITEMS */}
         {activeTab === 'ITEMS' && (
           <div className="space-y-4">
@@ -545,98 +934,112 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
               </div>
             )}
 
-            <table className="w-full text-left text-sm text-slate-600">
-              <thead className="bg-slate-50 text-xs uppercase font-bold text-slate-500 border-b border-slate-200">
-                <tr>
-                  <th className="py-3 px-4">#</th>
-                  <th className="py-3 px-4">Model HE</th>
-                  <th className="py-3 px-4">Tool Name</th>
-                  <th className="py-3 px-4 text-center">Safety Stock (Min)</th>
-                  <th className="py-3 px-4 text-center">Std Qty / Pallet</th>
-                  <th className="py-3 px-4 text-right">จัดการ</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-xs font-medium">
-                {filteredData.map((item, idx) => (
-                  <tr key={item.modelHE} className="hover:bg-slate-50">
-                    <td className="py-2.5 px-4 text-slate-400">{idx + 1}</td>
-                    <td className="py-2.5 px-4 font-mono font-bold text-blue-900">{item.modelHE}</td>
-                    <td className="py-2.5 px-4 font-semibold text-slate-800">{item.partName}</td>
-                    <td className="py-2.5 px-4 text-center font-bold text-amber-700">{item.safetyStock.toLocaleString()}</td>
-                    <td className="py-2.5 px-4 text-center font-bold text-slate-700">{item.stdQtyPerPallet || 80}</td>
-                    <td className="py-2.5 px-4 text-right">
-                      <button onClick={() => handleDelete(item.modelHE)} className="p-1 text-red-500 hover:text-red-700 rounded">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </td>
+            <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+              <table className="w-full text-left text-xs text-slate-700">
+                <thead className="bg-slate-50 text-slate-600 font-bold uppercase text-[11px] border-b border-slate-200">
+                  <tr>
+                    <th className="px-3.5 py-3">#</th>
+                    <th className="px-3.5 py-3">Model HE</th>
+                    <th className="px-3.5 py-3">Tool Name</th>
+                    <th className="px-3.5 py-3 text-center">Safety Stock (Min)</th>
+                    <th className="px-3.5 py-3 text-center">Std Qty / Pallet</th>
+                    <th className="px-3.5 py-3 text-right">จัดการ</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredData.map((item, idx) => (
+                    <tr key={item.modelHE} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-3.5 py-2.5 text-slate-400 font-mono">{idx + 1}</td>
+                      <td className="px-3.5 py-2.5 font-mono font-bold text-slate-900">{item.modelHE}</td>
+                      <td className="px-3.5 py-2.5 font-medium text-slate-800">{item.partName}</td>
+                      <td className="px-3.5 py-2.5 text-center font-mono font-bold text-amber-700">{item.safetyStock.toLocaleString()} U</td>
+                      <td className="px-3.5 py-2.5 text-center font-mono font-bold text-slate-700">{item.stdQtyPerPallet || 80} U</td>
+                      <td className="px-3.5 py-2.5 text-right">
+                        <button onClick={() => handleDelete(item.modelHE)} className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all" title="ลบรายการ">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
         {/* TAB 2: USE LINES */}
         {activeTab === 'LINES' && (
           <div className="space-y-4">
-            <table className="w-full text-left text-sm text-slate-600">
-              <thead className="bg-slate-50 text-xs uppercase font-bold text-slate-500 border-b border-slate-200">
-                <tr>
-                  <th className="py-3 px-4">#</th>
-                  <th className="py-3 px-4">รหัสไลน์</th>
-                  <th className="py-3 px-4">ชื่อไลน์ผลิต</th>
-                  <th className="py-3 px-4">คำอธิบาย</th>
-                  <th className="py-3 px-4 text-right">จัดการ</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-xs font-medium">
-                {filteredLines.map((line, idx) => (
-                  <tr key={line.id} className="hover:bg-slate-50">
-                    <td className="py-2.5 px-4 text-slate-400">{idx + 1}</td>
-                    <td className="py-2.5 px-4 font-mono font-bold text-emerald-800">{line.id}</td>
-                    <td className="py-2.5 px-4 font-bold text-slate-800">{line.name}</td>
-                    <td className="py-2.5 px-4 text-slate-500">{line.description || '-'}</td>
-                    <td className="py-2.5 px-4 text-right">
-                      <button onClick={() => handleDeleteLine(line.id)} className="p-1 text-red-500 hover:text-red-700">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </td>
+            <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+              <table className="w-full text-left text-xs text-slate-700">
+                <thead className="bg-slate-50 text-slate-600 font-bold uppercase text-[11px] border-b border-slate-200">
+                  <tr>
+                    <th className="px-3.5 py-3">#</th>
+                    <th className="px-3.5 py-3">รหัสไลน์</th>
+                    <th className="px-3.5 py-3">ชื่อไลน์ผลิต</th>
+                    <th className="px-3.5 py-3">คำอธิบาย</th>
+                    <th className="px-3.5 py-3 text-right">จัดการ</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredLines.map((line, idx) => (
+                    <tr key={line.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-3.5 py-2.5 text-slate-400 font-mono">{idx + 1}</td>
+                      <td className="px-3.5 py-2.5">
+                        <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-bold text-[10px] border border-indigo-200">
+                          {line.id}
+                        </span>
+                      </td>
+                      <td className="px-3.5 py-2.5 font-bold text-slate-900">{line.name}</td>
+                      <td className="px-3.5 py-2.5 text-slate-500">{line.description || '-'}</td>
+                      <td className="px-3.5 py-2.5 text-right">
+                        <button onClick={() => handleDeleteLine(line.id)} className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all" title="ลบไลน์">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
         {/* TAB 3: ZONE CAPACITIES */}
         {activeTab === 'ZONE_CAPACITY' && (
           <div className="space-y-4">
-            <table className="w-full text-left text-sm text-slate-600">
-              <thead className="bg-slate-50 text-xs uppercase font-bold text-slate-500 border-b border-slate-200">
-                <tr>
-                  <th className="py-3 px-4">Rack Zone</th>
-                  <th className="py-3 px-4 text-center">ความจุมาตรฐาน (Pallets/Bay)</th>
-                  <th className="py-3 px-4 text-center">มาตรฐานชิ้นต่อพาเลท</th>
-                  <th className="py-3 px-4">รายละเอียด</th>
-                  <th className="py-3 px-4 text-right">แก้ไข</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-xs font-medium">
-                {zoneCapacities.map((zc) => (
-                  <tr key={zc.zone} className="hover:bg-slate-50">
-                    <td className="py-2.5 px-4 font-extrabold text-purple-900">Zone {zc.zone}</td>
-                    <td className="py-2.5 px-4 text-center font-bold text-blue-700">{zc.standardPalletsPerBay} พาเลท</td>
-                    <td className="py-2.5 px-4 text-center font-bold text-slate-700">{zc.defaultStdQtyPerPallet} ตัว</td>
-                    <td className="py-2.5 px-4 text-slate-500">{zc.description || '-'}</td>
-                    <td className="py-2.5 px-4 text-right">
-                      <button onClick={() => handleEditZone(zc)} className="p-1 text-purple-600 hover:text-purple-800">
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                    </td>
+            <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+              <table className="w-full text-left text-xs text-slate-700">
+                <thead className="bg-slate-50 text-slate-600 font-bold uppercase text-[11px] border-b border-slate-200">
+                  <tr>
+                    <th className="px-3.5 py-3">Rack Zone</th>
+                    <th className="px-3.5 py-3 text-center">ความจุมาตรฐาน (Pallets/Bay)</th>
+                    <th className="px-3.5 py-3 text-center">มาตรฐานชิ้นต่อพาเลท</th>
+                    <th className="px-3.5 py-3">รายละเอียด</th>
+                    <th className="px-3.5 py-3 text-right">แก้ไข</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {zoneCapacities.map((zc) => (
+                    <tr key={zc.zone} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-3.5 py-2.5">
+                        <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-900 font-extrabold text-[10px] border border-blue-200">
+                          Zone {zc.zone}
+                        </span>
+                      </td>
+                      <td className="px-3.5 py-2.5 text-center font-mono font-bold text-slate-800">{zc.standardPalletsPerBay} พาเลท</td>
+                      <td className="px-3.5 py-2.5 text-center font-mono font-bold text-slate-700">{zc.defaultStdQtyPerPallet} ตัว</td>
+                      <td className="px-3.5 py-2.5 text-slate-500">{zc.description || '-'}</td>
+                      <td className="px-3.5 py-2.5 text-right">
+                        <button onClick={() => handleEditZone(zc)} className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 border border-transparent hover:border-blue-200 transition-all" title="แก้ไข">
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
@@ -761,52 +1164,55 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
             )}
 
             {/* Existing Custom Slots Table */}
-            <table className="w-full text-left text-sm text-slate-600">
-              <thead className="bg-slate-50 text-xs uppercase font-bold text-slate-500 border-b border-slate-200">
-                <tr>
-                  <th className="py-3 px-4">รหัสช่อง / Zone</th>
-                  <th className="py-3 px-4">ประเภทพื้นที่</th>
-                  <th className="py-3 px-4">สถานีจัดเก็บ</th>
-                  <th className="py-3 px-4 text-center">จำนวน Bay</th>
-                  <th className="py-3 px-4 text-center">ชั้น (Levels)</th>
-                  <th className="py-3 px-4 text-center">ความจุรวม (Pallets)</th>
-                  <th className="py-3 px-4">สถานะ</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-xs font-medium">
-                {customSlots.map((slot) => (
-                  <tr key={slot.id} className="hover:bg-slate-50">
-                    <td className="py-2.5 px-4 font-mono font-black text-indigo-900">
-                      {slot.zone} ({slot.id})
-                    </td>
-                    <td className="py-2.5 px-4">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                        slot.storageType === 'RACK' 
-                          ? 'bg-blue-100 text-blue-800' 
-                          : slot.storageType === 'FLOW_RAIL'
-                          ? 'bg-amber-100 text-amber-900'
-                          : 'bg-emerald-100 text-emerald-800'
-                      }`}>
-                        {slot.storageType === 'RACK' ? '📦 Selective Rack' : slot.storageType === 'FLOW_RAIL' ? '🛤️ Flow Rail' : '🏗️ Floor Staging'}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-4 text-slate-600 font-medium">
-                      {slot.stationId === 'STATION_1' ? '🏢 อาคารหลัก' : '🛤️ สถานี 2'}
-                    </td>
-                    <td className="py-2.5 px-4 text-center font-bold text-slate-800">{slot.bayNumber}</td>
-                    <td className="py-2.5 px-4 text-center font-bold text-slate-800">{slot.maxLevels}</td>
-                    <td className="py-2.5 px-4 text-center font-black text-blue-700">
-                      {slot.bayNumber * slot.maxLevels * slot.capacityPerLevel} P
-                    </td>
-                    <td className="py-2.5 px-4">
-                      <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-300 rounded-full text-[10px] font-bold">
-                        พร้อมใช้งาน
-                      </span>
-                    </td>
+            <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+              <table className="w-full text-left text-xs text-slate-700">
+                <thead className="bg-slate-50 text-slate-600 font-bold uppercase text-[11px] border-b border-slate-200">
+                  <tr>
+                    <th className="px-3.5 py-3">รหัสช่อง / Zone</th>
+                    <th className="px-3.5 py-3">ประเภทพื้นที่</th>
+                    <th className="px-3.5 py-3">สถานีจัดเก็บ</th>
+                    <th className="px-3.5 py-3 text-center">จำนวน Bay</th>
+                    <th className="px-3.5 py-3 text-center">ชั้น (Levels)</th>
+                    <th className="px-3.5 py-3 text-center">ความจุรวม (Pallets)</th>
+                    <th className="px-3.5 py-3">สถานะ</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {customSlots.map((slot) => (
+                    <tr key={slot.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-3.5 py-2.5 font-mono font-bold text-slate-900">
+                        {slot.zone} <span className="text-slate-400 font-normal text-[10px]">({slot.id})</span>
+                      </td>
+                      <td className="px-3.5 py-2.5">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                          slot.storageType === 'RACK' 
+                            ? 'bg-blue-50 text-blue-800 border-blue-200' 
+                            : slot.storageType === 'FLOW_RAIL'
+                            ? 'bg-amber-50 text-amber-900 border-amber-200'
+                            : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                        }`}>
+                          {slot.storageType === 'RACK' ? '📦 Selective Rack' : slot.storageType === 'FLOW_RAIL' ? '🛤️ Flow Rail' : '🏗️ Floor Staging'}
+                        </span>
+                      </td>
+                      <td className="px-3.5 py-2.5 text-slate-700 font-medium">
+                        {slot.stationId === 'STATION_1' ? '🏢 อาคารหลัก' : '🛤️ สถานี 2'}
+                      </td>
+                      <td className="px-3.5 py-2.5 text-center font-mono font-bold text-slate-800">{slot.bayNumber}</td>
+                      <td className="px-3.5 py-2.5 text-center font-mono font-bold text-slate-800">{slot.maxLevels}</td>
+                      <td className="px-3.5 py-2.5 text-center font-mono font-bold text-blue-700">
+                        {slot.bayNumber * slot.maxLevels * slot.capacityPerLevel} P
+                      </td>
+                      <td className="px-3.5 py-2.5">
+                        <span className="inline-flex items-center space-x-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[10px] font-extrabold">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          <span>พร้อมใช้งาน</span>
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
