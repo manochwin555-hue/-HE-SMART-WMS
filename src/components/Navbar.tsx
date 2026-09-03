@@ -26,7 +26,8 @@ import {
   Building2,
   ChevronDown,
   Compass,
-  Tent
+  Tent,
+  LayoutGrid
 } from 'lucide-react';
 
 import { WarehouseFacility } from '../types';
@@ -56,10 +57,12 @@ interface NavbarProps {
 const translations: Record<string, Record<string, string>> = {
   th: {
     dashboard: 'แดชบอร์ด (KPIs)',
-    layout: 'ผัง A4 (แร็ค/พื้น)',
-    campus: 'ผังรวม (A2/A4/A5)',
-    flow: 'ผัง A2 (รางเลื่อน)',
-    tent: 'ผัง A5 (เต็นท์)',
+    campus: 'โซนรวม (A2/A4/A5)',
+    a4_floor: 'โซน A4 (วางพื้น)',
+    a4_rack: 'โซน A4 (แร็ค)',
+    flow: 'โซน A2 (รางเลื่อน)',
+    tent: 'โซน A5 (เต็นท์)',
+    cy3: 'โซน CY3 (เต็นท์ 4 ชั้น)',
     inventory: 'สต็อก & Safety Stock',
     rack3d: '3D Rack Inspector',
     scanner: 'สแกน QR รับ-เบิก',
@@ -72,10 +75,12 @@ const translations: Record<string, Record<string, string>> = {
   },
   en: {
     dashboard: 'Executive Hub (GMES & KPIs)',
-    layout: 'A4 Map (Rack/Floor)',
     campus: 'Campus (A2/A4/A5)',
+    a4_floor: 'A4 Floor (X1-X8)',
+    a4_rack: 'A4 Rack (B-K)',
     flow: 'A2 Map (Flow Rail)',
     tent: 'A5 Map (Tents)',
+    cy3: 'CY3 Map (4-Tier Rack)',
     inventory: 'Inventory & Safety',
     rack3d: '3D Rack Inspector',
     scanner: 'QR Scan In/Out',
@@ -88,10 +93,12 @@ const translations: Record<string, Record<string, string>> = {
   },
   kh: {
     dashboard: 'ផ្ទាំងគ្រប់គ្រង',
-    layout: 'ប្លង់ A4',
     campus: 'ប្លង់រួម A2/A4/A5',
+    a4_floor: 'ប្លង់ A4 (ផ្ទាល់ដី)',
+    a4_rack: 'ប្លង់ A4 (ធ្នើរ)',
     flow: 'ប្លង់ A2 (ផ្លូវរអិល)',
     tent: 'ប្លង់ A5 (តង់)',
+    cy3: 'ប្លង់ CY3 (៤ ជាន់)',
     inventory: 'ស្តុក & សុវត្ថិភាព',
     rack3d: 'អ្នកត្រួតពិនិត្យ 3D',
     scanner: 'ស្កេន QR',
@@ -104,10 +111,12 @@ const translations: Record<string, Record<string, string>> = {
   },
   mm: {
     dashboard: 'ဒက်ရှ်ဘုတ်',
-    layout: 'A4 မြေပုံ',
     campus: 'A2/A4/A5 မြေပုံ',
+    a4_floor: 'A4 ကြမ်းပြင် (X1-X8)',
+    a4_rack: 'A4 စင်မြေပုံ (B-K)',
     flow: 'A2 မြေပုံ (ရထားလမ်း)',
     tent: 'A5 မြေပုံ (တဲ)',
+    cy3: 'CY3 မြေပုံ (၄ ထပ်)',
     inventory: 'စာရင်းနှင့် သိုလှောင်မှု',
     rack3d: '3D စင်စစ်ဆေးသူ',
     scanner: 'QR စကင်',
@@ -120,10 +129,12 @@ const translations: Record<string, Record<string, string>> = {
   },
   kr: {
     dashboard: '대시보드 (KPIs)',
-    layout: 'A4 배치도 (랙/평치)',
     campus: '캠퍼스 종합 (A2/A4/A5)',
+    a4_floor: 'A4 평치 배치도',
+    a4_rack: 'A4 랙 배치도',
     flow: 'A2 배치도 (플로우레일)',
     tent: 'A5 배치도 (야외텐트)',
+    cy3: 'CY3 배치도 (4단 랙)',
     inventory: '재고 및 안전재고',
     rack3d: '3D 랙 인스펙터',
     scanner: 'QR 스캔 입출고',
@@ -164,11 +175,12 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const navItems = [
     { id: 'campus_overview', label: t.campus, icon: Warehouse, badge: 'SITE' },
-    { id: 'layout', label: t.layout, icon: Map, badge: 'A4' },
+    { id: 'a4_floor', label: t.a4_floor, icon: LayoutGrid, badge: '432P' },
+    { id: 'a4_rack', label: t.a4_rack, icon: Layers, badge: '680P' },
     { id: 'flow_floor', label: t.flow, icon: GitCommit, badge: 'A2' },
     { id: 'tent_layout', label: t.tent, icon: Tent, badge: 'A5' },
+    { id: 'cy3_layout', label: t.cy3, icon: Layers, badge: 'CY3' },
     { id: 'inventory', label: t.inventory, icon: ShieldAlert, count: lowStockCount },
-    { id: 'rack3d', label: t.rack3d, icon: Layers, badge: '3D' },
     { id: 'scanner', label: t.scanner, icon: QrCode },
     { id: 'logs', label: t.logs, icon: ListFilter },
     { id: 'aging', label: t.aging, icon: ClockAlert, count: agingCount },

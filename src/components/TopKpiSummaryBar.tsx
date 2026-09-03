@@ -51,16 +51,28 @@ export const TopKpiSummaryBar: React.FC<TopKpiSummaryBarProps> = ({
         totalCapacity: 160,
       };
     }
-    if (activeTab === 'layout' || activeTab === 'rack3d') {
+    if (activeTab === 'a4_floor') {
+      return {
+        id: 'FAC-A4-FLOOR',
+        shortName: 'A4 Floor',
+        fullName: 'โรงงาน 4 (A4 วางพื้น DA4D-1)',
+        capacityTitle: 'อัตราจัดเก็บวางพื้น A4',
+        capacitySubtitle: 'ความจุวางพื้น DA4D-1',
+        inSubtitle: 'รับเข้าพื้นที่วางพื้น DA4D-1',
+        outSubtitle: 'เบิกจ่ายไลน์ผลิต Main HE Line',
+        totalCapacity: 432, // 432 Floor Staging
+      };
+    }
+    if (activeTab === 'a4_rack' || activeTab === 'layout' || activeTab === 'rack3d') {
       return {
         id: 'FAC-A4-RACK',
-        shortName: 'A4',
-        fullName: 'โรงงาน 4 (A4 Racks & Floor)',
-        capacityTitle: 'อัตราจัดเก็บคลัง A4',
-        capacitySubtitle: 'ความจุรวมคลัง A4',
-        inSubtitle: 'รับเข้าคลัง A4 (Rack/Floor)',
+        shortName: 'A4 Rack',
+        fullName: 'โรงงาน 4 (A4 Selective Racks B-K)',
+        capacityTitle: 'อัตราจัดเก็บแร็ค A4',
+        capacitySubtitle: 'ความจุแร็ค DA4D-2 & DA4D-3',
+        inSubtitle: 'รับเข้าแร็ค A4 (Selective Racks)',
         outSubtitle: 'เบิกจ่ายไลน์ผลิต Main HE Line',
-        totalCapacity: 1112, // 680 Rack + 432 Floor
+        totalCapacity: 680, // 680 Selective Racks
       };
     }
     if (activeTab === 'tent_layout') {
@@ -73,6 +85,18 @@ export const TopKpiSummaryBar: React.FC<TopKpiSummaryBarProps> = ({
         inSubtitle: 'รับเข้าลานเต็นท์ A5 (เต็นท์ 1-4)',
         outSubtitle: 'เบิกจ่ายวัตถุดิบสู่สายการผลิต',
         totalCapacity: 784, // 4 tents * 196 P
+      };
+    }
+    if (activeTab === 'cy3_layout') {
+      return {
+        id: 'FAC-CY3-TENT',
+        shortName: 'CY3',
+        fullName: 'เต็นท์คลัง CY3 (4-Floor Rack)',
+        capacityTitle: 'อัตราจัดเก็บเต็นท์ CY3',
+        capacitySubtitle: 'ความจุแร็ค 4 ชั้น CY3',
+        inSubtitle: 'รับเข้าเต็นท์ CY3 (Outdoor Rack)',
+        outSubtitle: 'เบิกจ่ายวัตถุดิบสู่สายการผลิต',
+        totalCapacity: 400, // 4 rows * 25 bays * 4 floors
       };
     }
     // Check if user has selected a specific facility in master/inventory tab
@@ -112,17 +136,29 @@ export const TopKpiSummaryBar: React.FC<TopKpiSummaryBarProps> = ({
         totalCapacity: 784,
       };
     }
+    if (activeFacilityId === 'FAC-CY3-TENT') {
+      return {
+        id: 'FAC-CY3-TENT',
+        shortName: 'CY3',
+        fullName: 'เต็นท์คลัง CY3 (Outdoor Rack)',
+        capacityTitle: 'อัตราจัดเก็บเต็นท์ CY3',
+        capacitySubtitle: 'ความจุแร็ค 4 ชั้น CY3',
+        inSubtitle: 'รับเข้าเต็นท์ CY3 (Outdoor Rack)',
+        outSubtitle: 'เบิกจ่ายวัตถุดิบสู่สายการผลิต',
+        totalCapacity: 400,
+      };
+    }
 
-    // Default: Total Campus (A2 + A4 + A5)
+    // Default: Total Campus (A2 + A4 + A5 + CY3)
     return {
       id: 'ALL',
       shortName: 'แคมปัส',
-      fullName: 'รวมทุกคลังแคมปัส (A2, A4, A5)',
+      fullName: 'รวมทุกคลังแคมปัส (A2, A4, A5, CY3)',
       capacityTitle: 'อัตราจัดเก็บรวมแคมปัส',
       capacitySubtitle: 'ความจุรวมแคมปัส',
-      inSubtitle: 'รับเข้าคลัง A2 / A4 / A5',
-      outSubtitle: 'เบิกจ่ายไลน์ผลิต HE1 - HE3',
-      totalCapacity: 2056, // 160 + 680 + 432 + 784
+      inSubtitle: 'รับเข้าคลัง A2 / A4 / A5 / CY3',
+      outSubtitle: 'เบิกจ่ายไลน์ผลิต HE1 - HE5',
+      totalCapacity: 2456, // 160 + 680 + 432 + 784 + 400
     };
   }, [activeTab, activeFacilityId]);
 
@@ -150,6 +186,14 @@ export const TopKpiSummaryBar: React.FC<TopKpiSummaryBarProps> = ({
         it.locatorCode.startsWith('DA5T') || 
         it.locatorCode.includes('DAST') ||
         (it.zone && it.zone.startsWith('T'))
+      );
+    }
+    if (facilityContext.id === 'FAC-CY3-TENT') {
+      return items.filter(it => 
+        it.facilityId === 'FAC-CY3-TENT' || 
+        it.locatorCode.startsWith('DY3T') || 
+        it.locatorCode.includes('DY3T') ||
+        (it.zone && String(it.zone).startsWith('CY3'))
       );
     }
     return items;
@@ -237,30 +281,30 @@ export const TopKpiSummaryBar: React.FC<TopKpiSummaryBarProps> = ({
 
   return (
     <div className="w-full shrink-0 animate-fadeIn">
-      {/* 6 Unified KPI Summary Cards (Compact, Responsive 3-col on Mobile, 6-col on Desktop) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5 lg:gap-3">
+      {/* 6 Unified KPI Summary Cards - Fixed Height, 1fr Uniform Width, Crisp Metrics */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 lg:gap-4">
         
         {/* Card 1: ยอดคงเหลือรวม */}
         <div 
           onClick={() => handleCardClick('inventory')}
-          className="bg-slate-900 border border-slate-800 hover:border-blue-500/60 rounded-xl sm:rounded-2xl p-2.5 sm:p-3 text-white flex flex-col justify-between shadow-lg relative overflow-hidden cursor-pointer transition-all group hover:scale-[1.01]"
+          className="bg-slate-900/95 border border-slate-800 hover:border-blue-500/80 rounded-xl p-3 sm:p-3.5 text-white flex flex-col justify-between shadow-md relative overflow-hidden cursor-pointer transition-all group hover:bg-slate-850 active:scale-[0.99] h-[76px] sm:h-[80px]"
         >
-          <div className="flex items-start justify-between">
-            <span className="text-[10.5px] sm:text-xs font-bold text-slate-300 truncate">
+          <div className="flex items-center justify-between leading-none">
+            <span className="text-xs sm:text-[13px] font-black text-slate-100 tracking-tight truncate">
               {facilityContext.id === 'ALL' ? 'ยอดคงเหลือรวม' : `ยอดคงเหลือ ${facilityContext.shortName}`}
             </span>
-            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center border border-blue-500/30 shrink-0">
-              <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <div className="w-5 h-5 sm:w-5.5 sm:h-5.5 rounded-md bg-blue-500/20 text-blue-400 flex items-center justify-center border border-blue-500/40 shrink-0">
+              <Package className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="my-1 sm:my-1.5">
-            <span className="text-lg sm:text-2xl font-mono font-black tracking-tight text-white">
+          <div className="flex items-baseline my-0 leading-none">
+            <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-white">
               {totalUnits.toLocaleString()}
             </span>
-            <span className="ml-1 text-[10px] sm:text-xs text-slate-400 font-semibold">Units</span>
+            <span className="ml-1.5 text-xs text-slate-300 font-extrabold shrink-0">Units</span>
           </div>
-          <div className="flex items-center space-x-1 sm:space-x-1.5 text-[9px] sm:text-[10px] font-semibold text-emerald-400">
-            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <div className="flex items-center space-x-1 sm:space-x-1.5 text-[10.5px] font-black text-emerald-400 truncate leading-tight">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0 shadow-xs shadow-emerald-400/50"></span>
             <span className="truncate">Real-Time Sync</span>
           </div>
         </div>
@@ -268,21 +312,23 @@ export const TopKpiSummaryBar: React.FC<TopKpiSummaryBarProps> = ({
         {/* Card 2: เตือน SAFETY STOCK */}
         <div 
           onClick={() => handleCardClick('safety')}
-          className="bg-slate-900 border border-slate-800 hover:border-rose-500/60 rounded-xl sm:rounded-2xl p-2.5 sm:p-3 text-white flex flex-col justify-between shadow-lg relative overflow-hidden cursor-pointer transition-all group hover:scale-[1.01]"
+          className="bg-slate-900/95 border border-slate-800 hover:border-rose-500/80 rounded-xl p-3 sm:p-3.5 text-white flex flex-col justify-between shadow-md relative overflow-hidden cursor-pointer transition-all group hover:bg-slate-850 active:scale-[0.99] h-[76px] sm:h-[80px]"
         >
-          <div className="flex items-start justify-between">
-            <span className="text-[10.5px] sm:text-xs font-bold text-slate-300 truncate">เตือน SAFETY STOCK</span>
-            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center border border-rose-500/30 shrink-0">
-              <ShieldAlert className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <div className="flex items-center justify-between leading-none">
+            <span className="text-xs sm:text-[13px] font-black text-slate-100 tracking-tight truncate">
+              เตือน SAFETY STOCK
+            </span>
+            <div className="w-5 h-5 sm:w-5.5 sm:h-5.5 rounded-md bg-rose-500/20 text-rose-400 flex items-center justify-center border border-rose-500/40 shrink-0">
+              <ShieldAlert className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="my-1 sm:my-1.5">
-            <span className="text-lg sm:text-2xl font-mono font-black tracking-tight text-rose-500">
+          <div className="flex items-baseline my-0 leading-none">
+            <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-rose-500">
               {lowStockCount}
             </span>
-            <span className="ml-1 text-[10px] sm:text-xs text-slate-400 font-semibold">รายการ</span>
+            <span className="ml-1.5 text-xs text-slate-300 font-extrabold shrink-0">รายการ</span>
           </div>
-          <div className="text-[9px] sm:text-[10px] font-semibold text-rose-400 truncate">
+          <div className="text-[10.5px] font-black text-rose-400 truncate leading-tight">
             ต่ำกว่าเกณฑ์ความปลอดภัย
           </div>
         </div>
@@ -290,21 +336,23 @@ export const TopKpiSummaryBar: React.FC<TopKpiSummaryBarProps> = ({
         {/* Card 3: สแกนรับเข้าวันนี้ */}
         <div 
           onClick={() => handleCardClick('in_logs')}
-          className="bg-slate-900 border border-slate-800 hover:border-emerald-500/60 rounded-xl sm:rounded-2xl p-2.5 sm:p-3 text-white flex flex-col justify-between shadow-lg relative overflow-hidden cursor-pointer transition-all group hover:scale-[1.01]"
+          className="bg-slate-900/95 border border-slate-800 hover:border-emerald-500/80 rounded-xl p-3 sm:p-3.5 text-white flex flex-col justify-between shadow-md relative overflow-hidden cursor-pointer transition-all group hover:bg-slate-855 active:scale-[0.99] h-[76px] sm:h-[80px]"
         >
-          <div className="flex items-start justify-between">
-            <span className="text-[10.5px] sm:text-xs font-bold text-slate-300 truncate">สแกนรับเข้าวันนี้</span>
-            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30 shrink-0">
-              <ArrowDownRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <div className="flex items-center justify-between leading-none">
+            <span className="text-xs sm:text-[13px] font-black text-slate-100 tracking-tight truncate">
+              สแกนรับเข้าวันนี้
+            </span>
+            <div className="w-5 h-5 sm:w-5.5 sm:h-5.5 rounded-md bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/40 shrink-0">
+              <ArrowDownRight className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="my-1 sm:my-1.5">
-            <span className="text-lg sm:text-2xl font-mono font-black tracking-tight text-emerald-400">
+          <div className="flex items-baseline my-0 leading-none">
+            <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-emerald-400">
               +{inScanCount}
             </span>
-            <span className="ml-1 text-[10px] sm:text-xs text-slate-400 font-semibold">Scan</span>
+            <span className="ml-1.5 text-xs text-slate-300 font-extrabold shrink-0">Scan</span>
           </div>
-          <div className="text-[9px] sm:text-[10px] font-semibold text-emerald-400 truncate">
+          <div className="text-[10.5px] font-bold text-emerald-300 truncate leading-tight">
             {facilityContext.inSubtitle}
           </div>
         </div>
@@ -312,21 +360,23 @@ export const TopKpiSummaryBar: React.FC<TopKpiSummaryBarProps> = ({
         {/* Card 4: สแกนเบิกออกวันนี้ */}
         <div 
           onClick={() => handleCardClick('out_logs')}
-          className="bg-slate-900 border border-slate-800 hover:border-sky-500/60 rounded-xl sm:rounded-2xl p-2.5 sm:p-3 text-white flex flex-col justify-between shadow-lg relative overflow-hidden cursor-pointer transition-all group hover:scale-[1.01]"
+          className="bg-slate-900/95 border border-slate-800 hover:border-sky-500/80 rounded-xl p-3 sm:p-3.5 text-white flex flex-col justify-between shadow-md relative overflow-hidden cursor-pointer transition-all group hover:bg-slate-855 active:scale-[0.99] h-[76px] sm:h-[80px]"
         >
-          <div className="flex items-start justify-between">
-            <span className="text-[10.5px] sm:text-xs font-bold text-slate-300 truncate">สแกนเบิกออกวันนี้</span>
-            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center border border-sky-500/30 shrink-0">
-              <ArrowUpRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <div className="flex items-center justify-between leading-none">
+            <span className="text-xs sm:text-[13px] font-black text-slate-100 tracking-tight truncate">
+              สแกนเบิกออกวันนี้
+            </span>
+            <div className="w-5 h-5 sm:w-5.5 sm:h-5.5 rounded-md bg-sky-500/20 text-sky-400 flex items-center justify-center border border-sky-500/40 shrink-0">
+              <ArrowUpRight className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="my-1 sm:my-1.5">
-            <span className="text-lg sm:text-2xl font-mono font-black tracking-tight text-sky-400">
+          <div className="flex items-baseline my-0 leading-none">
+            <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-sky-400">
               -{outScanCount}
             </span>
-            <span className="ml-1 text-[10px] sm:text-xs text-slate-400 font-semibold">Scan</span>
+            <span className="ml-1.5 text-xs text-slate-300 font-extrabold shrink-0">Scan</span>
           </div>
-          <div className="text-[9px] sm:text-[10px] font-semibold text-sky-400 truncate">
+          <div className="text-[10.5px] font-bold text-sky-300 truncate leading-tight">
             {facilityContext.outSubtitle}
           </div>
         </div>
@@ -334,25 +384,25 @@ export const TopKpiSummaryBar: React.FC<TopKpiSummaryBarProps> = ({
         {/* Card 5: อัตราจัดเก็บ */}
         <div 
           onClick={() => handleCardClick('layout')}
-          className="bg-slate-900 border border-slate-800 hover:border-purple-500/60 rounded-xl sm:rounded-2xl p-2.5 sm:p-3 text-white flex flex-col justify-between shadow-lg relative overflow-hidden cursor-pointer transition-all group hover:scale-[1.01]"
+          className="bg-slate-900/95 border border-slate-800 hover:border-purple-500/80 rounded-xl p-3 sm:p-3.5 text-white flex flex-col justify-between shadow-md relative overflow-hidden cursor-pointer transition-all group hover:bg-slate-855 active:scale-[0.99] h-[76px] sm:h-[80px]"
         >
-          <div className="flex items-start justify-between">
-            <span className="text-[10.5px] sm:text-xs font-bold text-slate-300 truncate">
+          <div className="flex items-center justify-between leading-none">
+            <span className="text-xs sm:text-[13px] font-black text-slate-100 tracking-tight truncate">
               {facilityContext.capacityTitle}
             </span>
-            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center border border-purple-500/30 shrink-0">
-              <Grid className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <div className="w-5 h-5 sm:w-5.5 sm:h-5.5 rounded-md bg-purple-500/20 text-purple-400 flex items-center justify-center border border-purple-500/40 shrink-0">
+              <Grid className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="my-1 sm:my-1.5">
-            <span className="text-lg sm:text-2xl font-mono font-black tracking-tight text-white">
+          <div className="flex items-baseline my-0 leading-none">
+            <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-white">
               {occupiedPallets}
             </span>
-            <span className="ml-1 text-[10px] sm:text-xs text-slate-400 font-semibold">/ {capacityPallets.toLocaleString()} P</span>
+            <span className="ml-1.5 text-xs text-slate-300 font-extrabold shrink-0">/ {capacityPallets.toLocaleString()} P</span>
           </div>
-          <div className="flex items-center justify-between text-[9px] sm:text-[10px]">
-            <span className="text-slate-400 truncate">{facilityContext.capacitySubtitle}:</span>
-            <span className="font-mono font-bold text-purple-400 ml-1">
+          <div className="flex items-center justify-between text-[10.5px] font-bold leading-tight truncate">
+            <span className="text-slate-300 truncate">{facilityContext.capacitySubtitle}:</span>
+            <span className="font-mono font-black text-purple-400 ml-1">
               {occupancyPercent}%
             </span>
           </div>
@@ -361,21 +411,23 @@ export const TopKpiSummaryBar: React.FC<TopKpiSummaryBarProps> = ({
         {/* Card 6: เตือน AGING FIFO */}
         <div 
           onClick={() => handleCardClick('aging')}
-          className="bg-slate-900 border border-slate-800 hover:border-amber-500/60 rounded-xl sm:rounded-2xl p-2.5 sm:p-3 text-white flex flex-col justify-between shadow-lg relative overflow-hidden cursor-pointer transition-all group hover:scale-[1.01]"
+          className="bg-slate-900/95 border border-slate-800 hover:border-amber-500/80 rounded-xl p-3 sm:p-3.5 text-white flex flex-col justify-between shadow-md relative overflow-hidden cursor-pointer transition-all group hover:bg-slate-855 active:scale-[0.99] h-[76px] sm:h-[80px]"
         >
-          <div className="flex items-start justify-between">
-            <span className="text-[10.5px] sm:text-xs font-bold text-slate-300 truncate">เตือน AGING FIFO</span>
-            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30 shrink-0">
-              <AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <div className="flex items-center justify-between leading-none">
+            <span className="text-xs sm:text-[13px] font-black text-slate-100 tracking-tight truncate">
+              เตือน AGING FIFO
+            </span>
+            <div className="w-5 h-5 sm:w-5.5 sm:h-5.5 rounded-md bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/40 shrink-0">
+              <AlertTriangle className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="my-1 sm:my-1.5">
-            <span className="text-lg sm:text-2xl font-mono font-black tracking-tight text-amber-400">
+          <div className="flex items-baseline my-0 leading-none">
+            <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-amber-400">
               {agingOverdueCount}
             </span>
-            <span className="ml-1 text-[10px] sm:text-xs text-slate-400 font-semibold">Overdue</span>
+            <span className="ml-1.5 text-xs text-slate-300 font-extrabold shrink-0">Overdue</span>
           </div>
-          <div className="text-[9px] sm:text-[10px] font-semibold text-amber-400 truncate">
+          <div className="text-[10.5px] font-bold text-amber-400 truncate leading-tight">
             เกิน {agingConfig?.criticalDays || 30} วัน ({agingConfig?.customRuleName || '14/30 วัน'})
           </div>
         </div>

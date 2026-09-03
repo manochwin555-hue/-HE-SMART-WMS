@@ -55,10 +55,8 @@ export const A2_HE_EMBOSSED_LINES: HELineEmbossedConfig[] = [
       { id: 'N2B', name: 'N2 Purge', shortName: 'N2P', category: 'MISC', status: 'ACTIVE' },
       { id: 'VAC1', name: 'Vacuum Test 1', shortName: 'VAC', category: 'VACUUM', status: 'ACTIVE', pressure: '-0.98 Bar' },
       { id: 'FL2', name: '2nd Flare', shortName: 'FL2', category: 'MISC', status: 'ACTIVE' },
-      { id: 'EV1', name: 'Eva Cut', shortName: 'CUT', category: 'MISC', status: 'ACTIVE' },
-      { id: 'DP1', name: 'Dipping Tank', shortName: 'DIP', category: 'MISC', status: 'ACTIVE' },
       { id: 'RB_ARM1', name: 'Robot 6-Axis', shortName: 'BOT', category: 'ROBOT', status: 'ACTIVE', cycleTime: '24s' },
-      { id: 'HP1', name: 'Hairpin 1', shortName: 'PIN', category: 'FEED', status: 'ACTIVE' }
+      { id: 'HP1', name: 'Hairpin Feed', shortName: 'PIN', category: 'FEED', status: 'ACTIVE' }
     ]
   },
   {
@@ -81,10 +79,8 @@ export const A2_HE_EMBOSSED_LINES: HELineEmbossedConfig[] = [
       { id: 'N2B2', name: 'N2 Purge', shortName: 'N2P', category: 'MISC', status: 'ACTIVE' },
       { id: 'VAC2', name: 'Vacuum Test 2', shortName: 'VAC', category: 'VACUUM', status: 'ACTIVE', pressure: '-0.99 Bar' },
       { id: 'FL2_2', name: '2nd Flare', shortName: 'FL2', category: 'MISC', status: 'ACTIVE' },
-      { id: 'EV2', name: 'Eva Cut', shortName: 'CUT', category: 'MISC', status: 'ACTIVE' },
-      { id: 'DP2', name: 'Dipping Tank', shortName: 'DIP', category: 'MISC', status: 'ACTIVE' },
       { id: 'RB_ARM2', name: 'Robot 6-Axis', shortName: 'BOT', category: 'ROBOT', status: 'ACTIVE', cycleTime: '22s' },
-      { id: 'HP2', name: 'Hairpin 3', shortName: 'PIN', category: 'FEED', status: 'ACTIVE' }
+      { id: 'HP2', name: 'Hairpin Feed', shortName: 'PIN', category: 'FEED', status: 'ACTIVE' }
     ]
   },
   {
@@ -107,10 +103,8 @@ export const A2_HE_EMBOSSED_LINES: HELineEmbossedConfig[] = [
       { id: 'N2B3', name: 'N2 Purge', shortName: 'N2P', category: 'MISC', status: 'ACTIVE' },
       { id: 'VAC3', name: 'Vacuum Test 3', shortName: 'VAC', category: 'VACUUM', status: 'ACTIVE', pressure: '-0.97 Bar' },
       { id: 'FL3_2', name: '2nd Flare', shortName: 'FL2', category: 'MISC', status: 'ACTIVE' },
-      { id: 'EV3', name: 'Eva Cut', shortName: 'CUT', category: 'MISC', status: 'ACTIVE' },
-      { id: 'DP3', name: 'Dipping Tank', shortName: 'DIP', category: 'MISC', status: 'ACTIVE' },
       { id: 'RB_ARM3', name: 'Robot 6-Axis', shortName: 'BOT', category: 'ROBOT', status: 'ACTIVE', cycleTime: '28s' },
-      { id: 'HP3', name: 'Hairpin 2', shortName: 'PIN', category: 'FEED', status: 'ACTIVE' }
+      { id: 'HP3', name: 'Hairpin Feed', shortName: 'PIN', category: 'FEED', status: 'ACTIVE' }
     ]
   }
 ];
@@ -124,7 +118,6 @@ export const A4_HE_EMBOSSED_LINES: HELineEmbossedConfig[] = [
     efficiency: 98.4,
     feedZone: 'DA4D-1 Floor',
     stations: [
-      { id: 'HP4', name: 'Hairpin Feed 4', shortName: 'PIN', category: 'FEED', status: 'ACTIVE' },
       { id: 'FP4', name: 'FIN Press E-4', shortName: 'FIN', category: 'PRESS', status: 'ACTIVE', speed: '190 SPM' },
       { id: 'EXP4', name: 'Expander 4', shortName: 'EXP', category: 'EXPANDER', status: 'ACTIVE', pressure: '4.6 Bar' },
       { id: 'FL4_1', name: '1st Flare', shortName: 'FL1', category: 'MISC', status: 'ACTIVE' },
@@ -137,7 +130,8 @@ export const A4_HE_EMBOSSED_LINES: HELineEmbossedConfig[] = [
       { id: 'N2P4', name: 'N2 Purge', shortName: 'N2P', category: 'MISC', status: 'ACTIVE' },
       { id: 'VAC4', name: 'Vacuum Test Pro', shortName: 'VAC', category: 'VACUUM', status: 'ACTIVE', pressure: '-1.0 Bar' },
       { id: 'FL4_2', name: '2nd Flare', shortName: 'FL2', category: 'MISC', status: 'ACTIVE' },
-      { id: 'RB_ARM4', name: 'Robot 6-Axis', shortName: 'BOT', category: 'ROBOT', status: 'ACTIVE', cycleTime: '20s' }
+      { id: 'RB_ARM4', name: 'Robot 6-Axis', shortName: 'BOT', category: 'ROBOT', status: 'ACTIVE', cycleTime: '20s' },
+      { id: 'HP4', name: 'Hairpin Feed 4', shortName: 'PIN', category: 'FEED', status: 'ACTIVE' }
     ]
   },
   {
@@ -148,7 +142,6 @@ export const A4_HE_EMBOSSED_LINES: HELineEmbossedConfig[] = [
     efficiency: 97.6,
     feedZone: 'DA4D-1 Floor',
     stations: [
-      { id: 'HP5', name: 'Hairpin Feed 5/6', shortName: 'PIN', category: 'FEED', status: 'ACTIVE' },
       { id: 'FP5', name: 'FIN Press E-5', shortName: 'FIN', category: 'PRESS', status: 'ACTIVE', speed: '185 SPM' },
       { id: 'EXP5', name: 'Expander 5', shortName: 'EXP', category: 'EXPANDER', status: 'ACTIVE', pressure: '4.4 Bar' },
       { id: 'FL5_1', name: '1st Flare', shortName: 'FL1', category: 'MISC', status: 'ACTIVE' },
@@ -161,7 +154,8 @@ export const A4_HE_EMBOSSED_LINES: HELineEmbossedConfig[] = [
       { id: 'N2P5', name: 'N2 Purge', shortName: 'N2P', category: 'MISC', status: 'ACTIVE' },
       { id: 'VAC5', name: 'Vacuum Test Pro', shortName: 'VAC', category: 'VACUUM', status: 'ACTIVE', pressure: '-0.99 Bar' },
       { id: 'FL5_2', name: '2nd Flare', shortName: 'FL2', category: 'MISC', status: 'ACTIVE' },
-      { id: 'RB_ARM5', name: 'Robot 6-Axis', shortName: 'BOT', category: 'ROBOT', status: 'ACTIVE', cycleTime: '21s' }
+      { id: 'RB_ARM5', name: 'Robot 6-Axis', shortName: 'BOT', category: 'ROBOT', status: 'ACTIVE', cycleTime: '21s' },
+      { id: 'HP5', name: 'Hairpin Feed 5', shortName: 'PIN', category: 'FEED', status: 'ACTIVE' }
     ]
   }
 ];
@@ -287,7 +281,7 @@ export const EmbossedVerticalStationBox: React.FC<{
 
   return (
     <div 
-      className="relative w-full h-4 sm:h-4.5 my-0.2 shrink-0"
+      className="relative w-full h-[18px] sm:h-[19px] shrink-0"
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}
     >
@@ -300,10 +294,10 @@ export const EmbossedVerticalStationBox: React.FC<{
           transition-all cursor-pointer select-none px-1
         `}
       >
-        <span className="text-[7px] sm:text-[7.5px] font-black tracking-tight leading-none truncate">
+        <span className="text-[7.5px] sm:text-[8px] font-black tracking-tight leading-none truncate">
           {station.shortName}
         </span>
-        <span className="text-[5.5px] opacity-75 font-mono">
+        <span className="text-[6px] opacity-80 font-mono font-bold">
           {station.category === 'PRESS' ? 'PRS' : station.category === 'BRAZING' ? 'BRZ' : station.category === 'OVEN' ? 'OVN' : station.category === 'ROBOT' ? 'BOT' : ''}
         </span>
       </div>
@@ -335,7 +329,7 @@ export const EmbossedHELineVerticalColumn: React.FC<{
   badgeColor?: string;
 }> = ({ line, badgeColor = 'bg-amber-300 text-slate-950' }) => {
   return (
-    <div className="flex-1 min-w-0 bg-slate-50/95 border border-slate-300 rounded-md p-1 shadow-2xs flex flex-col justify-between">
+    <div className="flex-1 min-w-0 bg-slate-50/95 border border-slate-300 rounded-md p-1 sm:p-1.5 shadow-2xs flex flex-col justify-between h-full">
       
       {/* Top Header info */}
       <div className="text-center pb-1 border-b border-slate-200">
@@ -354,12 +348,12 @@ export const EmbossedHELineVerticalColumn: React.FC<{
       </div>
 
       {/* Vertical Conveyor Track & 3D Embossed Machinery Nodes */}
-      <div className="relative bg-slate-200/90 border border-slate-300 rounded-xs p-1 my-1 shadow-inner flex-1 flex flex-col items-center">
+      <div className="relative bg-slate-200/90 border border-slate-300 rounded-xs p-1 my-1 shadow-inner flex-1 flex flex-col items-center justify-between overflow-hidden">
         {/* Center Vertical Track Rail Line */}
         <div className="absolute top-1 bottom-1 left-1/2 -translate-x-1/2 w-1.5 bg-slate-400/40 rounded pointer-events-none" />
 
         {/* Vertical Nodes Stacking */}
-        <div className="relative z-10 w-full flex flex-col items-center gap-0.5">
+        <div className="relative z-10 w-full flex flex-col items-center gap-[2px]">
           {line.stations.map((st) => (
             <EmbossedVerticalStationBox key={st.id} station={st} />
           ))}
@@ -367,7 +361,7 @@ export const EmbossedHELineVerticalColumn: React.FC<{
       </div>
 
       {/* Micro sub-info bottom */}
-      <div className="text-[7px] text-slate-500 font-mono text-center pt-0.5 border-t border-slate-200 truncate">
+      <div className="text-[7px] text-slate-500 font-mono text-center pt-0.5 border-t border-slate-200 truncate font-semibold">
         {line.feedZone.replace(' (R1-R7)', '').replace(' (R8-R14)', '').replace(' (R15-R20)', '')}
       </div>
 
@@ -380,7 +374,7 @@ export const EmbossedHELineVerticalColumn: React.FC<{
  */
 export const A2EmbossedLinesVerticalSection: React.FC = () => {
   return (
-    <div className="bg-white border border-slate-300 rounded-lg p-1.5 shadow-xs flex flex-col justify-between h-full">
+    <div className="bg-white border border-slate-300 rounded-lg p-2 shadow-xs flex flex-col justify-between h-[340px] w-full">
       
       {/* Title */}
       <div className="flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
@@ -396,7 +390,7 @@ export const A2EmbossedLinesVerticalSection: React.FC = () => {
       </div>
 
       {/* 3 Parallel Vertical Columns Side-by-Side */}
-      <div className="grid grid-cols-3 gap-1 flex-1">
+      <div className="grid grid-cols-3 gap-1 flex-1 min-h-0">
         {A2_HE_EMBOSSED_LINES.map((line) => (
           <EmbossedHELineVerticalColumn 
             key={line.id} 
@@ -419,7 +413,7 @@ export const A2EmbossedLinesVerticalSection: React.FC = () => {
  */
 export const A4EmbossedLinesVerticalSection: React.FC = () => {
   return (
-    <div className="bg-white border border-slate-300 rounded-lg p-1.5 shadow-xs flex flex-col justify-between h-full">
+    <div className="bg-white border border-slate-300 rounded-lg p-2 shadow-xs flex flex-col justify-between h-[340px] w-full">
       
       {/* Title */}
       <div className="flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
@@ -435,7 +429,7 @@ export const A4EmbossedLinesVerticalSection: React.FC = () => {
       </div>
 
       {/* 2 Parallel Vertical Columns Side-by-Side */}
-      <div className="grid grid-cols-2 gap-1 flex-1">
+      <div className="grid grid-cols-2 gap-1.5 flex-1 min-h-0">
         {A4_HE_EMBOSSED_LINES.map((line) => (
           <EmbossedHELineVerticalColumn 
             key={line.id} 

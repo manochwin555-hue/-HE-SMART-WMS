@@ -27,7 +27,8 @@ import {
   Maximize,
   Minimize2,
   Printer,
-  ChevronRight
+  ChevronRight,
+  X
 } from 'lucide-react';
 
 interface FlowRailFloorMapProps {
@@ -160,57 +161,41 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
   }, [items]);
 
   return (
-    <div className="space-y-3 animate-fadeIn">
-      {/* Compact Header & Unified Toolbar */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 sm:p-3 text-white shadow-xs space-y-2.5">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-          <div className="flex items-center space-x-2 flex-wrap">
-            {onNavigateToCampus && (
-              <button
-                onClick={onNavigateToCampus}
-                className="px-2.5 py-1 rounded-lg text-xs font-black bg-slate-800 hover:bg-slate-700 text-white flex items-center space-x-1 shadow-xs transition-all active:scale-95"
-              >
-                <span>🏢 ◂ รวมแคมปัส</span>
-              </button>
-            )}
-            <div className="flex items-center space-x-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
-              <h2 className="text-sm sm:text-base font-black tracking-tight text-white">
-                ผังรางเลื่อน A2 Building (DA2D-1 Flow Rail)
-              </h2>
-            </div>
-            <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-blue-500/20 text-blue-300 border border-blue-500/30">
-              ความจุ 160 P (20 ราง)
+    <div className="space-y-2 animate-fadeIn">
+      {/* ULTRA-COMPACT ENTERPRISE TOOLBAR: HEIGHT <= 36px */}
+      <div className="h-9 px-2 sm:px-2.5 bg-slate-900 border border-slate-800 rounded-lg text-white shadow-xs flex items-center justify-between gap-1.5 overflow-x-auto">
+        
+        {/* Left Group: Back + Title + Segmented Bank & Status Controls */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {onNavigateToCampus && (
+            <button
+              onClick={onNavigateToCampus}
+              className="h-[24px] px-2 py-0.5 rounded text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-white flex items-center gap-1 border border-slate-700 shrink-0"
+              title="กลับไปที่โซนรวมแคมปัส"
+            >
+              <span>🏢 แคมปัส</span>
+            </button>
+          )}
+
+          {/* Zone Title & Badge */}
+          <div className="flex items-center gap-1 shrink-0 mr-0.5">
+            <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+            <span className="text-[12px] font-black tracking-tight text-white whitespace-nowrap">
+              DA2D-1 Flow Rail
+            </span>
+            <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded hidden sm:inline">
+              160P
             </span>
           </div>
 
-          {/* Compact Inline Capacity Indicators */}
-          <div className="flex items-center gap-1.5 text-xs">
-            <span className="px-2.5 py-1 rounded-lg font-bold text-[11px] bg-blue-950/80 text-blue-300 border border-blue-800">
-              จัดเก็บ {stats.occupiedSlots}/{stats.totalSlots} P ({stats.utilizationRate}%)
-            </span>
-            <span className="px-2.5 py-1 rounded-lg font-bold text-[11px] bg-emerald-950/80 text-emerald-300 border border-emerald-800">
-              ว่าง {stats.emptySlots} P
-            </span>
-            {stats.agingCount > 0 && (
-              <span className="px-2.5 py-1 rounded-lg font-bold text-[11px] bg-rose-950/80 text-rose-300 border border-rose-800 animate-pulse">
-                Aging {stats.agingCount} P
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Compact Filter Strip */}
-        <div className="pt-2 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
-          {/* Filter by Bank */}
-          <div className="flex items-center flex-wrap gap-1 font-bold">
-            <span className="text-slate-400 text-[11px] mr-1">กลุ่มราง:</span>
+          {/* Bank Selector: Single Segmented Group (H: 26px, Font: 11px, Pad: 2px 8px) */}
+          <div className="inline-flex items-center bg-slate-800 p-0.5 rounded-md border border-slate-700 h-[26px] shrink-0">
             <button
               onClick={() => setSelectedBankFilter('ALL')}
-              className={`px-2.5 py-1 rounded-lg border transition-all text-xs ${
+              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
                 selectedBankFilter === 'ALL'
-                  ? 'bg-blue-600 text-white border-blue-500 font-black shadow-xs'
-                  : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                  ? 'bg-blue-600 text-white font-black shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
               }`}
             >
               ทั้งหมด (R1-R20)
@@ -219,72 +204,118 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
               <button
                 key={bank.bankId}
                 onClick={() => setSelectedBankFilter(bank.bankId as any)}
-                className={`px-2.5 py-1 rounded-lg border transition-all text-xs font-mono ${
+                className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-mono font-bold transition-colors ${
                   selectedBankFilter === bank.bankId
-                    ? 'bg-blue-600 text-white border-blue-500 font-black'
-                    : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                    ? 'bg-blue-600 text-white font-black shadow-xs'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
                 }`}
               >
-                {bank.title.split(':')[0]}
+                {bank.bankId === 'BANK_4' ? 'B4 (R16-20)' : bank.bankId === 'BANK_3' ? 'B3 (R11-15)' : bank.bankId === 'BANK_2' ? 'B2 (R6-10)' : 'B1 (R1-5)'}
               </button>
             ))}
           </div>
 
-          {/* Quick Search */}
-          <div className="relative min-w-[200px] flex-1 sm:flex-initial">
-            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="ค้นหา Model, Locator (DA2D-1-R20...)"
-              value={localSearch}
-              onChange={(e) => setLocalSearch(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 text-white placeholder-slate-400 text-xs rounded-lg pl-8 pr-7 py-1 focus:outline-none focus:border-blue-500"
-            />
-            {localSearch && (
-              <button
-                onClick={() => setLocalSearch('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-white"
-              >
-                ✕
-              </button>
-            )}
+          {/* Status Selector: Single Segmented Group (H: 26px, Font: 11px, Pad: 2px 8px) */}
+          <div className="inline-flex items-center bg-slate-800 p-0.5 rounded-md border border-slate-700 h-[26px] shrink-0">
+            <button
+              onClick={() => setStatusFilter('ALL')}
+              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
+                statusFilter === 'ALL'
+                  ? 'bg-blue-600 text-white font-black shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              ทั้งหมด
+            </button>
+            <button
+              onClick={() => setStatusFilter('OCCUPIED')}
+              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
+                statusFilter === 'OCCUPIED'
+                  ? 'bg-blue-600 text-white font-black shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              มีของ ({stats.occupiedSlots})
+            </button>
+            <button
+              onClick={() => setStatusFilter('EMPTY')}
+              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
+                statusFilter === 'EMPTY'
+                  ? 'bg-blue-600 text-white font-black shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              ว่าง ({stats.emptySlots})
+            </button>
+            <button
+              onClick={() => setStatusFilter('AGING')}
+              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
+                statusFilter === 'AGING'
+                  ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              Aging ({stats.agingCount})
+            </button>
           </div>
+
+          {/* Flow Direction Pill Indicator */}
+          <div className="hidden xl:inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10.5px] font-bold bg-slate-800 border border-slate-700 text-slate-300 shrink-0">
+            <span className="text-emerald-400 font-black flex items-center gap-0.5">
+              <ArrowLeft className="w-3 h-3" /> Outfeed (เบิกจ่าย)
+            </span>
+            <span className="text-slate-600">|</span>
+            <span className="text-blue-400 font-black flex items-center gap-0.5">
+              Infeed (โหลดเข้า) <ArrowRight className="w-3 h-3" />
+            </span>
+          </div>
+        </div>
+
+        {/* Right Group: Inline Compact Search (Max-Width 220px, Height 26px) */}
+        <div className="relative w-full max-w-[220px] h-[26px] shrink-0 flex items-center ml-auto">
+          <Search className="w-3 h-3 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="ค้นหา Model, Locator..."
+            value={localSearch}
+            onChange={(e) => setLocalSearch(e.target.value)}
+            className="w-full h-[26px] bg-slate-800 border border-slate-700 text-white placeholder-slate-400 text-[11px] rounded-md pl-6.5 pr-6 focus:outline-none focus:border-blue-500 transition-colors"
+          />
+          {localSearch && (
+            <button
+              onClick={() => setLocalSearch('')}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-white"
+              title="ล้างการค้นหา"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
         </div>
       </div>
 
       {/* MAIN CONTAINER LAYOUT: DA2D-1 20-RAIL DETAILED GRID (1 BOX = 1 PALLET) */}
       <div className="w-full">
-        <div className="w-full bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5 space-y-5">
+        <div className="w-full bg-white rounded-xl border border-slate-200 shadow-xs p-3 sm:p-4 space-y-3">
             
             {/* Detail Section Header */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-3 border-b border-slate-200 gap-2">
-              <div className="flex items-center space-x-2.5">
-                <div className="p-2 rounded-xl bg-blue-100 text-blue-700 font-bold">
-                  <GitCommit className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-slate-900 flex items-center space-x-2">
-                    <span>ผังจัดวางแบบราง 20 เลน (DA2D-1 Rail Matrix)</span>
-                    <span className="text-[10px] bg-blue-100 text-blue-900 px-2.5 py-0.5 rounded-full font-bold">
-                      1 กล่อง = 1 พาเลท (160 Slots)
-                    </span>
-                  </h3>
-                  <p className="text-[11px] text-slate-500">
-                    แสดง 4 บล็อกราง (Block 1 - 4), ราง R1 ถึง R20, แต่ละรางมี 8 ตำแหน่งพาเลท (01 ถึง 08)
-                  </p>
-                </div>
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+              <div className="flex items-center space-x-2">
+                <span className="w-2 h-2 rounded-full bg-blue-500" />
+                <span className="text-xs font-black text-slate-800">
+                  DA2D-1 Rail Matrix (20 ราง x 8 ช่อง = 160P)
+                </span>
               </div>
 
-              {/* Infeed/Outfeed Direction Indicators */}
-              <div className="flex items-center space-x-3 text-[11px] text-slate-700 font-bold bg-slate-100/90 px-3 py-1.5 rounded-xl border border-slate-200">
-                <span className="flex items-center space-x-1 text-emerald-700">
-                  <ArrowLeft className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Outfeed (เบิกจ่าย)</span>
+              {/* Compact Infeed/Outfeed Direction Indicators */}
+              <div className="flex items-center space-x-2 text-[10.5px] text-slate-600 font-bold bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200">
+                <span className="flex items-center space-x-0.5 text-emerald-700">
+                  <ArrowLeft className="w-3 h-3 text-emerald-600" />
+                  <span>Outfeed</span>
                 </span>
-                <span className="text-slate-300">┈┈┈┈</span>
-                <span className="flex items-center space-x-1 text-blue-700">
-                  <span>Infeed (โหลดเข้า)</span>
-                  <ArrowRight className="w-3.5 h-3.5 text-blue-600" />
+                <span className="text-slate-300">┈┈</span>
+                <span className="flex items-center space-x-0.5 text-blue-700">
+                  <span>Infeed</span>
+                  <ArrowRight className="w-3 h-3 text-blue-600" />
                 </span>
               </div>
             </div>
@@ -349,10 +380,11 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
                                 // Check special solid red indicator like in the user's diagram for R3-02
                                 const isDiagramRedSample = (railNum === 3 && posNum === 2) || (item && (item.agingStatus === 'OVERDUE' || item.remark?.includes('Red Mark')));
 
-                                // Apply status filter
-                                if (statusFilter === 'OCCUPIED' && !item) return null;
-                                if (statusFilter === 'EMPTY' && item) return null;
-                                if (statusFilter === 'AGING' && (!item || item.agingDays <= 30)) return null;
+                                const isStatusMatch = statusFilter === 'ALL' ||
+                                  (statusFilter === 'OCCUPIED' && !!item) ||
+                                  (statusFilter === 'EMPTY' && !item) ||
+                                  (statusFilter === 'AGING' && item && (item.agingDays > 30 || item.agingStatus === 'WARNING' || item.agingStatus === 'OVERDUE'));
+                                const isSlotActive = isMatch && isStatusMatch;
 
                                 return (
                                   <div
@@ -382,8 +414,8 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
                                     onMouseLeave={() => setHoveredSlot(null)}
                                     title={`Locator: ${locatorCode}${item ? `\nModel: ${item.modelHE}\nQty: ${item.quantity} U\nLine: ${item.useLine}` : ' (ว่าง - คลิกเพื่อรับเข้า)'}`}
                                     className={`h-7.5 sm:h-8 rounded p-0.5 flex flex-col justify-between text-left transition-all cursor-pointer relative overflow-hidden border select-none ${
-                                      !isMatch
-                                        ? 'opacity-30'
+                                      !isSlotActive
+                                        ? 'opacity-20 grayscale'
                                         : item
                                         ? isDiagramRedSample
                                           ? 'bg-rose-700 text-white border-rose-900 shadow-xs ring-1 ring-rose-500/50 hover:brightness-110' // EXACT RED BOX from diagram!

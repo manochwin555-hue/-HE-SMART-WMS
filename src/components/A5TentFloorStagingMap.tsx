@@ -25,7 +25,8 @@ import {
   Tent,
   ArrowUpRight,
   Flame,
-  Clock
+  Clock,
+  X
 } from 'lucide-react';
 
 interface A5TentFloorStagingMapProps {
@@ -253,64 +254,46 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
   const currentTentConfig = TENTS.find(t => t.number === selectedTent) || TENTS[0];
 
   return (
-    <div className="space-y-3">
-      {/* Compact Header & Unified Toolbar */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 sm:p-3 text-white shadow-xs space-y-2.5">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-          <div className="flex items-center space-x-2 flex-wrap">
-            {onNavigateToCampus && (
-              <button
-                onClick={onNavigateToCampus}
-                className="px-2.5 py-1 rounded-lg text-xs font-black bg-slate-800 hover:bg-slate-700 text-white flex items-center space-x-1 shadow-xs transition-all active:scale-95"
-              >
-                <span>🏢 ◂ รวมแคมปัส</span>
-              </button>
-            )}
-            <div className="flex items-center space-x-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              <h2 className="text-sm sm:text-base font-black tracking-tight text-white">
-                ผังเต็นท์วางพื้น A5 (Tent No. 1 - No. 4)
-              </h2>
-            </div>
-            <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-              ความจุ 784 P (4 เต็นท์)
+    <div className="space-y-2">
+      {/* ULTRA-COMPACT ENTERPRISE TOOLBAR: HEIGHT <= 36px */}
+      <div className="h-9 px-2 sm:px-2.5 bg-slate-900 border border-slate-800 rounded-lg text-white shadow-xs flex items-center justify-between gap-1.5 overflow-x-auto">
+        
+        {/* Left Group: Back + Title + Segmented Tent Switcher & Status Controls */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {onNavigateToCampus && (
+            <button
+              onClick={onNavigateToCampus}
+              className="h-[24px] px-2 py-0.5 rounded text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-white flex items-center gap-1 border border-slate-700 shrink-0"
+              title="กลับไปที่โซนรวมแคมปัส"
+            >
+              <span>🏢 แคมปัส</span>
+            </button>
+          )}
+
+          {/* Zone Title & Badge */}
+          <div className="flex items-center gap-1 shrink-0 mr-0.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-[12px] font-black tracking-tight text-white whitespace-nowrap">
+              A5 Tent Staging
+            </span>
+            <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded hidden sm:inline">
+              784P
             </span>
           </div>
 
-          {/* Compact Inline Capacity Indicators */}
-          <div className="flex items-center gap-1.5 text-xs">
-            <span className="px-2.5 py-1 rounded-lg font-bold text-[11px] bg-blue-950/80 text-blue-300 border border-blue-800">
-              จัดเก็บ {stats.occupied}/{stats.totalCapacity} P ({stats.occupancyRate}%)
-            </span>
-            <span className="px-2.5 py-1 rounded-lg font-bold text-[11px] bg-emerald-950/80 text-emerald-300 border border-emerald-800">
-              ว่าง {stats.empty} P
-            </span>
-            {stats.agingCount > 0 && (
-              <span className="px-2.5 py-1 rounded-lg font-bold text-[11px] bg-rose-950/80 text-rose-300 border border-rose-800 animate-pulse">
-                Aging {stats.agingCount} P
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Compact View Switcher, Filter & Search Toolbar */}
-        <div className="pt-2 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
-          {/* Tent & Status Filter Chips */}
-          <div className="flex items-center flex-wrap gap-1 font-bold">
+          {/* View & Tent Selector: Single Segmented Group (H: 26px, Font: 11px, Pad: 2px 8px) */}
+          <div className="inline-flex items-center bg-slate-800 p-0.5 rounded-md border border-slate-700 h-[26px] shrink-0">
             <button
               onClick={() => setViewMode('OVERVIEW_4_TENTS')}
-              className={`px-2.5 py-1 rounded-lg border transition-all text-xs flex items-center space-x-1 ${
+              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex items-center gap-1 ${
                 viewMode === 'OVERVIEW_4_TENTS'
-                  ? 'bg-blue-600 text-white border-blue-500 font-black shadow-xs'
-                  : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                  ? 'bg-blue-600 text-white font-black shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
               }`}
             >
-              <Grid className="w-3.5 h-3.5" />
+              <Grid className="w-3 h-3" />
               <span>ภาพรวม 4 เต็นท์</span>
             </button>
-
-            <div className="h-4 w-px bg-slate-700 mx-0.5 hidden sm:block"></div>
-
             {TENTS.map((t) => (
               <button
                 key={t.number}
@@ -318,90 +301,90 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
                   setSelectedTent(t.number);
                   setViewMode('TENT_DETAIL');
                 }}
-                className={`px-2 py-1 rounded-lg border text-xs transition-all ${
+                className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
                   viewMode === 'TENT_DETAIL' && selectedTent === t.number
-                    ? 'bg-emerald-600 text-white border-emerald-500 font-black shadow-xs'
-                    : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                    ? 'bg-emerald-600 text-white font-black shadow-xs'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
                 }`}
               >
                 Tent {t.number}
               </button>
             ))}
+          </div>
 
-            <div className="h-4 w-px bg-slate-700 mx-0.5 hidden sm:block"></div>
-
-            {/* Status filters */}
+          {/* Status Selector: Single Segmented Group (H: 26px, Font: 11px, Pad: 2px 8px) */}
+          <div className="inline-flex items-center bg-slate-800 p-0.5 rounded-md border border-slate-700 h-[26px] shrink-0">
             <button
               onClick={() => setFilterStatus('ALL')}
-              className={`px-2 py-1 rounded-lg border text-[11px] transition-all ${
+              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
                 filterStatus === 'ALL'
-                  ? 'bg-slate-700 text-white border-slate-600 font-bold'
-                  : 'text-slate-400 border-transparent hover:text-slate-200'
+                  ? 'bg-slate-700 text-white font-black shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
               }`}
             >
               ทั้งหมด
             </button>
             <button
               onClick={() => setFilterStatus('OCCUPIED')}
-              className={`px-2 py-1 rounded-lg border text-[11px] transition-all ${
+              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
                 filterStatus === 'OCCUPIED'
-                  ? 'bg-emerald-700 text-white border-emerald-600 font-bold'
-                  : 'text-emerald-400 border-transparent hover:text-emerald-300'
+                  ? 'bg-emerald-600 text-white font-black shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
               }`}
             >
               มีสินค้า ({stats.occupied})
             </button>
             <button
               onClick={() => setFilterStatus('EMPTY')}
-              className={`px-2 py-1 rounded-lg border text-[11px] transition-all ${
+              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
                 filterStatus === 'EMPTY'
-                  ? 'bg-blue-700 text-white border-blue-600 font-bold'
-                  : 'text-blue-400 border-transparent hover:text-blue-300'
+                  ? 'bg-blue-600 text-white font-black shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
               }`}
             >
               ว่าง ({stats.empty})
             </button>
             <button
               onClick={() => setFilterStatus('AGING')}
-              className={`px-2 py-1 rounded-lg border text-[11px] transition-all ${
+              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
                 filterStatus === 'AGING'
-                  ? 'bg-rose-700 text-white border-rose-600 font-bold'
-                  : 'text-rose-400 border-transparent hover:text-rose-300'
+                  ? 'bg-rose-600 text-white font-black shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
               }`}
             >
               Aging ({stats.agingCount})
             </button>
           </div>
 
-          {/* Quick Search & Scan Button */}
-          <div className="flex items-center gap-1.5 flex-1 sm:flex-initial">
-            <div className="relative min-w-[180px] flex-1 sm:flex-initial">
-              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="ค้นหา Model, DA5T..."
-                value={localSearch}
-                onChange={(e) => setLocalSearch(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 text-white placeholder-slate-400 text-xs rounded-lg pl-8 pr-7 py-1 focus:outline-none focus:border-emerald-500"
-              />
-              {localSearch && (
-                <button
-                  onClick={() => setLocalSearch('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-white"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
+          {/* Compact Scan Button */}
+          <button
+            onClick={() => onOpenScanner('T1-01', 1, 1, 'IN')}
+            className="h-[26px] px-2 py-0.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md text-[11px] font-bold shadow-xs flex items-center gap-1 active:scale-95 transition-all shrink-0"
+          >
+            <QrCode className="w-3 h-3" />
+            <span>สแกนรับ</span>
+          </button>
+        </div>
 
+        {/* Right Group: Inline Compact Search (Max-Width 220px, Height 26px) */}
+        <div className="relative w-full max-w-[220px] h-[26px] shrink-0 flex items-center ml-auto">
+          <Search className="w-3 h-3 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="ค้นหา Model, DA5T..."
+            value={localSearch}
+            onChange={(e) => setLocalSearch(e.target.value)}
+            className="w-full h-[26px] bg-slate-800 border border-slate-700 text-white placeholder-slate-400 text-[11px] rounded-md pl-6.5 pr-6 focus:outline-none focus:border-emerald-500 transition-colors"
+          />
+          {localSearch && (
             <button
-              onClick={() => onOpenScanner('T1-01', 1, 1, 'IN')}
-              className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold shadow-xs flex items-center space-x-1 active:scale-95 transition-all whitespace-nowrap"
+              onClick={() => setLocalSearch('')}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-white"
+              title="ล้างการค้นหา"
             >
-              <QrCode className="w-3.5 h-3.5" />
-              <span>สแกนรับ</span>
+              <X className="w-3 h-3" />
             </button>
-          </div>
+          )}
         </div>
       </div>
 
@@ -416,10 +399,10 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
                 OUTDOOR TENT FACILITY (A5 ZONE)
               </span>
               <h3 className="text-lg font-black text-white mt-1">
-                ผังรวม 4 เต็นท์ (A5 Tent Campus Master Blueprint)
+                โซนรวม 4 เต็นท์ (A5 Tent Campus Master Blueprint)
               </h3>
               <p className="text-xs text-slate-400">
-                คลิกที่หลังเต็นท์เพื่อซูมดูผังพาเลทภายใน 7 กลุ่ม (01-07)
+                คลิกที่หลังเต็นท์เพื่อซูมดูโซนพาเลทภายใน 7 กลุ่ม (01-07)
               </p>
             </div>
             <div className="text-right">
@@ -488,7 +471,7 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
                 <div className="mt-3 flex items-center justify-between text-xs text-slate-300">
                   <span>จัดเก็บ: <strong className="text-white">{stats.perTent[2].occupied} / 196</strong> Pallets</span>
                   <span className="text-blue-400 group-hover:underline flex items-center space-x-1 font-bold">
-                    <span>เปิดดูผังละเอียด</span>
+                    <span>เปิดดูโซนละเอียด</span>
                     <ArrowUpRight className="w-3.5 h-3.5" />
                   </span>
                 </div>
@@ -539,7 +522,7 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
                 <div className="mt-3 flex items-center justify-between text-xs text-slate-300">
                   <span>จัดเก็บ: <strong className="text-white">{stats.perTent[4].occupied} / 196</strong> Pallets</span>
                   <span className="text-blue-400 group-hover:underline flex items-center space-x-1 font-bold">
-                    <span>เปิดดูผังละเอียด</span>
+                    <span>เปิดดูโซนละเอียด</span>
                     <ArrowUpRight className="w-3.5 h-3.5" />
                   </span>
                 </div>
@@ -587,7 +570,7 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
                 <div className="mt-3 flex items-center justify-between text-xs text-slate-300">
                   <span>จัดเก็บ: <strong className="text-white">{stats.perTent[1].occupied} / 196</strong> Pallets</span>
                   <span className="text-blue-400 group-hover:underline flex items-center space-x-1 font-bold">
-                    <span>เปิดดูผังละเอียด</span>
+                    <span>เปิดดูโซนละเอียด</span>
                     <ArrowUpRight className="w-3.5 h-3.5" />
                   </span>
                 </div>
@@ -635,7 +618,7 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
                 <div className="mt-3 flex items-center justify-between text-xs text-slate-300">
                   <span>จัดเก็บ: <strong className="text-white">{stats.perTent[3].occupied} / 196</strong> Pallets</span>
                   <span className="text-blue-400 group-hover:underline flex items-center space-x-1 font-bold">
-                    <span>เปิดดูผังละเอียด</span>
+                    <span>เปิดดูโซนละเอียด</span>
                     <ArrowUpRight className="w-3.5 h-3.5" />
                   </span>
                 </div>
@@ -846,10 +829,10 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
           {/* Floor Blueprint Legend */}
           <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-4 text-xs">
             <div className="flex flex-wrap items-center gap-4">
-              <span className="font-bold text-slate-700">สัญลักษณ์สีผังเต็นท์:</span>
+              <span className="font-bold text-slate-700">สัญลักษณ์สีโซนเต็นท์:</span>
               <div className="flex items-center space-x-1.5">
                 <span className="w-4 h-4 bg-red-700 border border-slate-900 inline-block rounded-xs" />
-                <span className="text-slate-700 font-semibold">มีสินค้า (Occupied Slot - ตามแบบผัง)</span>
+                <span className="text-slate-700 font-semibold">มีสินค้า (Occupied Slot - ตามแบบโซน)</span>
               </div>
               <div className="flex items-center space-x-1.5">
                 <span className="w-4 h-4 bg-white border border-slate-900 inline-block rounded-xs" />

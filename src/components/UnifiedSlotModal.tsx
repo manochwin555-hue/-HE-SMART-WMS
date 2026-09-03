@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { InventoryItem, MovementType, ShelfLevel, StorageZone } from '../types';
 import { 
   X, 
@@ -58,11 +58,21 @@ export const UnifiedSlotModal: React.FC<UnifiedSlotModalProps> = ({
   const [copied, setCopied] = useState(false);
   const [selectedLevel, setSelectedLevel] = useState<ShelfLevel>(1);
 
+  // Sync selectedLevel when slotData changes
+  useEffect(() => {
+    if (slotData?.level) {
+      setSelectedLevel(slotData.level);
+    } else {
+      setSelectedLevel(1);
+    }
+  }, [slotData?.level, slotData?.locatorCode]);
+
   if (!isOpen || !slotData) return null;
 
   const {
     sectorType,
     buildingName,
+    facilityId,
     zoneName,
     locatorCode,
     bayOrGroupNumber,
@@ -134,17 +144,50 @@ export const UnifiedSlotModal: React.FC<UnifiedSlotModalProps> = ({
   const theme = getSectorTheme();
   const IconComponent = theme.icon;
 
+  // Active locator code that dynamically reflects selected level (computed directly without conditional hook)
+  let activeLocatorCode = locatorCode || '';
+  if (locatorCode && isMultiLevel) {
+    if (locatorCode.match(/-L[1-4]$/i)) {
+      activeLocatorCode = locatorCode.replace(/-L[1-4]$/i, `-L${selectedLevel}`);
+    } else {
+      activeLocatorCode = `${locatorCode}-L${selectedLevel}`;
+    }
+  }
+
   // Extract numeric zone and bay for scanner callback
   const parseZoneAndBay = () => {
     let z: StorageZone = 'B';
     let b = 1;
-    let l: ShelfLevel = (level as ShelfLevel) || selectedLevel || 1;
+    let l: ShelfLevel = (selectedLevel as ShelfLevel) || (level as ShelfLevel) || 1;
 
     if (sectorType === 'RACK') {
-      const match = locatorCode.match(/([B-K])(\d+)/i);
-      if (match) {
-        z = match[1].toUpperCase() as StorageZone;
-        b = parseInt(match[2], 10);
+      // Check CY3 locator: e.g. DY3T-1.01-A1-L1 or CY3-A
+      if (locatorCode.includes('DY3T') || (facilityId && facilityId.includes('CY3')) || zoneName.includes('CY3')) {
+        const cy3Match = locatorCode.match(/DY3T-1\.0([1-4])-(?:([A-D]))?(\d+)/i);
+        if (cy3Match) {
+          const numCode = cy3Match[1];
+          const letter = cy3Match[2] || (numCode === '1' ? 'A' : numCode === '2' ? 'B' : numCode === '3' ? 'C' : 'D');
+          z = `CY3-${letter}` as StorageZone;
+          b = parseInt(cy3Match[3], 10);
+        } else if (zoneName.includes('Row A') || zoneName.includes('1.01')) {
+          z = 'CY3-A';
+          b = typeof bayOrGroupNumber === 'number' ? bayOrGroupNumber : 1;
+        } else if (zoneName.includes('Row B') || zoneName.includes('1.02')) {
+          z = 'CY3-B';
+          b = typeof bayOrGroupNumber === 'number' ? bayOrGroupNumber : 1;
+        } else if (zoneName.includes('Row C') || zoneName.includes('1.03')) {
+          z = 'CY3-C';
+          b = typeof bayOrGroupNumber === 'number' ? bayOrGroupNumber : 1;
+        } else if (zoneName.includes('Row D') || zoneName.includes('1.04')) {
+          z = 'CY3-D';
+          b = typeof bayOrGroupNumber === 'number' ? bayOrGroupNumber : 1;
+        }
+      } else {
+        const match = locatorCode.match(/([B-K])(\d+)/i);
+        if (match) {
+          z = match[1].toUpperCase() as StorageZone;
+          b = parseInt(match[2], 10);
+        }
       }
     } else if (sectorType === 'FLOW_RAIL') {
       const match = locatorCode.match(/R(\d+)-(\d+)/i);
@@ -171,6 +214,12 @@ export const UnifiedSlotModal: React.FC<UnifiedSlotModalProps> = ({
 
   const parsed = parseZoneAndBay();
 
+  const handleCopyActiveLocator = () => {
+    navigator.clipboard.writeText(activeLocatorCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-fadeIn">
       <div className="bg-white rounded-2xl max-w-xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh] animate-scaleUp">
@@ -194,15 +243,20 @@ export const UnifiedSlotModal: React.FC<UnifiedSlotModalProps> = ({
             {/* Locator Code with Copy */}
             <div className="flex items-center space-x-2 pt-1">
               <h3 className="text-lg sm:text-xl font-black font-mono tracking-tight text-white">
-                {locatorCode}
+                {activeLocatorCode}
               </h3>
               <button
-                onClick={handleCopyLocator}
+                onClick={handleCopyActiveLocator}
                 className="p-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
                 title="คัดลอกรหัสตำแหน่ง"
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
               </button>
+              {isMultiLevel && (
+                <span className="px-2 py-0.5 rounded-md bg-blue-600/80 text-white font-mono font-bold text-[11px] border border-blue-400">
+                  ชั้น {selectedLevel} (L{selectedLevel})
+                </span>
+              )}
             </div>
           </div>
 
@@ -216,12 +270,12 @@ export const UnifiedSlotModal: React.FC<UnifiedSlotModalProps> = ({
 
         {/* MULTI-LEVEL RACK SELECTOR (If multi-level bay) */}
         {isMultiLevel && (
-          <div className="bg-slate-100 p-2 border-b border-slate-200 flex items-center justify-between gap-1 text-xs">
-            <span className="text-slate-600 font-bold text-[11px] px-2 flex items-center space-x-1">
-              <Layers className="w-3.5 h-3.5 text-blue-600" />
-              <span>เลือกระดับชั้น (Shelf Level):</span>
+          <div className="bg-slate-100 p-2.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <span className="text-slate-700 font-black text-xs px-1 flex items-center space-x-1.5">
+              <Layers className="w-4 h-4 text-blue-600" />
+              <span>แยกระดับชั้นชัดเจน (Rack 4 Floors):</span>
             </span>
-            <div className="flex items-center space-x-1">
+            <div className="flex items-center space-x-1.5">
               {([4, 3, 2, 1] as ShelfLevel[]).map((lvl) => {
                 const lvlItem = bayItems.find(it => it.level === lvl);
                 return (
@@ -230,17 +284,20 @@ export const UnifiedSlotModal: React.FC<UnifiedSlotModalProps> = ({
                     onClick={() => setSelectedLevel(lvl)}
                     className={`px-3 py-1.5 rounded-lg font-mono font-bold transition-all text-xs flex items-center space-x-1.5 ${
                       selectedLevel === lvl
-                        ? 'bg-blue-600 text-white shadow-xs'
+                        ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-400 scale-105'
                         : lvlItem
                         ? 'bg-white text-slate-800 border border-slate-300 hover:bg-slate-50'
-                        : 'bg-slate-200/70 text-slate-400 border border-dashed border-slate-300'
+                        : 'bg-slate-200/70 text-slate-500 border border-dashed border-slate-300 hover:bg-slate-200'
                     }`}
                   >
                     <span>L{lvl}</span>
+                    <span className="text-[10px] opacity-75">
+                      {lvl === 4 ? '(บนสุด)' : lvl === 1 ? '(ติดพื้น)' : ''}
+                    </span>
                     {lvlItem ? (
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 ring-1 ring-emerald-600" />
                     ) : (
-                      <span className="text-[10px] opacity-60">ว่าง</span>
+                      <span className="text-[10px] text-slate-400">ว่าง</span>
                     )}
                   </button>
                 );

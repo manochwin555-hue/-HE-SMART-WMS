@@ -37,8 +37,6 @@ interface OdooOneDriveModalProps {
 }
 
 export const OdooOneDriveModal: React.FC<OdooOneDriveModalProps> = ({ isOpen, onClose }) => {
-  if (!isOpen) return null;
-
   const [activeTab, setActiveTab] = useState<'ODOO' | 'ONEDRIVE' | 'LOGS'>('ODOO');
   const [config, setConfig] = useState<OdooOneDriveConfig>(getSyncConfig());
   const [logs, setLogs] = useState<SyncLogEntry[]>(getSyncLogs());
@@ -46,6 +44,8 @@ export const OdooOneDriveModal: React.FC<OdooOneDriveModalProps> = ({ isOpen, on
   const [testingOdoo, setTestingOdoo] = useState<boolean>(false);
   const [testingOneDrive, setTestingOneDrive] = useState<boolean>(false);
   const [testResult, setTestResult] = useState<{ type: 'ODOO' | 'ONEDRIVE'; status: 'SUCCESS' | 'ERROR'; msg: string } | null>(null);
+
+  if (!isOpen) return null;
 
   const webhookEndpoint = `${window.location.origin}/api/v1/webhook/odoo/stock-update`;
 

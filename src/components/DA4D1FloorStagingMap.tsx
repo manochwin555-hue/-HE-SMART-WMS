@@ -18,7 +18,13 @@ import {
   TrendingDown,
   Info,
   Maximize2,
-  Clock
+  Minimize2,
+  Clock,
+  ChevronDown,
+  X,
+  ArrowLeft,
+  ArrowRight,
+  LayoutGrid
 } from 'lucide-react';
 
 interface DA4D1FloorStagingMapProps {
@@ -26,6 +32,10 @@ interface DA4D1FloorStagingMapProps {
   searchQuery?: string;
   onOpenScanner?: (zone: StorageZone, bay: number, level: ShelfLevel, mode: MovementType) => void;
   onRelocateItem?: (item: InventoryItem) => void;
+  onNavigateToRack?: () => void;
+  onNavigateToCampus?: () => void;
+  onToggleFullscreen?: () => void;
+  isDashboardFullscreen?: boolean;
 }
 
 // X Groups metadata definition according to Image 2 (MCS Heat Exchanger Inventory Layout)
@@ -127,10 +137,15 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
   items,
   searchQuery = '',
   onOpenScanner,
-  onRelocateItem
+  onRelocateItem,
+  onNavigateToRack,
+  onNavigateToCampus,
+  onToggleFullscreen,
+  isDashboardFullscreen
 }) => {
   const [selectedGroupFilter, setSelectedGroupFilter] = useState<'ALL' | 'TOP' | 'BOTTOM' | string>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'OCCUPIED' | 'EMPTY' | 'AGING'>('ALL');
+  const [isGroupDropdownOpen, setIsGroupDropdownOpen] = useState<boolean>(false);
   const [localSearch, setLocalSearch] = useState<string>('');
   
   // Selected slot detail modal
@@ -238,84 +253,195 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
   });
 
   return (
-    <div className="space-y-3">
-      {/* Compact Unified Filter & Staging Strip */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 sm:p-3 text-white shadow-xs">
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5 text-xs">
-          
-          {/* Group Filter Chips */}
-          <div className="flex items-center flex-wrap gap-1 font-bold">
-            <span className="text-amber-400 text-[11px] font-black mr-1 flex items-center space-x-1">
-              <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-              <span>กลุ่มเสา:</span>
+    <div className="space-y-2">
+      {/* ENTERPRISE PRIMARY TOOLBAR: ROW 1 (NAVIGATION + SEARCH) */}
+      <div className="h-9 px-2 sm:px-2.5 bg-slate-900 border border-slate-800 rounded-lg text-white shadow-xs flex items-center justify-between gap-1.5 overflow-x-auto">
+        <div className="flex items-center gap-2 shrink-0">
+          {onNavigateToCampus && (
+            <button
+              onClick={onNavigateToCampus}
+              className="h-[26px] px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 flex items-center gap-1 shrink-0 transition-colors"
+              title="กลับสู่โซนรวมทุกอาคาร (A2/A4/A5/CY3)"
+            >
+              <ArrowLeft className="w-3 h-3 text-slate-400" />
+              <span className="hidden sm:inline">โซนรวม</span>
+            </button>
+          )}
+
+          {/* Page Title & Capacity Badge */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            <span className="text-[12px] sm:text-[13px] font-black tracking-tight text-white whitespace-nowrap">
+              โซน A4 วางพื้น (DA4D-1)
             </span>
+            <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded">
+              432P
+            </span>
+          </div>
+        </div>
+
+        {/* Right: Inline Search Box */}
+        <div className="relative w-full max-w-[220px] h-[26px] shrink-0 flex items-center ml-auto">
+          <Search className="w-3 h-3 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="ค้นหา Model, Locator..."
+            value={localSearch}
+            onChange={(e) => setLocalSearch(e.target.value)}
+            className="w-full h-[26px] bg-slate-800 border border-slate-700 text-white placeholder-slate-400 text-[11px] rounded-md pl-6.5 pr-6 focus:outline-none focus:border-amber-400 transition-colors"
+          />
+          {localSearch && (
+            <button
+              onClick={() => setLocalSearch('')}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-white"
+              title="ล้างการค้นหา"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ENTERPRISE SECONDARY TOOLBAR: ROW 2 (BLOCKS + STATUS + STATS) */}
+      <div className="h-[34px] px-2 sm:px-2.5 bg-slate-900/95 border border-slate-800 rounded-lg text-white shadow-xs flex items-center justify-between gap-1.5 overflow-x-auto">
+        
+        {/* Left Group: Block Selector + Status Selector + Column Dropdown */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          
+          {/* Block Selector: Single Segmented Group (H: 26px, Font: 11px, Pad: 2px 8px) */}
+          <div className="inline-flex items-center bg-slate-800 p-0.5 rounded-md border border-slate-700 h-[26px] shrink-0">
             <button
               onClick={() => setSelectedGroupFilter('ALL')}
-              className={`px-2.5 py-1 rounded-lg border transition-all text-xs ${
+              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
                 selectedGroupFilter === 'ALL'
-                  ? 'bg-amber-500 text-slate-950 border-amber-500 font-black shadow-xs'
-                  : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                  ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
               }`}
             >
               ทั้งหมด (X1-X8)
             </button>
             <button
               onClick={() => setSelectedGroupFilter('TOP')}
-              className={`px-2 py-1 rounded-lg border transition-all text-xs ${
+              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
                 selectedGroupFilter === 'TOP'
-                  ? 'bg-amber-500 text-slate-950 border-amber-500 font-black shadow-xs'
-                  : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                  ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
               }`}
             >
-              บล็อกบน (X5-X8)
+              บน (X5-X8)
             </button>
             <button
               onClick={() => setSelectedGroupFilter('BOTTOM')}
-              className={`px-2 py-1 rounded-lg border transition-all text-xs ${
+              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
                 selectedGroupFilter === 'BOTTOM'
-                  ? 'bg-amber-500 text-slate-950 border-amber-500 font-black shadow-xs'
-                  : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                  ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
               }`}
             >
-              บล็อกล่าง (X1-X4)
+              ล่าง (X1-X4)
+            </button>
+          </div>
+
+          {/* Status Selector: Single Segmented Group (H: 26px, Font: 11px, Pad: 2px 8px) */}
+          <div className="inline-flex items-center bg-slate-800 p-0.5 rounded-md border border-slate-700 h-[26px] shrink-0">
+            <button
+              onClick={() => setStatusFilter('ALL')}
+              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
+                statusFilter === 'ALL'
+                  ? 'bg-blue-600 text-white font-black shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              ทั้งหมด
+            </button>
+            <button
+              onClick={() => setStatusFilter('OCCUPIED')}
+              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
+                statusFilter === 'OCCUPIED'
+                  ? 'bg-blue-600 text-white font-black shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              มีของ ({stats.occupiedSlots})
+            </button>
+            <button
+              onClick={() => setStatusFilter('EMPTY')}
+              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
+                statusFilter === 'EMPTY'
+                  ? 'bg-blue-600 text-white font-black shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              ว่าง ({stats.emptySlots})
+            </button>
+            <button
+              onClick={() => setStatusFilter('AGING')}
+              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
+                statusFilter === 'AGING'
+                  ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              Aging ({stats.agingCount})
+            </button>
+          </div>
+
+          {/* Collapsed Dropdown for Specific Column Groups X1-X8 */}
+          <div className="relative inline-block text-left shrink-0">
+            <button
+              onClick={() => setIsGroupDropdownOpen(!isGroupDropdownOpen)}
+              className={`h-[26px] px-2 py-0.5 rounded-md text-[11px] font-bold border transition-colors flex items-center gap-1 shrink-0 ${
+                isGroupDropdownOpen || (selectedGroupFilter !== 'ALL' && selectedGroupFilter !== 'TOP' && selectedGroupFilter !== 'BOTTOM')
+                  ? 'bg-slate-700 text-white border-amber-500 ring-1 ring-amber-500/50'
+                  : 'bg-slate-800 text-slate-300 border-slate-700 hover:text-white hover:bg-slate-700'
+              }`}
+            >
+              <span>เสา X1-X8</span>
+              <ChevronDown className="w-2.5 h-2.5 text-slate-400" />
             </button>
 
-            <div className="h-4 w-px bg-slate-700 mx-1 hidden sm:block"></div>
-
-            {DA4D1_GROUPS.map(g => (
-              <button
-                key={g.id}
-                onClick={() => setSelectedGroupFilter(g.id)}
-                className={`px-2 py-1 rounded-lg border text-[11px] font-mono transition-all ${
-                  selectedGroupFilter === g.id
-                    ? 'bg-blue-600 text-white border-blue-500 font-black'
-                    : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:bg-slate-700'
-                }`}
-              >
-                {g.id}
-              </button>
-            ))}
-          </div>
-
-          {/* Quick Search in DA4D-1 */}
-          <div className="relative min-w-[200px] flex-1 sm:flex-initial">
-            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="ค้นหา Model, Locator (DA4D-1-R8-06...)"
-              value={localSearch}
-              onChange={(e) => setLocalSearch(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 text-white placeholder-slate-400 text-xs rounded-lg pl-8 pr-7 py-1 focus:outline-none focus:border-amber-400"
-            />
-            {localSearch && (
-              <button
-                onClick={() => setLocalSearch('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-white"
-              >
-                ✕
-              </button>
+            {isGroupDropdownOpen && (
+              <div className="absolute left-0 mt-1 w-48 bg-slate-900 border border-slate-700 rounded-lg shadow-xl p-2 z-40 space-y-1 text-xs">
+                <div className="text-[10px] font-bold uppercase text-slate-400 mb-1">เลือกเสาเฉพาะ</div>
+                <div className="grid grid-cols-4 gap-1">
+                  {DA4D1_GROUPS.map(g => (
+                    <button
+                      key={g.id}
+                      onClick={() => {
+                        setSelectedGroupFilter(g.id);
+                        setIsGroupDropdownOpen(false);
+                      }}
+                      className={`h-[24px] px-1 py-0.5 rounded text-[11px] font-mono font-bold border ${
+                        selectedGroupFilter === g.id
+                          ? 'bg-amber-500 text-slate-950 border-amber-400'
+                          : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
+                      }`}
+                    >
+                      {g.id}
+                    </button>
+                  ))}
+                </div>
+                <div className="pt-1 border-t border-slate-800 flex justify-end">
+                  <button
+                    onClick={() => {
+                      setSelectedGroupFilter('ALL');
+                      setIsGroupDropdownOpen(false);
+                    }}
+                    className="text-[10px] text-slate-400 hover:text-amber-300 font-bold"
+                  >
+                    แสดงทั้งหมด
+                  </button>
+                </div>
+              </div>
             )}
           </div>
+        </div>
+
+        {/* Right Group: Inline Capacity Stats */}
+        <div className="text-[11px] font-mono text-slate-300 shrink-0 hidden md:flex items-center gap-1.5 ml-auto">
+          <span className="text-slate-400">จัดเก็บวางพื้น:</span>
+          <span className="font-bold text-amber-300">{stats.occupiedSlots}/{stats.totalSlots}P</span>
+          <span className="text-amber-400 font-bold">({stats.utilizationRate}%)</span>
         </div>
       </div>
 
@@ -327,7 +453,7 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
           <div className="flex items-center space-x-2">
             <span className="w-2 h-2 rounded-full bg-amber-500" />
             <span className="text-[11px] font-black text-slate-800">
-              DA4D-1 Floor Staging Matrix (1 Box = 1 Pallet Slot)
+              DA4D-1 Staging Grid
             </span>
           </div>
           <div className="flex items-center space-x-3 text-[10px] font-bold">
@@ -407,6 +533,11 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
                           const locatorCode = `DA4D-1-R${rowNum}-${formattedCol}`;
                           const item = getItemAtSlot(group.id, rowNum, colNum);
                           const isMatch = isMatchSearch(item, locatorCode, group.id, rowNum);
+                          const isStatusMatch = statusFilter === 'ALL' ||
+                            (statusFilter === 'OCCUPIED' && !!item) ||
+                            (statusFilter === 'EMPTY' && !item) ||
+                            (statusFilter === 'AGING' && item && (item.agingDays > 30 || item.agingStatus === 'WARNING' || item.agingStatus === 'OVERDUE'));
+                          const isSlotActive = isMatch && isStatusMatch;
 
                           // Highlight exact sample from reference image 2: DA4D-1-R8-06 (Group X2, Row 8, Col 06)
                           const isDiagramRedSample = (rowNum === 8 && colNum === 6) || (item && (item.agingStatus === 'OVERDUE' || item.remark?.includes('Red Sample')));
@@ -441,8 +572,8 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
                               onMouseLeave={() => setHoveredSlot(null)}
                               title={`Locator: ${locatorCode}${item ? `\nModel: ${item.modelHE}\nQty: ${item.quantity} U\nLine: ${item.useLine}` : ' (ว่าง - คลิกเพื่อรับเข้า)'}`}
                               className={`h-7.5 sm:h-8 rounded p-0.5 flex flex-col justify-between text-left transition-all cursor-pointer relative overflow-hidden border select-none ${
-                                !isMatch
-                                  ? 'opacity-25'
+                                !isSlotActive
+                                  ? 'opacity-20 grayscale'
                                   : item
                                   ? isDiagramRedSample
                                     ? 'bg-rose-700 text-white border-rose-900 shadow-xs ring-1 ring-rose-500/50 hover:brightness-110'

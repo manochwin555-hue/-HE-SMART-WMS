@@ -21,8 +21,10 @@ import {
   Flame,
   Filter,
   RefreshCw,
-  Boxes
+  Boxes,
+  MapPin
 } from 'lucide-react';
+import { HighlightText, getZoneMeta } from './GlobalSearchZoneLookup';
 
 interface InventoryListPanelProps {
   items: InventoryItem[];
@@ -236,6 +238,65 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
     sortDirection, 
     globalSafetyThreshold
   ]);
+
+  // Real-time Part No Zone Breakdown when searching
+  const searchedPartDistributions = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return [];
+
+    // Group items matching the search query by modelHE
+    const map = new Map<string, InventoryItem[]>();
+    for (const item of filteredAndSortedItems) {
+      const arr = map.get(item.modelHE) || [];
+      arr.push(item);
+      map.set(item.modelHE, arr);
+    }
+
+    const results = [];
+    for (const [model, modelItems] of map.entries()) {
+      const totalQty = modelItems.reduce((acc, it) => acc + it.quantity, 0);
+      const totalPallets = modelItems.reduce((acc, it) => {
+        const std = it.stdQtyPerPallet || 80;
+        return acc + (it.fullPallets ?? Math.ceil(it.quantity / std));
+      }, 0);
+      const partName = modelItems[0]?.partName || model;
+
+      // Group by zone
+      const zoneGroup = new Map<string, { qty: number; count: number; items: InventoryItem[] }>();
+      for (const it of modelItems) {
+        const z = String(it.zone);
+        const curr = zoneGroup.get(z) || { qty: 0, count: 0, items: [] };
+        curr.qty += it.quantity;
+        curr.count += 1;
+        curr.items.push(it);
+        zoneGroup.set(z, curr);
+      }
+
+      const zoneList = Array.from(zoneGroup.entries()).map(([z, data]) => {
+        const meta = getZoneMeta(z);
+        return {
+          zone: z,
+          meta,
+          qty: data.qty,
+          count: data.count,
+          items: data.items,
+        };
+      }).sort((a, b) => b.qty - a.qty);
+
+      results.push({
+        model,
+        partName,
+        totalQty,
+        totalPallets,
+        zoneCount: zoneList.length,
+        locationCount: modelItems.length,
+        zones: zoneList
+      });
+    }
+
+    results.sort((a, b) => b.totalQty - a.totalQty);
+    return results;
+  }, [filteredAndSortedItems, searchTerm]);
 
   // Export filtered inventory list to CSV
   const handleExportCSV = () => {
@@ -558,6 +619,103 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
         </div>
       </div>
 
+      {/* Real-time Zone Distribution Breakdown Card for Searched Part Numbers */}
+      {searchTerm.trim() && searchedPartDistributions.length > 0 && (
+        <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-blue-950 border-2 border-blue-500/40 rounded-xl p-3 sm:p-4 text-white shadow-md space-y-3 animate-fadeIn">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-2">
+            <div className="flex items-center space-x-2">
+              <div className="p-1.5 rounded-lg bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                <MapPin className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-xs sm:text-sm font-black text-white flex items-center gap-1.5">
+                  <span>📍 สรุปตำแหน่งจัดเก็บของ Part No. ที่ค้นหา (Stock by Zone)</span>
+                  <span className="text-[11px] font-normal text-slate-300">
+                    — คำค้น: <span className="font-mono font-bold text-amber-300">"{searchTerm}"</span>
+                  </span>
+                </h3>
+                <p className="text-[11px] text-slate-400">
+                  บอกพิกัดทันทีว่า Part No. นี้เก็บไว้ที่โซนไหนบ้าง และมีจำนวนเท่าไหร่ (คลิกที่โซนเพื่อกรองตารางได้ทันที)
+                </p>
+              </div>
+            </div>
+
+            {zoneFilter !== 'ALL' && (
+              <button
+                onClick={() => setZoneFilter('ALL')}
+                className="px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs inline-flex items-center gap-1 transition-all"
+              >
+                <span>กำลังกรอง Zone {zoneFilter} (คลิกเพื่อดูทุกโซน)</span>
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* List of Matched Parts with Zone Distribution */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+            {searchedPartDistributions.slice(0, 4).map((p) => (
+              <div
+                key={p.model}
+                className="bg-slate-950/80 border border-slate-800 rounded-lg p-2.5 space-y-2 hover:border-blue-500/50 transition-all"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-mono font-black text-xs sm:text-sm text-amber-300">
+                      <HighlightText text={p.model} search={searchTerm} />
+                    </div>
+                    <div className="text-[11px] text-slate-300 truncate font-medium">
+                      <HighlightText text={p.partName} search={searchTerm} />
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="font-mono font-black text-xs sm:text-sm text-emerald-400">
+                      {p.totalQty.toLocaleString()} U
+                    </span>
+                    <div className="text-[10px] text-slate-400">
+                      ({p.totalPallets} พาเลท / {p.locationCount} ช่อง)
+                    </div>
+                  </div>
+                </div>
+
+                {/* Zone Breakdown Pills */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-800/60">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                    เก็บอยู่ที่:
+                  </span>
+                  {p.zones.map((z) => (
+                    <button
+                      key={z.zone}
+                      onClick={() => setZoneFilter(z.zone === zoneFilter ? 'ALL' : z.zone)}
+                      className={`px-2 py-1 rounded-md text-[11px] font-bold border inline-flex items-center space-x-1.5 transition-all ${
+                        zoneFilter === z.zone
+                          ? 'bg-blue-600 text-white border-blue-400 ring-2 ring-blue-400/50 scale-105'
+                          : `${z.meta.colorBg} hover:brightness-125`
+                      }`}
+                      title={`คลิกเพื่อกรองตารางดูเฉพาะ Zone ${z.zone}`}
+                    >
+                      <span className={`px-1 py-0.2 rounded text-[9.5px] font-black ${z.meta.badgeBg}`}>
+                        Zone {z.zone}
+                      </span>
+                      <span className="font-mono font-black text-white">
+                        {z.qty.toLocaleString()} ชิ้น
+                      </span>
+                      <span className="text-[9.5px] opacity-80">
+                        ({z.count} ช่อง)
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          {searchedPartDistributions.length > 4 && (
+            <div className="text-[11px] text-slate-400 text-center font-medium">
+              และอีก {searchedPartDistributions.length - 4} รหัส Part No. แสดงในตารางด้านล่าง...
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Inventory Table List with Interactive Sortable Columns */}
       <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
         <table className="w-full text-left text-xs text-slate-700">
@@ -709,14 +867,16 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
 
                     {/* Model HE */}
                     <td className="px-3.5 py-2.5 font-mono font-bold text-slate-900">
-                      {item.modelHE}
+                      <HighlightText text={item.modelHE} search={searchTerm} />
                     </td>
 
                     {/* Tool Name */}
                     <td className="px-3.5 py-2.5 font-medium text-slate-800">
-                      <div>{item.partName}</div>
+                      <div>
+                        <HighlightText text={item.partName} search={searchTerm} />
+                      </div>
                       <div className="text-[10px] font-mono text-slate-400 truncate max-w-xs mt-0.5">
-                        QR: {item.qrCode}
+                        QR: <HighlightText text={item.qrCode} search={searchTerm} />
                       </div>
                     </td>
 
@@ -724,14 +884,14 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
                     <td className="px-3.5 py-2.5">
                       <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
                         <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-900 font-extrabold text-[10px] border border-blue-200">
-                          Rack {item.zone}{item.bayNumber}
+                          Rack <HighlightText text={`${item.zone}${item.bayNumber}`} search={searchTerm} />
                         </span>
                         <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 font-extrabold text-[10px] border border-amber-200">
-                          ชั้น {item.level}
+                          ชั้น <HighlightText text={item.level} search={searchTerm} />
                         </span>
                       </div>
                       <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                        {item.locatorCode}
+                        <HighlightText text={item.locatorCode} search={searchTerm} />
                       </div>
                     </td>
 
@@ -774,7 +934,7 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
                     {/* Line */}
                     <td className="px-3.5 py-2.5 text-center">
                       <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-bold text-[10px] border border-indigo-200">
-                        Line {item.useLine}
+                        Line <HighlightText text={item.useLine} search={searchTerm} />
                       </span>
                     </td>
 

@@ -14,7 +14,10 @@ import { MasterListPanel } from './components/MasterListPanel';
 import { FlowRailFloorMap } from './components/FlowRailFloorMap';
 import { CampusMasterOverview } from './components/CampusMasterOverview';
 import { A5TentFloorStagingMap } from './components/A5TentFloorStagingMap';
+import { CY3TentRackMap } from './components/CY3TentRackMap';
+import { DA4D1FloorStagingMap } from './components/DA4D1FloorStagingMap';
 import { TopKpiSummaryBar } from './components/TopKpiSummaryBar';
+import { GlobalSearchZoneLookup } from './components/GlobalSearchZoneLookup';
 
 // Extract initial master data from INITIAL_ITEMS
 const initialMasterData: MasterDataItem[] = Array.from(new Set(INITIAL_ITEMS.map(i => i.modelHE))).map(modelHE => {
@@ -124,20 +127,23 @@ export default function App() {
   ]);
 
   // Handle drill-down navigation from Master Campus overview to specific building/zone
-  const handleCampusZoneNavigation = (target: 'A4_MACRO' | 'A4_RACK' | 'A4_FLOOR' | 'A4_3D' | 'A2_RAIL' | 'A2_MACRO' | 'A2_SPLIT' | 'A5_TENT' | 'A5_MACRO', tentNum?: number) => {
+  const handleCampusZoneNavigation = (target: 'A4_MACRO' | 'A4_RACK' | 'A4_FLOOR' | 'A4_3D' | 'A2_RAIL' | 'A2_MACRO' | 'A2_SPLIT' | 'A5_TENT' | 'A5_MACRO' | 'CY3_TENT', tentNum?: number) => {
     if (target === 'A4_RACK') {
       setA4InitialTab('RACK_ZONES');
-      setActiveTab('layout');
+      setActiveTab('a4_rack');
     } else if (target === 'A4_FLOOR' || target === 'A4_MACRO') {
       setA4InitialTab('FLOOR_DA4D1');
-      setActiveTab('layout');
+      setActiveTab('a4_floor');
     } else if (target === 'A4_3D') {
-      setActiveTab('rack3d');
+      setA4InitialTab('FULL3D');
+      setActiveTab('a4_rack');
     } else if (target === 'A2_RAIL' || target === 'A2_MACRO' || target === 'A2_SPLIT') {
       setActiveTab('flow_floor');
     } else if (target === 'A5_TENT' || target === 'A5_MACRO') {
       if (tentNum) setA5InitialTent(tentNum);
       setActiveTab('tent_layout');
+    } else if (target === 'CY3_TENT') {
+      setActiveTab('cy3_layout');
     }
   };
 
@@ -174,11 +180,18 @@ export default function App() {
     setIsScannerOpen(true);
   };
 
-  // Open 3D Inspector for specific zone & bay
+  // Open layout view for specific zone & bay
   const handleOpen3DForBay = (zone: StorageZone, bayNumber: number) => {
     setSelected3DZone(zone);
     setSelected3DBay(bayNumber);
-    setActiveTab('rack3d');
+    if (typeof zone === 'string' && (zone.startsWith('CY3') || zone.startsWith('DY3T'))) {
+      setActiveTab('cy3_layout');
+    } else if (typeof zone === 'string' && (zone.startsWith('FL-') || zone.startsWith('X') || zone === 'A' || zone.includes('FLOOR') || zone.includes('DA4D-1'))) {
+      setActiveTab('a4_floor');
+    } else {
+      setA4InitialTab('RACK_ZONES');
+      setActiveTab('a4_rack');
+    }
   };
 
   // Handle Save from Scanner Modal
@@ -217,7 +230,13 @@ export default function App() {
     let storageType: 'RACK' | 'FLOW_RAIL' | 'FLOOR_STAGING' = 'RACK';
     let facilityId = activeFacilityId === 'ALL' ? 'FAC-A4-RACK' : activeFacilityId;
 
-    if (String(zone).startsWith('R') || String(zone).startsWith('FR')) {
+    if (String(zone).startsWith('CY3') || String(zone).startsWith('DY3T')) {
+      const rowCode = String(zone).replace('CY3-', '');
+      const rowNum = rowCode === 'A' ? '1.01' : rowCode === 'B' ? '1.02' : rowCode === 'C' ? '1.03' : '1.04';
+      locatorCode = `DY3T-${rowNum}-${rowCode}${bayNumber}-L${level}`;
+      storageType = 'RACK';
+      facilityId = 'FAC-CY3-TENT';
+    } else if (String(zone).startsWith('R') || String(zone).startsWith('FR')) {
       const railNum = String(zone).replace(/\D/g, '');
       const formattedPos = String(bayNumber).padStart(2, '0');
       locatorCode = `DA2D-1-R${railNum}-${formattedPos}`;
@@ -429,19 +448,33 @@ export default function App() {
         {/* Sticky & Locked Top Bar (Locked on Scroll) */}
         {!isFullscreen && (
           <div className="shrink-0 sticky top-0 z-30 bg-slate-900 border-b border-slate-800 shadow-md">
-            <header className="px-3 sm:px-5 py-2 sm:py-2.5 flex items-center justify-between gap-2 w-full">
-              <div className="flex items-center space-x-2 min-w-0">
-                <span className="sm:hidden text-xs font-bold text-slate-200 truncate">
+            <header className="px-2.5 sm:px-4 py-1 sm:py-1.5 flex items-center justify-between gap-2 sm:gap-3 w-full">
+              <div className="flex items-center space-x-1.5 sm:space-x-2 min-w-0 shrink-0">
+                <span className="sm:hidden text-xs font-black text-slate-100 truncate">
                   HEX WMS
                 </span>
-                <span className="hidden sm:inline text-xs font-bold text-slate-300 truncate">
+                <span className="hidden sm:inline text-xs sm:text-[13px] font-black text-slate-200 tracking-tight truncate">
                   ระบบจัดการคลังสินค้าอัตโนมัติ (HEX WMS Automation System)
                 </span>
-                <span className="px-1.5 sm:px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 text-[9.5px] sm:text-[10px] font-bold border border-blue-500/30 shrink-0">
-                  A2/A4/A5
+                <span className="px-1.5 sm:px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 text-[9.5px] sm:text-[10.5px] font-mono font-black border border-blue-500/40 shrink-0">
+                  A2 &bull; A4 &bull; A5 &bull; CY3
                 </span>
               </div>
               
+              {/* Global Search Bar with Real-time Zone Breakdown Lookup */}
+              <div className="flex-1 max-w-xl min-w-[170px]">
+                <GlobalSearchZoneLookup
+                  items={items}
+                  searchQuery={globalSearchQuery}
+                  onSearchChange={setGlobalSearchQuery}
+                  onNavigateToZone={handleCampusZoneNavigation}
+                  onSelectTab={setActiveTab}
+                  onOpen3DForLocator={(z, b) => handleOpen3DForBay(z, b)}
+                  onOpenScanForLevel={(z, b, l, m) => handleOpenScanner(z, b, l, m)}
+                  placeholder="🔍 พิมพ์ Part No. / Model (บอกทันทีว่าอยู่โซนไหน เท่าไหร่บ้าง)..."
+                />
+              </div>
+
               <div className="flex items-center space-x-2 shrink-0">
                 <button
                   onClick={() => {
@@ -468,9 +501,9 @@ export default function App() {
                     link.click();
                     document.body.removeChild(link);
                   }}
-                  className="px-2.5 sm:px-3.5 py-1 sm:py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] sm:text-xs font-bold rounded-lg shadow-xs flex items-center space-x-1 sm:space-x-1.5 transition-all active:scale-95"
+                  className="px-2.5 sm:px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg shadow-xs flex items-center space-x-1 sm:space-x-1.5 transition-all active:scale-95 shrink-0 h-7 sm:h-7.5"
                 >
-                  <span className="sm:hidden">📊 ส่งออก CSV</span>
+                  <span className="sm:hidden">📊 CSV</span>
                   <span className="hidden sm:inline">📊 ส่งออกข้อมูล Excel (.csv)</span>
                 </button>
               </div>
@@ -478,7 +511,7 @@ export default function App() {
 
             {/* Unified Global Top KPI Summary Bar (Locked at Top, Hidden on printer and master tabs) */}
             {activeTab !== 'printer' && activeTab !== 'master' && (
-              <div className="px-2.5 sm:px-4 lg:px-6 py-2 bg-slate-950/90 border-t border-slate-800/80">
+              <div className="px-2 sm:px-3 lg:px-4 py-1 sm:py-1.5 bg-slate-950/95 border-t border-slate-800/80">
                 <TopKpiSummaryBar
                   items={items}
                   logs={logs}
@@ -495,7 +528,7 @@ export default function App() {
         )}
 
         {/* Scrollable Main Content Container */}
-        <main className="w-full flex-1 overflow-y-auto overflow-x-hidden px-2.5 sm:px-4 lg:px-6 py-3 sm:py-4 space-y-4 transition-all">
+        <main className="w-full flex-1 overflow-y-auto overflow-x-hidden px-2 sm:px-3 lg:px-4 py-2 sm:py-2.5 space-y-3 transition-all">
 
           {/* Dynamic Tab Views */}
           {(activeTab === 'dashboard' || activeTab === 'campus_overview') && (
@@ -520,7 +553,26 @@ export default function App() {
             </div>
           )}
 
-          {activeTab === 'layout' && (
+          {/* 🟨 SEPARATE VIEW 1: A4 FLOOR STAGING (DA4D-1 432 Pallets) */}
+          {activeTab === 'a4_floor' && (
+            <div className="space-y-4 animate-fadeIn">
+              <DA4D1FloorStagingMap
+                items={displayedItems}
+                searchQuery={globalSearchQuery}
+                onOpenScanner={(z, b, l, m) => handleOpenScanner(z, b, l, m)}
+                onRelocateItem={(item) => {
+                  setActiveTab('master');
+                }}
+                onNavigateToRack={() => setActiveTab('a4_rack')}
+                onNavigateToCampus={() => setActiveTab('campus_overview')}
+                onToggleFullscreen={toggleFullscreen}
+                isDashboardFullscreen={isFullscreen}
+              />
+            </div>
+          )}
+
+          {/* 🏗️ SEPARATE VIEW 2: A4 SELECTIVE RACKS (DA4D-2 & DA4D-3 680 Pallets) */}
+          {(activeTab === 'a4_rack' || activeTab === 'layout') && (
             <div className="space-y-6 animate-fadeIn">
               <RackLayout2D
                 items={displayedItems}
@@ -532,6 +584,7 @@ export default function App() {
                 onRelocateItem={(item) => {
                   setActiveTab('master');
                 }}
+                onNavigateToFloor={() => setActiveTab('a4_floor')}
                 onNavigateToCampus={() => setActiveTab('campus_overview')}
                 isDashboardFullscreen={isFullscreen}
               />
@@ -574,6 +627,23 @@ export default function App() {
                   setActiveTab('master');
                 }}
                 onNavigateToCampus={() => setActiveTab('campus_overview')}
+              />
+            </div>
+          )}
+
+          {activeTab === 'cy3_layout' && (
+            <div className="space-y-6 animate-fadeIn">
+              <CY3TentRackMap
+                items={displayedItems}
+                searchQuery={globalSearchQuery}
+                onOpenScanner={(z, b, l, m) => handleOpenScanner(z, b, l, m)}
+                onRelocateItem={(item) => {
+                  setActiveTab('master');
+                }}
+                onNavigateToCampus={() => setActiveTab('campus_overview')}
+                onPrintLabel={(item) => {
+                  setActiveTab('printer');
+                }}
               />
             </div>
           )}

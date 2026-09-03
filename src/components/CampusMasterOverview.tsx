@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { InventoryItem, MovementType, ShelfLevel, StorageZone, WarehouseFacility, MovementLog, WmsStats, AgingThresholdConfig, CustomRackSlot } from '../types';
 import { 
   Package, 
@@ -20,14 +20,21 @@ import {
   Warehouse,
   ChevronRight,
   Maximize2,
+  Minimize2,
   Printer,
   Info,
   Cpu,
   Boxes,
   Zap,
   Play,
+  Pause,
   Rotate3d,
-  Sparkles
+  Sparkles,
+  Search,
+  X,
+  Radio,
+  Truck,
+  Forklift
 } from 'lucide-react';
 import { 
   A2EmbossedLinesVerticalSection, 
@@ -38,6 +45,19 @@ import {
   A4_HE_EMBOSSED_LINES
 } from './EmbossedHELineLayout';
 
+// Live Zone Movement Item Interface
+interface LiveZoneEvent {
+  id: string;
+  time: string;
+  zoneName: string;
+  action: 'IN' | 'OUT' | 'MOVE' | 'FEED';
+  modelHE: string;
+  qty: number;
+  fromLocator: string;
+  toLocator: string;
+  status: 'กำลังเบิก' | 'ลำเลียง AGV' | 'เข้าสู่ไลน์ผลิต' | 'จัดเก็บแล้ว';
+}
+
 interface CampusMasterOverviewProps {
   items: InventoryItem[];
   facilities?: WarehouseFacility[];
@@ -47,7 +67,7 @@ interface CampusMasterOverviewProps {
   agingConfig?: AgingThresholdConfig;
   customSlots?: CustomRackSlot[];
   onNavigateToBuilding?: (buildingId: string) => void;
-  onNavigateToZone?: (target: 'A4_MACRO' | 'A4_RACK' | 'A4_FLOOR' | 'A4_3D' | 'A2_RAIL' | 'A2_MACRO' | 'A2_SPLIT' | 'A5_TENT' | 'A5_MACRO', tentNum?: number) => void;
+  onNavigateToZone?: (target: 'A4_MACRO' | 'A4_RACK' | 'A4_FLOOR' | 'A4_3D' | 'A2_RAIL' | 'A2_MACRO' | 'A2_SPLIT' | 'A5_TENT' | 'A5_MACRO' | 'CY3_TENT', tentNum?: number) => void;
   onOpenScanner?: (zone: StorageZone, bay: number, level: ShelfLevel, mode: MovementType) => void;
   onOpen3D?: (zone: StorageZone, bay: number) => void;
   onRelocateItem?: (item: InventoryItem) => void;
@@ -73,6 +93,123 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
   // Visual Mode State: REALISTIC (ผังสมจริง), HEATMAP (ความหนาแน่น), AGING_FIFO (แจ้งเตือนอายุสินค้า)
   const [viewMode, setViewMode] = useState<'REALISTIC' | 'HEATMAP' | 'AGING_FIFO'>('REALISTIC');
   const [hoveredZone, setHoveredZone] = useState<string | null>(null);
+  const [isFullMapModal, setIsFullMapModal] = useState<boolean>(false);
+  const [isLiveActive, setIsLiveActive] = useState<boolean>(true);
+  const [activeLiveEvents, setActiveLiveEvents] = useState<LiveZoneEvent[]>([
+    {
+      id: 'ev-1',
+      time: '14:22:10',
+      zoneName: 'A2 Rail (R18)',
+      action: 'FEED',
+      modelHE: 'ADL74920904',
+      qty: 1,
+      fromLocator: 'DA2D-1-R18-01',
+      toLocator: 'HE-1 Line',
+      status: 'เข้าสู่ไลน์ผลิต'
+    },
+    {
+      id: 'ev-2',
+      time: '14:21:45',
+      zoneName: 'A4 Floor (X6)',
+      action: 'MOVE',
+      modelHE: 'MEG61839001',
+      qty: 1,
+      fromLocator: 'DA4D-1-R32-04',
+      toLocator: 'HE-4 Line',
+      status: 'ลำเลียง AGV'
+    },
+    {
+      id: 'ev-3',
+      time: '14:20:12',
+      zoneName: 'A4 Rack (D02)',
+      action: 'IN',
+      modelHE: 'ADL73339002',
+      qty: 2,
+      fromLocator: 'Infeed Dock A4-2',
+      toLocator: 'DA4D-2-D02-03',
+      status: 'จัดเก็บแล้ว'
+    },
+    {
+      id: 'ev-4',
+      time: '14:18:30',
+      zoneName: 'A5 Tent 4 (Rack A)',
+      action: 'MOVE',
+      modelHE: 'ACG76284709',
+      qty: 1,
+      fromLocator: 'DAST-4.01-A-02',
+      toLocator: 'A4 Staging',
+      status: 'กำลังเบิก'
+    },
+    {
+      id: 'ev-5',
+      time: '14:16:05',
+      zoneName: 'CY3 Tent (Row B)',
+      action: 'IN',
+      modelHE: 'AEB73820101',
+      qty: 1,
+      fromLocator: 'Truck Dock CY3',
+      toLocator: 'DY3T-1.02-B12-02',
+      status: 'จัดเก็บแล้ว'
+    }
+  ]);
+
+  const [activeZonePulse, setActiveZonePulse] = useState<{
+    a2: boolean;
+    a4Rack: boolean;
+    a4Floor: boolean;
+    a5: boolean;
+    cy3: boolean;
+  }>({
+    a2: true,
+    a4Rack: false,
+    a4Floor: true,
+    a5: false,
+    cy3: true
+  });
+
+  // Cycle real-time live events to show dynamic warehouse movement
+  useEffect(() => {
+    if (!isLiveActive) return;
+    const interval = setInterval(() => {
+      const zones = [
+        { name: 'A2 Rail (R' + (Math.floor(Math.random() * 20) + 1) + ')', zoneKey: 'a2', action: 'FEED' as const, model: 'ADL74920904', from: 'DA2D-1-R' + (Math.floor(Math.random() * 20) + 1) + '-01', to: 'HE-' + (Math.floor(Math.random() * 3) + 1) + ' Line', status: 'เข้าสู่ไลน์ผลิต' as const },
+        { name: 'A4 Floor (X' + (Math.floor(Math.random() * 8) + 1) + ')', zoneKey: 'a4Floor', action: 'MOVE' as const, model: 'MEG61839001', from: 'DA4D-1-R' + (Math.floor(Math.random() * 40) + 1) + '-02', to: 'HE-4 Line (AGV)', status: 'ลำเลียง AGV' as const },
+        { name: 'A4 Rack (' + ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'][Math.floor(Math.random() * 10)] + '0' + (Math.floor(Math.random() * 9) + 1) + ')', zoneKey: 'a4Rack', action: 'IN' as const, model: 'ADL73339002', from: 'Dock Infeed', to: 'DA4D-2 Slot', status: 'จัดเก็บแล้ว' as const },
+        { name: 'A5 Tent ' + (Math.floor(Math.random() * 4) + 1), zoneKey: 'a5', action: 'MOVE' as const, model: 'ACG76284709', from: 'DAST Tent Yard', to: 'Main Assembly', status: 'กำลังเบิก' as const },
+        { name: 'CY3 Tent (Row ' + ['A', 'B', 'C', 'D'][Math.floor(Math.random() * 4)] + ')', zoneKey: 'cy3', action: 'IN' as const, model: 'AEB73820101', from: 'Truck Infeed', to: 'DY3T-Rack', status: 'จัดเก็บแล้ว' as const }
+      ];
+      const pick = zones[Math.floor(Math.random() * zones.length)];
+      const now = new Date().toLocaleTimeString('th-TH');
+      const newEv: LiveZoneEvent = {
+        id: 'ev-' + Date.now(),
+        time: now,
+        zoneName: pick.name,
+        action: pick.action,
+        modelHE: pick.model,
+        qty: Math.floor(Math.random() * 2) + 1,
+        fromLocator: pick.from,
+        toLocator: pick.to,
+        status: pick.status
+      };
+
+      setActiveLiveEvents(prev => [newEv, ...prev.slice(0, 5)]);
+      setActiveZonePulse(prev => ({
+        ...prev,
+        [pick.zoneKey]: true
+      }));
+
+      setTimeout(() => {
+        setActiveZonePulse(prev => ({
+          ...prev,
+          [pick.zoneKey]: false
+        }));
+      }, 2500);
+
+    }, 3800);
+
+    return () => clearInterval(interval);
+  }, [isLiveActive]);
+
   const [selectedSlotDetail, setSelectedSlotDetail] = useState<{
     title: string;
     building: string;
@@ -82,12 +219,23 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
     occupied: number;
     itemsList: InventoryItem[];
     overdueCount: number;
-    linkTarget?: 'A4_RACK' | 'A4_FLOOR' | 'A2_RAIL' | 'A5_TENT';
+    linkTarget?: 'A4_RACK' | 'A4_FLOOR' | 'A2_RAIL' | 'A5_TENT' | 'CY3_TENT';
     tentNum?: number;
   } | null>(null);
 
   const [lastSyncTime, setLastSyncTime] = useState<string>(() => new Date().toLocaleTimeString('th-TH'));
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  const matchingCount = useMemo(() => {
+    if (!searchQuery.trim()) return 0;
+    const q = searchQuery.toLowerCase().trim();
+    return items.filter(it => 
+      it.modelHE.toLowerCase().includes(q) || 
+      it.locatorCode.toLowerCase().includes(q) ||
+      it.partName.toLowerCase().includes(q)
+    ).length;
+  }, [items, searchQuery]);
 
   const handleManualSync = () => {
     setIsSyncing(true);
@@ -155,6 +303,15 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
     const a5TotalOccupied = tent1Items.length + tent2Items.length + tent3Items.length + tent4Items.length;
     const a5Capacity = 784;
 
+    // CY3 Tent (4-Tier Rack) items
+    const cy3Items = items.filter(it => 
+      it.facilityId === 'FAC-CY3-TENT' || 
+      it.locatorCode.includes('DY3T') || 
+      String(it.zone).startsWith('CY3')
+    );
+    const cy3Occupied = cy3Items.length;
+    const cy3Capacity = 400;
+
     // Aging using dynamic agingConfig threshold
     const agingCriticalItems = items.filter(it => it.agingDays > agingConfig.criticalDays);
     const agingWarningItems = items.filter(it => it.agingDays > agingConfig.safeDaysMax && it.agingDays <= agingConfig.criticalDays);
@@ -179,6 +336,9 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
       tent4Count: tent4Items.length,
       a5TotalOccupied,
       a5Capacity,
+      cy3Items,
+      cy3Occupied,
+      cy3Capacity,
       agingCount: agingCriticalItems.length,
       agingWarningCount: agingWarningItems.length,
       bfItems,
@@ -208,7 +368,7 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
     type: string,
     capacity: number,
     zoneItems: InventoryItem[],
-    linkTarget?: 'A4_RACK' | 'A4_FLOOR' | 'A2_RAIL' | 'A5_TENT',
+    linkTarget?: 'A4_RACK' | 'A4_FLOOR' | 'A2_RAIL' | 'A5_TENT' | 'CY3_TENT',
     tentNum?: number
   ) => {
     const overdueCount = zoneItems.filter(it => it.agingDays > agingConfig.criticalDays).length;
@@ -227,329 +387,427 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
   };
 
   // Quick Direct Jump Handler
-  const handleDirectNavigate = (target: 'A4_RACK' | 'A4_FLOOR' | 'A2_RAIL' | 'A5_TENT', tentNum?: number) => {
+  const handleDirectNavigate = (target: 'A4_RACK' | 'A4_FLOOR' | 'A2_RAIL' | 'A5_TENT' | 'CY3_TENT', tentNum?: number) => {
     if (onNavigateToZone) {
       onNavigateToZone(target, tentNum);
     }
   };
 
   return (
-    <div className="space-y-4 sm:space-y-5 animate-fadeIn w-full min-w-0 max-w-full">
-      
-      {/* MAIN BLUEPRINT MASTER VIEW WITH REALISTIC 3D VISUALS */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5 space-y-4">
+    <div className="space-y-2 animate-fadeIn w-full min-w-0 max-w-full">
+      {/* ULTRA-COMPACT ENTERPRISE TOOLBAR: HEIGHT <= 36px */}
+      <div className="h-9 px-2 sm:px-2.5 bg-slate-900 border border-slate-800 rounded-lg text-white shadow-xs flex items-center justify-between gap-1.5 overflow-x-auto">
         
-        {/* Header & View Mode Switcher */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-100 pb-3">
-          <div>
-            <div className="flex items-center space-x-2">
-              <span className="text-xs font-mono font-black px-2.5 py-0.5 bg-blue-600 text-white rounded-md shadow-xs">
-                MASTER 3D BLUEPRINT
-              </span>
-              <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
-                ผังรวมสถาปัตยกรรมโรงงานและคลังสินค้า (A2 Building &bull; A4 Building &bull; A5 Tent Yard)
-              </h2>
-            </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              แสดงผังตาม Layout จริง แยกโซนจัดเก็บและสายการผลิต HE Lines (A2: HE-1/2/3 &bull; A4: HE-4/5) &bull; <strong>กดคลิกที่โซนเพื่อเข้าสู่หน้าผังทันที</strong>
-            </p>
+        {/* Left Group: Title + Segmented Mode Switcher + Zone Quick Jump */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Title & Badge */}
+          <div className="flex items-center gap-1.5 shrink-0 mr-1">
+            <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+            <span className="text-[12px] font-black tracking-tight text-white whitespace-nowrap">
+              โซนรวมแคมปัส (Master Blueprint)
+            </span>
+            <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded hidden sm:inline">
+              2,704P
+            </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            {/* View Mode Segmented Control */}
-            <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
-              <button
-                onClick={() => setViewMode('REALISTIC')}
-                className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center space-x-1.5 ${
-                  viewMode === 'REALISTIC'
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Rotate3d className="w-3.5 h-3.5" />
-                <span>ผัง 3D สมจริง</span>
-              </button>
+          {/* View Mode Selector: Single Segmented Group (H: 26px, Font: 11px, Pad: 2px 8px) */}
+          <div className="inline-flex items-center bg-slate-800 p-0.5 rounded-md border border-slate-700 h-[26px] shrink-0">
+            <button
+              onClick={() => setViewMode('REALISTIC')}
+              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex items-center gap-1 ${
+                viewMode === 'REALISTIC'
+                  ? 'bg-blue-600 text-white font-black shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              <Rotate3d className="w-3 h-3" />
+              <span>โซน 3D</span>
+            </button>
+            <button
+              onClick={() => setViewMode('HEATMAP')}
+              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex items-center gap-1 ${
+                viewMode === 'HEATMAP'
+                  ? 'bg-purple-600 text-white font-black shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              <Activity className="w-3 h-3" />
+              <span>ความหนาแน่น</span>
+            </button>
+            <button
+              onClick={() => setViewMode('AGING_FIFO')}
+              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex items-center gap-1 ${
+                viewMode === 'AGING_FIFO'
+                  ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              <Flame className="w-3 h-3" />
+              <span>Aging FIFO</span>
+            </button>
+          </div>
 
-              <button
-                onClick={() => setViewMode('HEATMAP')}
-                className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center space-x-1.5 ${
-                  viewMode === 'HEATMAP'
-                    ? 'bg-purple-600 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Activity className="w-3.5 h-3.5" />
-                <span>ความหนาแน่น (%)</span>
-              </button>
+          {/* Quick Zone Jump Segmented Control (H: 26px, Font: 11px, Pad: 2px 8px) */}
+          <div className="hidden md:inline-flex items-center bg-slate-800 p-0.5 rounded-md border border-slate-700 h-[26px] shrink-0">
+            <button
+              onClick={() => handleDirectNavigate('A2_RAIL')}
+              className="h-[22px] px-2 py-0.5 rounded text-[11px] font-bold text-blue-300 hover:text-white hover:bg-blue-600/50 transition-colors"
+              title="เปิดโซนรางเลื่อน A2 (DA2D-1)"
+            >
+              A2 Rail (160P)
+            </button>
+            <button
+              onClick={() => handleDirectNavigate('A4_RACK')}
+              className="h-[22px] px-2 py-0.5 rounded text-[11px] font-bold text-purple-300 hover:text-white hover:bg-purple-600/50 transition-colors"
+              title="เปิดโซนแร็ค A4 (B-K)"
+            >
+              A4 Rack (1,040P)
+            </button>
+            <button
+              onClick={() => handleDirectNavigate('A4_FLOOR')}
+              className="h-[22px] px-2 py-0.5 rounded text-[11px] font-bold text-amber-300 hover:text-white hover:bg-amber-600/50 transition-colors"
+              title="เปิดโซนวางพื้น A4 (X1-X8)"
+            >
+              A4 Floor (720P)
+            </button>
+            <button
+              onClick={() => handleDirectNavigate('A5_TENT')}
+              className="h-[22px] px-2 py-0.5 rounded text-[11px] font-bold text-emerald-300 hover:text-white hover:bg-emerald-600/50 transition-colors"
+              title="เปิดโซนเต็นท์ A5 (Tent 1-4)"
+            >
+              A5 Tent (784P)
+            </button>
+            <button
+              onClick={() => handleDirectNavigate('CY3_TENT')}
+              className="h-[22px] px-2 py-0.5 rounded text-[11px] font-bold text-rose-300 hover:text-white hover:bg-rose-600/50 transition-colors"
+              title="เปิดโซนเต็นท์ CY3 (4-Floor Rack)"
+            >
+              CY3 Tent (400P)
+            </button>
+          </div>
 
+          {/* Real-Time Sync Button */}
+          <button
+            onClick={handleManualSync}
+            disabled={isSyncing}
+            className="h-[26px] px-2 py-0.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] font-bold text-slate-300 hover:text-white flex items-center gap-1 shadow-xs transition-colors shrink-0"
+            title="ซิงค์ข้อมูล Real-Time"
+          >
+            <RefreshCw className={`w-3 h-3 text-blue-400 ${isSyncing ? 'animate-spin' : ''}`} />
+            <span className="hidden xl:inline">{lastSyncTime}</span>
+          </button>
+
+          {/* Live Movements Real-Time Toggle */}
+          <button
+            onClick={() => setIsLiveActive(!isLiveActive)}
+            className={`h-[26px] px-2 py-0.5 rounded-md text-[11px] font-black flex items-center gap-1 shadow-xs transition-all border shrink-0 ${
+              isLiveActive 
+                ? 'bg-emerald-600/90 hover:bg-emerald-500 text-white border-emerald-400' 
+                : 'bg-slate-800 hover:bg-slate-700 text-slate-400 border-slate-700'
+            }`}
+            title="เปิด/ปิด การแสดงการเคลื่อนไหวงาน Real-time"
+          >
+            <Radio className={`w-3 h-3 ${isLiveActive ? 'text-emerald-200 animate-pulse' : 'text-slate-500'}`} />
+            <span>{isLiveActive ? 'Live Real-Time' : 'Live พัก'}</span>
+          </button>
+
+          {/* Full-Screen Blueprint Map Button */}
+          <button
+            onClick={() => setIsFullMapModal(true)}
+            className="h-[26px] px-2.5 py-0.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md text-[11px] font-black flex items-center gap-1 shadow-xs transition-all border border-indigo-400 active:scale-95 shrink-0"
+            title="ขยายโซนแคมปัสดูเต็มจอ (Full Screen Master Map)"
+          >
+            <Maximize2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">ขยายดูเต็มจอ</span>
+          </button>
+        </div>
+
+        {/* Right Group: Inline Compact Search (Max-Width 220px, Height 26px) */}
+        <div className="relative w-full max-w-[220px] h-[26px] shrink-0 flex items-center ml-auto">
+          <Search className="w-3 h-3 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="ค้นหา Model, Locator..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full h-[26px] bg-slate-800 border border-slate-700 text-white placeholder-slate-400 text-[11px] rounded-md pl-6.5 pr-6 focus:outline-none focus:border-blue-500 transition-colors"
+          />
+          {searchQuery && (
+            <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              {matchingCount > 0 && (
+                <span className="text-[9px] font-mono font-bold bg-blue-500/30 text-blue-300 px-1 rounded">
+                  {matchingCount}
+                </span>
+              )}
               <button
-                onClick={() => setViewMode('AGING_FIFO')}
-                className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center space-x-1.5 ${
-                  viewMode === 'AGING_FIFO'
-                    ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
+                onClick={() => setSearchQuery('')}
+                className="p-0.5 text-slate-400 hover:text-white"
+                title="ล้างการค้นหา"
               >
-                <Flame className="w-3.5 h-3.5" />
-                <span>Aging FIFO เตือนค้าง</span>
+                <X className="w-3 h-3" />
               </button>
             </div>
+          )}
+        </div>
+      </div>
+      
+      {/* MAIN BLUEPRINT MASTER VIEW WITH REALISTIC 3D VISUALS */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-2.5 sm:p-3 space-y-2.5">
 
-            {/* Real-Time Sync Button */}
-            <button
-              onClick={handleManualSync}
-              disabled={isSyncing}
-              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl text-xs font-bold text-slate-700 flex items-center space-x-1.5 shadow-2xs transition-all active:scale-95"
-              title="ซิงค์ข้อมูลทุกโซนแบบ Real-Time"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 text-blue-600 ${isSyncing ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">อัพเดต Real-Time ({lastSyncTime})</span>
-              <span className="sm:hidden">ซิงค์</span>
-            </button>
+        {/* Live Warehouse Movement Real-time Feed Bar */}
+        <div className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 shadow-xs text-white">
+          <div className="flex items-center space-x-2 shrink-0">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            </span>
+            <span className="text-xs font-black text-emerald-300 tracking-tight flex items-center gap-1">
+              <Activity className="w-3.5 h-3.5" />
+              <span>การเคลื่อนไหวงาน Real-Time แต่ละโซน:</span>
+            </span>
+          </div>
+
+          {/* Scrolling Live Event Stream */}
+          <div className="flex-1 min-w-0 overflow-x-auto flex items-center space-x-2 scrollbar-none py-0.5">
+            {activeLiveEvents.slice(0, 3).map((ev) => (
+              <div 
+                key={ev.id}
+                className="bg-slate-800/90 border border-slate-700/80 rounded px-2 py-0.5 flex items-center space-x-1.5 text-[11px] font-mono shrink-0 shadow-2xs"
+              >
+                <span className="text-slate-400 text-[10px]">{ev.time}</span>
+                <span className="font-bold text-amber-300">{ev.zoneName}</span>
+                <span className="text-slate-300">&rarr;</span>
+                <span className="text-white font-bold">{ev.modelHE}</span>
+                <span className={`px-1 rounded text-[9.5px] font-bold ${
+                  ev.action === 'FEED' ? 'bg-blue-900/80 text-blue-200 border border-blue-700' :
+                  ev.action === 'MOVE' ? 'bg-amber-900/80 text-amber-200 border border-amber-700' :
+                  'bg-emerald-900/80 text-emerald-200 border border-emerald-700'
+                }`}>
+                  {ev.status}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center space-x-1 shrink-0 text-[10.5px] font-bold text-slate-300">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+            <span>A2, A4, A5, CY3 ซิงค์สด 100%</span>
           </div>
         </div>
 
         {/* Blueprint Layout Grid (A2, A4, A5) - Accurate to Reference Images */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 min-h-[720px] bg-slate-100/90 p-3 sm:p-4 rounded-2xl border-2 border-slate-300 relative overflow-hidden">
+        {/* Blueprint Layout Grid (A2, A4, A5, CY3) - Perfectly Fitted to Viewport with 12-Column CSS Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 xl:gap-4 bg-slate-100/90 p-3 sm:p-4 rounded-2xl border-2 border-slate-300 relative overflow-hidden">
           
           {/* ========================================================================= */}
-          {/* 1. A2 BUILDING (Left Section)                                            */}
+          {/* 1. A2 BUILDING (Left Column - 4 Cols)                                     */}
           {/* ========================================================================= */}
-          <div className="lg:col-span-4 xl:col-span-4 bg-white border-2 border-slate-900 rounded-xl p-3.5 relative flex flex-col justify-between shadow-xl min-h-[680px]">
+          <div className="lg:col-span-4 xl:col-span-4 bg-white border-2 border-slate-900 rounded-xl p-3 relative flex flex-col justify-between shadow-xl min-h-0">
             
             {/* Dock Doors (Beige tabs on Left & Right) */}
-            <div className="absolute -left-2.5 top-1/4 w-2.5 h-8 bg-amber-200 border border-amber-600 rounded-xs shadow-xs" title="Dock Door A2-1" />
-            <div className="absolute -left-2.5 top-2/4 w-2.5 h-8 bg-amber-200 border border-amber-600 rounded-xs shadow-xs" title="Dock Door A2-2" />
-            <div className="absolute -left-2.5 top-3/4 w-2.5 h-8 bg-amber-200 border border-amber-600 rounded-xs shadow-xs" title="Dock Door A2-3" />
-            <div className="absolute -right-2.5 top-1/4 w-2.5 h-8 bg-amber-200 border border-amber-600 rounded-xs shadow-xs" title="Dock Door A2-4" />
-            <div className="absolute -right-2.5 top-2/4 w-2.5 h-8 bg-amber-200 border border-amber-600 rounded-xs shadow-xs" title="Dock Door A2-5" />
-            <div className="absolute -right-2.5 top-3/4 w-2.5 h-8 bg-amber-200 border border-amber-600 rounded-xs shadow-xs" title="Dock Door A2-6" />
+            <div className="absolute -left-2.5 top-1/4 w-2.5 h-7 bg-amber-200 border border-amber-600 rounded-xs shadow-xs" title="Dock Door A2-1" />
+            <div className="absolute -left-2.5 top-2/4 w-2.5 h-7 bg-amber-200 border border-amber-600 rounded-xs shadow-xs" title="Dock Door A2-2" />
+            <div className="absolute -left-2.5 top-3/4 w-2.5 h-7 bg-amber-200 border border-amber-600 rounded-xs shadow-xs" title="Dock Door A2-3" />
+            <div className="absolute -right-2.5 top-1/4 w-2.5 h-7 bg-amber-200 border border-amber-600 rounded-xs shadow-xs" title="Dock Door A2-4" />
+            <div className="absolute -right-2.5 top-2/4 w-2.5 h-7 bg-amber-200 border border-amber-600 rounded-xs shadow-xs" title="Dock Door A2-5" />
+            <div className="absolute -right-2.5 top-3/4 w-2.5 h-7 bg-amber-200 border border-amber-600 rounded-xs shadow-xs" title="Dock Door A2-6" />
 
             {/* Building Header */}
-            <div className="text-center pb-2 border-b border-slate-200">
-              <h3 className="text-lg font-black text-slate-900 tracking-wide">A2 Building</h3>
-              <div className="text-[11px] font-bold text-slate-500">โรงงานประกอบคอยล์และแผงทำความร้อน A2</div>
+            <div className="text-center pb-1.5 border-b border-slate-200">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded border border-blue-200">
+                  DA2D-1 &bull; 160 P
+                </span>
+                <h3 className="text-base font-black text-slate-900 tracking-wide">A2 Building</h3>
+                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded border border-emerald-200">
+                  HE 1-3
+                </span>
+              </div>
+              <div className="text-[10px] font-bold text-slate-500 mt-0.5">โรงงานประกอบคอยล์และแผงทำความร้อน A2</div>
             </div>
 
-            {/* Factory operating area matching Reference Image 2 Blueprint */}
-            <div className="my-2 flex-1 grid grid-cols-12 gap-3 min-h-[500px]">
+            {/* A2 Blueprint Area: DA2D-1 Flow Rail (Top) + HE-1, HE-2, HE-3 (Bottom) */}
+            <div className="my-2.5 flex-1 flex flex-col justify-between space-y-2.5 min-h-0">
               
-              {/* LEFT COLUMN: Blue Box "วางราง R1- R20" (Top) and Open Floor Area (Bottom) */}
-              <div className="col-span-4 flex flex-col justify-start space-y-4 pt-1">
-                {/* Left Blue Box: วางราง R1- R20 */}
-                <div 
-                  onClick={() => handleDirectNavigate('A2_RAIL')}
-                  className="bg-[#3b82f6] hover:bg-blue-600 text-white rounded-lg p-3 text-center cursor-pointer shadow-md transition-all active:scale-95 group relative border border-blue-400"
-                >
-                  <div className="text-xs font-black tracking-wide">วางราง</div>
-                  <div className="text-sm font-black font-mono mt-0.5">R1- R20</div>
-                  <div className="mt-1 text-[10px] bg-blue-900/50 rounded py-0.5 px-1 font-mono font-bold">
-                    {metrics.a2Occupied} / {metrics.a2Capacity} P
+              {/* TOP: Red Bordered Box DA2D-1 Flow Rail Grid - Compact Locked Aspect Ratio */}
+              <div 
+                onClick={() => handleDirectNavigate('A2_RAIL')}
+                className="border-2 border-red-500 bg-white/95 rounded-lg p-2 text-center cursor-pointer shadow-md hover:border-red-600 transition-all active:scale-95 group shrink-0"
+              >
+                <div className="flex items-center justify-between pb-1 border-b border-red-100">
+                  <div className="flex items-center space-x-1.5">
+                    <span className="text-xs font-black text-blue-700 tracking-wider">DA2D-1</span>
+                    <span className="text-[8.5px] font-bold text-slate-700 font-mono">FLOW RAIL (R1 - R20)</span>
                   </div>
-                  <div className="text-[9px] text-blue-100 mt-1 flex items-center justify-center space-x-0.5 group-hover:underline">
-                    <span>เปิดผังราง</span>
-                    <ExternalLink className="w-2.5 h-2.5" />
-                  </div>
-                </div>
-
-                {/* Open Floor Marking Area (as shown in Blueprint Image 2) */}
-                <div className="flex-1 flex flex-col items-center justify-center text-center p-2 rounded-lg border border-dashed border-slate-200 bg-slate-50/50 text-slate-400">
-                  <span className="text-[9px] font-bold text-slate-400">Main Aisle & Staging</span>
-                  <span className="text-[8px] text-slate-400 mt-0.5">ทางสัญจร A2 AGV / Forklift</span>
-                </div>
-              </div>
-
-              {/* RIGHT COLUMN (inside dashed blue zone): DA2D-1 Flow Rail (Top) & HE Lines HE-1, HE-2, HE-3 (Bottom) */}
-              <div className="col-span-8 border-2 border-dashed border-blue-400/80 bg-blue-50/30 rounded-xl p-2 flex flex-col justify-between space-y-2">
-                
-                {/* TOP: Red Bordered Box DA2D-1 Flow Rail Grid - Detailed Miniature Simulation Matching Real Layout 100% */}
-                <div 
-                  onClick={() => handleDirectNavigate('A2_RAIL')}
-                  className="border-2 border-red-500 bg-white/95 rounded-lg p-2 text-center cursor-pointer shadow-md hover:border-red-600 transition-all active:scale-95 group"
-                >
-                  <div className="flex items-center justify-between pb-1 border-b border-red-100">
-                    <div className="flex items-center space-x-1.5">
-                      <span className="text-xs font-black text-blue-700 tracking-wider">DA2D-1</span>
-                      <span className="text-[8px] font-bold text-slate-500 font-mono">FLOW RAIL (R1 - R20)</span>
-                    </div>
+                  <div className="flex items-center space-x-1">
+                    <span className="text-[8px] font-mono font-bold text-blue-700 bg-blue-50 px-1 py-0.2 rounded border border-blue-200">
+                      จัดเก็บ {metrics.a2Occupied} / {metrics.a2Capacity} P
+                    </span>
                     <span className="text-[8px] font-mono font-bold text-red-600 bg-red-50 px-1 py-0.2 rounded border border-red-200">
-                      160 P (4 BLOCKS)
+                      4 BLOCKS
+                    </span>
+                  </div>
+                </div>
+
+                {/* Flow Rail 4 Full Blocks (Block 4: R16-20, Block 3: R11-15, Block 2: R6-10, Block 1: R1-5) - ALL 20 RAILS x 8 POSITIONS */}
+                <div className="my-1.5 bg-slate-900 rounded p-1.5 border border-slate-800 text-left shadow-inner space-y-1">
+                  {/* Direction Flow Bar */}
+                  <div className="flex items-center justify-between text-[7px] text-cyan-300 font-mono px-0.5 font-bold">
+                    <span className="flex items-center gap-0.5">
+                      <span className="text-rose-400">&larr;</span> Outfeed (HE-1/2/3)
+                    </span>
+                    <span className="text-slate-400">Pos 01 &larr; Pos 08 (8 Pallets / Rail)</span>
+                    <span className="flex items-center gap-0.5">
+                      Infeed (ลานเบิก) <span className="text-emerald-400">&rarr;</span>
                     </span>
                   </div>
 
-                  {/* Flow Rail Realistic Miniature Matching 100% Real Layout: 4 Full Blocks (Block 4: R16-20, Block 3: R11-15, Block 2: R6-10, Block 1: R1-5) - ALL 20 RAILS x 8 POSITIONS */}
-                  <div className="my-1.5 bg-slate-900 rounded p-1.5 border border-slate-800 text-left shadow-inner space-y-1.5">
-                    {/* Direction Flow Bar */}
-                    <div className="flex items-center justify-between text-[7px] text-cyan-300 font-mono px-0.5 font-bold">
-                      <span className="flex items-center gap-0.5">
-                        <span className="text-rose-400">&larr;</span> Outfeed (HE Lines)
-                      </span>
-                      <span className="text-slate-400">Pos 01 &larr; Pos 08 (8 Pallets / Rail)</span>
-                      <span className="flex items-center gap-0.5">
-                        Infeed (ลานเบิก) <span className="text-emerald-400">&rarr;</span>
-                      </span>
-                    </div>
-
-                    {/* 4 Full Banks (Block 4 to Block 1) - All 20 Rails x 8 Pallet Positions */}
-                    {[
-                      { name: 'Block 4: ราง R16 - R20', bankId: 'BANK_4', rails: [20, 19, 18, 17, 16] },
-                      { name: 'Block 3: ราง R11 - R15', bankId: 'BANK_3', rails: [15, 14, 13, 12, 11] },
-                      { name: 'Block 2: ราง R6 - R10', bankId: 'BANK_2', rails: [10, 9, 8, 7, 6] },
-                      { name: 'Block 1: ราง R1 - R5', bankId: 'BANK_1', rails: [5, 4, 3, 2, 1] }
-                    ].map((bank) => (
-                      <div key={bank.bankId} className="bg-slate-800/90 p-1 rounded-sm border border-slate-700/70">
-                        <div className="flex items-center justify-between text-[6.5px] font-mono text-slate-300 px-0.5 mb-0.5">
-                          <span className="font-black text-cyan-300">{bank.name}</span>
-                          <span className="text-[6px] text-slate-400 font-bold">5 Rails &bull; 40 Pallets</span>
-                        </div>
-                        <div className="space-y-0.5">
-                          {bank.rails.map((railNum) => {
-                            const isRailOccupied = items.some(it => 
-                              (it.zone === `R${railNum}` || it.zone === `FR${railNum}` || it.locatorCode?.includes(`-R${railNum}-`))
-                            );
-                            return (
-                              <div key={railNum} className="flex items-center space-x-1">
-                                <span className="w-4 text-[6px] font-mono font-black text-slate-300 text-right">R{railNum}</span>
-                                <div className="grid grid-cols-8 gap-0.5 flex-1">
-                                  {Array.from({ length: 8 }).map((_, pIdx) => {
-                                    const posNum = pIdx + 1;
-                                    const itemAtSlot = items.find(it => 
-                                      (it.zone === `R${railNum}` || it.zone === `FR${railNum}`) && it.bayNumber === posNum
-                                    ) || (
-                                      (railNum === 20 && posNum === 1) || (railNum === 20 && posNum === 5) || (railNum === 18 && posNum === 3) || (railNum === 11 && posNum === 1) || (railNum === 6 && posNum === 8) || (railNum === 1 && posNum === 8)
-                                        ? { id: `mock-${railNum}-${posNum}` }
-                                        : null
-                                    );
-                                    const isRed = (railNum === 3 && posNum === 2);
-                                    return (
-                                      <div 
-                                        key={posNum}
-                                        className={`h-2 rounded-3xs border text-[5px] font-mono flex items-center justify-center transition-all ${
-                                          isRed
-                                            ? 'bg-rose-600 border-rose-400 text-white font-black animate-pulse'
-                                            : itemAtSlot
-                                            ? 'bg-blue-500 border-blue-300 text-white font-black'
-                                            : 'bg-slate-900 border-slate-700/80 text-slate-600'
-                                        }`}
-                                        title={`DA2D-1-R${railNum}-0${posNum}`}
-                                      />
-                                    );
-                                  })}
-                                </div>
-                                <span className="w-3 text-[5.5px] font-mono text-slate-500 text-left">R{railNum}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
+                  {/* 4 Full Banks (Block 4 to Block 1) - All 20 Rails x 8 Pallet Positions */}
+                  {[
+                    { name: 'Block 4: ราง R16 - R20', bankId: 'BANK_4', rails: [20, 19, 18, 17, 16] },
+                    { name: 'Block 3: ราง R11 - R15', bankId: 'BANK_3', rails: [15, 14, 13, 12, 11] },
+                    { name: 'Block 2: ราง R6 - R10', bankId: 'BANK_2', rails: [10, 9, 8, 7, 6] },
+                    { name: 'Block 1: ราง R1 - R5', bankId: 'BANK_1', rails: [5, 4, 3, 2, 1] }
+                  ].map((bank) => (
+                    <div key={bank.bankId} className="bg-slate-800/90 p-1 rounded-xs border border-slate-700/70">
+                      <div className="flex items-center justify-between text-[6.5px] font-mono text-slate-300 px-0.5 mb-0.5">
+                        <span className="font-black text-cyan-300">{bank.name}</span>
+                        <span className="text-[6px] text-slate-400 font-bold">5 Rails &bull; 40 Pallets</span>
                       </div>
-                    ))}
-                    
-                    <div className="flex items-center justify-between text-[6.5px] text-slate-400 font-mono pt-0.5 border-t border-slate-800">
-                      <span>จัดเก็บ {metrics.a2Occupied} / {metrics.a2Capacity} P</span>
-                      <span className="text-amber-400 font-bold">1 ช่อง = 1 พาเลท (20 ราง x 8 ช่อง = 160 Slots)</span>
+                      <div className="space-y-0.5">
+                        {bank.rails.map((railNum) => {
+                          return (
+                            <div key={railNum} className="flex items-center space-x-1">
+                              <span className="w-3.5 text-[6px] font-mono font-black text-slate-300 text-right">R{railNum}</span>
+                              <div className="grid grid-cols-8 gap-0.5 flex-1">
+                                {Array.from({ length: 8 }).map((_, pIdx) => {
+                                  const posNum = pIdx + 1;
+                                  const itemAtSlot = items.find(it => 
+                                    (it.zone === `R${railNum}` || it.zone === `FR${railNum}`) && it.bayNumber === posNum
+                                  ) || (
+                                    (railNum === 20 && posNum === 1) || (railNum === 20 && posNum === 5) || (railNum === 18 && posNum === 3) || (railNum === 11 && posNum === 1) || (railNum === 6 && posNum === 8) || (railNum === 1 && posNum === 8)
+                                      ? { id: `mock-${railNum}-${posNum}` }
+                                      : null
+                                  );
+                                  const isRed = (railNum === 3 && posNum === 2);
+                                  return (
+                                    <div 
+                                      key={posNum}
+                                      className={`h-2 rounded-3xs border text-[5px] font-mono flex items-center justify-center transition-all ${
+                                        isRed
+                                          ? 'bg-rose-600 border-rose-400 text-white font-black animate-pulse'
+                                          : itemAtSlot
+                                          ? 'bg-blue-500 border-blue-300 text-white font-black'
+                                          : 'bg-slate-900 border-slate-700/80 text-slate-600'
+                                      }`}
+                                      title={`DA2D-1-R${railNum}-0${posNum}`}
+                                    />
+                                  );
+                                })}
+                              </div>
+                              <span className="w-3 text-[5.5px] font-mono text-slate-500 text-left">R{railNum}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="text-[9px] font-bold text-slate-600 flex items-center justify-center space-x-1 group-hover:text-blue-600">
-                    <span>เปิดผังจัดวางแบบราง 20 เลน (Rail Matrix) &rarr;</span>
+                  ))}
+                  
+                  <div className="flex items-center justify-between text-[6.5px] text-slate-400 font-mono pt-0.5 border-t border-slate-800">
+                    <span className="text-blue-300 font-bold">จัดเก็บ {metrics.a2Occupied} / {metrics.a2Capacity} P</span>
+                    <span className="text-amber-400 font-bold">1 ช่อง = 1 พาเลท (20 ราง x 8 ช่อง = 160 Slots)</span>
                   </div>
                 </div>
 
-                {/* BOTTOM: PRODUCTION HE LINES (HE-1, HE-2, HE-3) - 3 Vertical Parallel Columns Matching Blueprint 100% */}
-                <div className="flex-1 min-h-[300px]">
-                  <A2EmbossedLinesVerticalSection />
+                <div className="text-[9px] font-bold text-slate-600 flex items-center justify-center space-x-1 group-hover:text-blue-600">
+                  <span>เปิดโซนจัดวางแบบราง 20 เลน (Rail Matrix) &rarr;</span>
                 </div>
+              </div>
 
+              {/* BOTTOM: PRODUCTION HE LINES (HE-1, HE-2, HE-3) - Equal length matching A4 */}
+              <div className="h-[340px] shrink-0 flex flex-col">
+                <A2EmbossedLinesVerticalSection />
               </div>
 
             </div>
 
             {/* Office Footer */}
-            <div className="bg-[#bfdbfe] border border-blue-300 text-[#1e3a8a] rounded-lg py-2 text-center shadow-inner mt-2">
+            <div className="bg-[#bfdbfe] border border-blue-300 text-[#1e3a8a] rounded-lg py-1.5 text-center shadow-inner mt-1 shrink-0">
               <div className="font-black text-xs">Office</div>
-              <div className="text-[10px] text-blue-900 font-medium">ห้องควบคุมการผลิตและสำนักงาน A2</div>
+              <div className="text-[9.5px] text-blue-900 font-medium">ห้องควบคุมการผลิตและสำนักงาน A2</div>
             </div>
 
           </div>
 
           {/* ========================================================================= */}
-          {/* 2. A4 BUILDING (Middle Section)                                          */}
+          {/* 2. A4 BUILDING (Middle Column - 5 Cols)                                   */}
           {/* ========================================================================= */}
-          <div className="lg:col-span-5 xl:col-span-5 bg-white border-2 border-slate-900 rounded-xl p-3.5 relative flex flex-col justify-between shadow-xl min-h-[680px]">
+          <div className="lg:col-span-5 xl:col-span-5 bg-white border-2 border-slate-900 rounded-xl p-3 relative flex flex-col justify-between shadow-xl min-h-0">
             
             {/* Dock Doors (Beige tabs on Left & Right) */}
-            <div className="absolute -left-2.5 top-1/4 w-2.5 h-8 bg-amber-200 border border-amber-600 rounded-xs shadow-xs" title="Dock Door A4-1" />
-            <div className="absolute -left-2.5 top-2/4 w-2.5 h-8 bg-amber-200 border border-amber-600 rounded-xs shadow-xs" title="Dock Door A4-2" />
-            <div className="absolute -left-2.5 top-3/4 w-2.5 h-8 bg-amber-200 border border-amber-600 rounded-xs shadow-xs" title="Dock Door A4-3" />
-            <div className="absolute -right-2.5 top-1/4 w-2.5 h-8 bg-amber-200 border border-amber-600 rounded-xs shadow-xs" title="Dock Door A4-4" />
-            <div className="absolute -right-2.5 top-2/4 w-2.5 h-8 bg-amber-200 border border-amber-600 rounded-xs shadow-xs" title="Dock Door A4-5" />
-            <div className="absolute -right-2.5 top-3/4 w-2.5 h-8 bg-amber-200 border border-amber-600 rounded-xs shadow-xs" title="Dock Door A4-6" />
+            <div className="absolute -left-2.5 top-1/4 w-2.5 h-7 bg-amber-200 border border-amber-600 rounded-xs shadow-xs" title="Dock Door A4-1" />
+            <div className="absolute -left-2.5 top-2/4 w-2.5 h-7 bg-amber-200 border border-amber-600 rounded-xs shadow-xs" title="Dock Door A4-2" />
+            <div className="absolute -left-2.5 top-3/4 w-2.5 h-7 bg-amber-200 border border-amber-600 rounded-xs shadow-xs" title="Dock Door A4-3" />
+            <div className="absolute -right-2.5 top-1/4 w-2.5 h-7 bg-amber-200 border border-amber-600 rounded-xs shadow-xs" title="Dock Door A4-4" />
+            <div className="absolute -right-2.5 top-2/4 w-2.5 h-7 bg-amber-200 border border-amber-600 rounded-xs shadow-xs" title="Dock Door A4-5" />
+            <div className="absolute -right-2.5 top-3/4 w-2.5 h-7 bg-amber-200 border border-amber-600 rounded-xs shadow-xs" title="Dock Door A4-6" />
 
             {/* Building Header */}
-            <div className="text-center pb-2 border-b border-slate-200">
-              <h3 className="text-lg font-black text-slate-900 tracking-wide">A4 Building</h3>
-              <div className="text-[11px] font-bold text-slate-500">คลังหลักจัดเก็บชิ้นส่วน (แร็ค Selective + วางพื้น + สายการผลิต HE-4/5)</div>
+            <div className="text-center pb-1.5 border-b border-slate-200">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 bg-purple-100 text-purple-800 rounded border border-purple-200">
+                  Rack B-K (680P)
+                </span>
+                <h3 className="text-base font-black text-slate-900 tracking-wide">A4 Building</h3>
+                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 bg-amber-100 text-amber-900 rounded border border-amber-200">
+                  Floor X1-X8 (432P)
+                </span>
+              </div>
+              <div className="text-[10px] font-bold text-slate-500 mt-0.5">คลังหลักจัดเก็บชิ้นส่วน (แร็ค Selective + วางพื้น + สายการผลิต HE-4/5)</div>
             </div>
 
-            {/* Warehouse & Production 3-Column Grid matching Reference Image 2 Blueprint */}
-            <div className="my-2 flex-1 grid grid-cols-12 gap-3 min-h-[500px]">
+            {/* Warehouse Interior Grid (Left: Racks & Floor Staging | Right: HE-4 & HE-5 Lines) */}
+            <div className="my-2.5 flex-1 grid grid-cols-12 gap-2.5 min-h-0">
               
-              {/* 1. LEFT COLUMN: Blue Label Boxes (Rack B-F top, วางพื้น X1-X8 bottom) */}
-              <div className="col-span-3 flex flex-col justify-between space-y-4 pt-1">
-                {/* Top Left: Blue Box Rack B-F */}
-                <div 
-                  onClick={() => handleDirectNavigate('A4_RACK')}
-                  className="bg-[#3b82f6] hover:bg-blue-600 text-white rounded-lg p-2.5 text-center cursor-pointer shadow-md transition-all active:scale-95 group border border-blue-400"
-                >
-                  <div className="text-xs font-black">Rack</div>
-                  <div className="text-sm font-black font-mono">B-F</div>
-                  <div className="text-[9px] text-blue-100 mt-1">480 พาเลท</div>
-                </div>
-
-                {/* Bottom Left: Blue Box วางพื้น X1-X8 */}
-                <div 
-                  onClick={() => handleDirectNavigate('A4_FLOOR')}
-                  className="bg-[#3b82f6] hover:bg-blue-600 text-white rounded-lg p-2.5 text-center cursor-pointer shadow-md transition-all active:scale-95 group border border-blue-400"
-                >
-                  <div className="text-xs font-black">วางพื้น</div>
-                  <div className="text-xs font-black font-mono">X1 – X8</div>
-                  <div className="text-[9px] text-blue-100 mt-1 font-mono font-bold">{metrics.a4FloorOccupied} / 432 P</div>
-                </div>
-              </div>
-
-              {/* 2. MIDDLE COLUMN (inside dashed blue zone): DA4D-2 Rack (Top) & DA4D-1 Floor Staging (Bottom) */}
-              <div className="col-span-5 border-2 border-dashed border-blue-400/80 bg-blue-50/30 rounded-xl p-2 flex flex-col justify-between space-y-2">
+              {/* LEFT SUB-COLUMN (7 Cols): DA4D-2 Rack (12 Bays) + DA4D-3 Rack (5 Bays) + DA4D-1 Floor Staging */}
+              <div className="col-span-7 flex flex-col justify-between space-y-2 min-h-0">
                 
-                {/* Top Middle: Red Border Box DA4D-2 (Rack B-F) Detailed Scaled-Down Selective Rack Blueprint (5 Vertical Columns B-F with 12 Bays) */}
+                {/* 1. TOP: DA4D-2 SELECTIVE RACK (B-F) - ALL 12 BAYS ACCURATE */}
                 <div 
                   onClick={() => handleDirectNavigate('A4_RACK')}
-                  className="border-2 border-red-500 bg-white rounded-lg p-2 shadow-md cursor-pointer hover:border-red-600 transition-all active:scale-95 group text-center flex flex-col justify-between"
+                  className="border-2 border-red-500 bg-white rounded-lg p-1.5 shadow-md cursor-pointer hover:border-red-600 transition-all active:scale-95 group text-center shrink-0"
                 >
-                  <div className="flex items-center justify-between pb-1 border-b border-purple-100">
-                    <div className="flex items-center space-x-1.5">
+                  <div className="flex items-center justify-between pb-0.5 border-b border-purple-100">
+                    <div className="flex items-center space-x-1">
                       <span className="text-xs font-black text-blue-700">DA4D-2</span>
-                      <span className="text-[8px] font-bold text-purple-700 font-mono">RACK B-F</span>
+                      <span className="text-[8.5px] font-bold text-purple-700 font-mono">RACK B-F</span>
                     </div>
-                    <span className="text-[8px] font-mono font-bold text-purple-700 bg-purple-100 px-1 py-0.2 rounded">
-                      5 ROWS (01-12 BAYS)
-                    </span>
+                    <div className="flex items-center space-x-1">
+                      <span className="text-[7.5px] font-mono font-bold text-purple-700 bg-purple-100 px-1 py-0.2 rounded">
+                        {metrics.bfOccupied} / 480 P
+                      </span>
+                      <span className="text-[7.5px] font-mono font-bold text-slate-600 bg-slate-100 px-1 py-0.2 rounded">
+                        12 BAYS &bull; 4L
+                      </span>
+                    </div>
                   </div>
 
-                  {/* Scaled-down miniature 2D Rack Layout matching 100% Real Floor Map: 5 Vertical Columns (B, C, D, E, F) with 12 vertical bays */}
-                  <div className="my-1.5 bg-slate-900 rounded p-1.5 border border-slate-800 shadow-inner">
+                  {/* 12 Vertical Bays (12 down to 01) across 5 columns B, C, D, E, F */}
+                  <div className="my-1 bg-slate-900 rounded p-1 border border-slate-800 shadow-inner">
                     {/* Columns Header */}
-                    <div className="grid grid-cols-5 gap-1 mb-1 text-center">
+                    <div className="grid grid-cols-5 gap-0.5 mb-0.5 text-center">
                       {['B', 'C', 'D', 'E', 'F'].map((zoneKey) => (
-                        <div key={zoneKey} className="bg-blue-600 text-white rounded text-[7px] font-mono font-black py-0.5 shadow-2xs">
+                        <div key={zoneKey} className="bg-blue-600 text-white rounded text-[7px] font-mono font-black py-0.2 shadow-2xs">
                           {zoneKey}
                         </div>
                       ))}
                     </div>
 
-                    {/* 12 Vertical Bays (12 down to 01) */}
+                    {/* ALL 12 VERTICAL BAYS (12 down to 01) */}
                     <div className="space-y-0.5">
                       {[12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((bayNum) => (
-                        <div key={bayNum} className="grid grid-cols-5 gap-1">
+                        <div key={bayNum} className="grid grid-cols-5 gap-0.5">
                           {['B', 'C', 'D', 'E', 'F'].map((zoneKey) => {
                             const bayItems = items.filter(it => it.zone === zoneKey && it.bayNumber === bayNum);
                             const isOccupied = bayItems.length > 0;
@@ -567,7 +825,7 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
                                       : 'bg-purple-500 border-purple-300 text-white font-black'
                                     : 'bg-slate-800/80 border-slate-700 text-slate-600'
                                 }`}
-                                title={`Rack ${zoneKey}${bayNum < 10 ? '0' + bayNum : bayNum}`}
+                                title={`Rack ${zoneKey}${bayNum < 10 ? '0' + bayNum : bayNum} (4 Levels)`}
                               >
                                 <span>{bayNum < 10 ? '0' + bayNum : bayNum}</span>
                                 {isOccupied && <span className="text-[4.5px] leading-none opacity-90">{bayItems.length}L</span>}
@@ -578,56 +836,100 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
                       ))}
                     </div>
 
-                    <div className="flex items-center justify-between text-[6.5px] text-slate-400 font-mono pt-1 mt-1 border-t border-slate-800">
+                    <div className="flex items-center justify-between text-[6px] text-slate-400 font-mono pt-0.5 mt-0.5 border-t border-slate-800">
                       <span>Bays 01-12 (4 Levels)</span>
-                      <span className="text-purple-300 font-bold">จัดเก็บ {metrics.bfOccupied} / 480 P</span>
+                      <span className="text-purple-300 font-bold">{metrics.bfOccupied} / 480 P</span>
                       <span>D2 Highlight</span>
                     </div>
                   </div>
 
-                  <div className="text-[9px] font-bold text-slate-600 flex items-center justify-center space-x-1 group-hover:text-blue-600">
-                    <span>เปิดผังแร็ค 2D & 3D &rarr;</span>
+                  <div className="text-[8.5px] font-bold text-slate-600 flex items-center justify-center space-x-1 group-hover:text-blue-600">
+                    <span>เปิดโซนแร็ค 2D & 3D &rarr;</span>
                   </div>
                 </div>
 
-                {/* Bottom Middle: Yellow Floor Staging Matrix DA4D-1 (X1-X8) Detailed Scaled-Down Floor Staging Blueprint */}
+                {/* 2. MIDDLE: DA4D-3 RACK (G-K) - 5 BAYS */}
+                <div 
+                  onClick={() => handleDirectNavigate('A4_RACK')}
+                  className="border border-slate-300 bg-white rounded-lg p-1 shadow-xs cursor-pointer hover:border-blue-400 transition-all active:scale-95 group text-center shrink-0"
+                >
+                  <div className="flex items-center justify-between pb-0.5 border-b border-slate-200">
+                    <div className="flex items-center space-x-1">
+                      <span className="text-[10px] font-black text-blue-700">DA4D-3</span>
+                      <span className="text-[8px] font-bold text-indigo-700 font-mono">RACK G-K</span>
+                    </div>
+                    <span className="text-[7.5px] font-mono font-bold text-amber-800 bg-amber-100 px-1 py-0.2 rounded">
+                      {metrics.jgOccupied} / 200 P (5 BAYS)
+                    </span>
+                  </div>
+
+                  {/* 5 Vertical Columns (G, H, I, J, K) with 5 vertical bays */}
+                  <div className="my-0.5 bg-slate-900 rounded p-1 shadow-inner border border-slate-800">
+                    <div className="grid grid-cols-5 gap-0.5 mb-0.5 text-center">
+                      {['G', 'H', 'I', 'J', 'K'].map((z) => (
+                        <div key={z} className="bg-indigo-600 text-white rounded text-[6.5px] font-mono font-black py-0.2 shadow-2xs">
+                          {z}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="space-y-0.5">
+                      {[5, 4, 3, 2, 1].map((bayNum) => (
+                        <div key={bayNum} className="grid grid-cols-5 gap-0.5">
+                          {['G', 'H', 'I', 'J', 'K'].map((zoneKey) => {
+                            const bayItems = items.filter(it => it.zone === zoneKey && it.bayNumber === bayNum);
+                            const isOccupied = bayItems.length > 0;
+                            return (
+                              <div
+                                key={`${zoneKey}-${bayNum}`}
+                                className={`h-2 rounded-3xs border text-[5px] font-mono flex items-center justify-between px-0.5 ${
+                                  isOccupied
+                                    ? 'bg-amber-400 border-amber-300 text-slate-950 font-black'
+                                    : 'bg-slate-800/80 border-slate-700 text-slate-600'
+                                }`}
+                                title={`Rack ${zoneKey}${bayNum < 10 ? '0' + bayNum : bayNum}`}
+                              >
+                                <span>{bayNum < 10 ? '0' + bayNum : bayNum}</span>
+                                {isOccupied && <span className="text-[4.5px] leading-none opacity-90">{bayItems.length}L</span>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. BOTTOM: DA4D-1 FLOOR STAGING (X1-X8) - Compact Balanced Height */}
                 <div 
                   onClick={() => handleDirectNavigate('A4_FLOOR')}
-                  className="border-2 border-amber-400 bg-amber-50/95 rounded-lg p-2 shadow-md cursor-pointer hover:border-amber-500 transition-all active:scale-95 group text-center flex-1 flex flex-col justify-between min-h-[360px]"
+                  className="border-2 border-amber-400 bg-amber-50/95 rounded-lg p-1.5 shadow-md cursor-pointer hover:border-amber-500 transition-all active:scale-95 group text-center flex flex-col justify-between shrink-0"
                 >
-                  <div className="flex items-center justify-between pb-1 border-b border-amber-200">
-                    <div className="flex items-center space-x-1.5">
+                  <div className="flex items-center justify-between pb-0.5 border-b border-amber-200">
+                    <div className="flex items-center space-x-1">
                       <span className="text-xs font-black text-amber-900">DA4D-1</span>
                       <span className="text-[8px] font-bold text-amber-800 font-mono">FLOOR STAGING (X1-X8)</span>
                     </div>
                     <span className="text-[8px] font-mono font-bold text-amber-950 bg-amber-200 px-1 py-0.2 rounded border border-amber-300">
-                      432 P (8 BLOCKS)
+                      {metrics.a4FloorOccupied} / 432 P
                     </span>
                   </div>
 
-                  {/* Scaled-down miniature Floor Staging Blueprint matching 100% Real Layout: X8 down to X1 filling 100% height */}
-                  <div className="my-1.5 bg-[#fef9c3] rounded p-2 border border-amber-300 shadow-inner flex-1 flex flex-col justify-between space-y-1.5">
+                  {/* Floor Staging Matrix: X8-X5 on Top, Driveway, X4-X1 on Bottom */}
+                  <div className="my-1 bg-[#fef9c3] rounded p-1 border border-amber-300 shadow-inner space-y-0.5">
                     {/* Top Group: X8, X7, X6, X5 (12 Cols each - 264 Pallets) */}
-                    <div className="space-y-1 bg-amber-100/70 p-1.5 rounded border border-amber-200">
-                      <div className="flex items-center justify-between text-[6.5px] font-black text-amber-950 font-mono px-0.5 pb-0.5 border-b border-amber-200/80">
-                        <span className="flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-600" />
-                          บล็อกบน X8 - X5 (12 ช่องกว้าง &bull; Rows 25-46)
-                        </span>
-                        <span className="text-amber-800 font-bold">264 Pallets</span>
+                    <div className="space-y-0.5 bg-amber-100/70 p-0.5 rounded border border-amber-200">
+                      <div className="flex items-center justify-between text-[5.5px] font-black text-amber-950 font-mono px-0.5">
+                        <span>X8 - X5 (Rows 25-46)</span>
+                        <span className="text-amber-800">264 P</span>
                       </div>
-
                       {[
-                        { id: 'X8', label: 'Group X8', code: '1212', rows: 'R43-46', slots: 48 },
-                        { id: 'X7', label: 'Group X7', code: '1211', rows: 'R37-42', slots: 72 },
-                        { id: 'X6', label: 'Group X6', code: '1210', rows: 'R31-36', slots: 72 },
-                        { id: 'X5', label: 'Group X5', code: '1209', rows: 'R25-30', slots: 72 }
+                        { id: 'X8', rows: 'R43-46' },
+                        { id: 'X7', rows: 'R37-42' },
+                        { id: 'X6', rows: 'R31-36' },
+                        { id: 'X5', rows: 'R25-30' }
                       ].map((grp) => (
-                        <div key={grp.id} className="flex items-center space-x-1">
-                          <div className="w-10 text-left flex flex-col leading-none">
-                            <span className="text-[6.5px] font-mono font-black text-amber-950">{grp.id}</span>
-                            <span className="text-[5px] font-mono text-amber-700">{grp.rows}</span>
-                          </div>
+                        <div key={grp.id} className="flex items-center space-x-0.5">
+                          <span className="w-4 text-[5.5px] font-mono font-black text-amber-950 text-left">{grp.id}</span>
                           <div className="grid grid-cols-12 gap-0.5 flex-1">
                             {Array.from({ length: 12 }).map((_, i) => {
                               const bayNum = i + 1;
@@ -636,12 +938,12 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
                               return (
                                 <div 
                                   key={i} 
-                                  className={`h-2 rounded-3xs border text-[4.5px] font-mono flex items-center justify-center transition-all ${
+                                  className={`h-1.5 rounded-3xs border transition-all ${
                                     isOccupied 
-                                      ? 'bg-blue-600 border-blue-400 text-white font-bold' 
-                                      : 'bg-amber-300/80 border-amber-500/60 hover:bg-amber-400/90'
+                                      ? 'bg-blue-600 border-blue-400' 
+                                      : 'bg-amber-300/80 border-amber-500/60'
                                   }`}
-                                  title={`${grp.id} Col ${bayNum < 10 ? '0' + bayNum : bayNum}`}
+                                  title={`${grp.id} Bay ${bayNum}`}
                                 />
                               );
                             })}
@@ -651,56 +953,40 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
                     </div>
 
                     {/* AGV Center Road Divider */}
-                    <div className="flex items-center justify-between text-[6px] text-amber-950 font-mono py-1 px-1.5 bg-gradient-to-r from-amber-200 via-amber-300 to-amber-200 rounded border border-amber-400 font-bold shadow-xs">
-                      <span className="flex items-center gap-0.5">
-                        <span className="text-amber-800">&larr;</span> AGV Automated Driveway
-                      </span>
-                      <span className="text-amber-900 font-black">
-                        จัดเก็บ {metrics.a4FloorOccupied} / 432 P (Staging Area)
-                      </span>
-                      <span className="flex items-center gap-0.5">
-                        Feed to HE-4 & HE-5 <span className="text-amber-800">&rarr;</span>
-                      </span>
+                    <div className="flex items-center justify-between text-[5.5px] text-amber-950 font-mono py-0.2 px-1 bg-gradient-to-r from-amber-200 via-amber-300 to-amber-200 rounded border border-amber-400 font-bold">
+                      <span>&larr; AGV Driveway</span>
+                      <span className="text-amber-900 font-black">Feed to HE-4 & HE-5</span>
+                      <span>&rarr;</span>
                     </div>
 
                     {/* Bottom Group: X4, X3, X2, X1 (7 Cols each - 168 Pallets) */}
-                    <div className="space-y-1 bg-amber-100/70 p-1.5 rounded border border-amber-200">
-                      <div className="flex items-center justify-between text-[6.5px] font-black text-amber-950 font-mono px-0.5 pb-0.5 border-b border-amber-200/80">
-                        <span className="flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-600" />
-                          บล็อกล่าง X4 - X1 (7 ช่องกว้าง &bull; Rows 01-24)
-                        </span>
-                        <span className="text-amber-800 font-bold">168 Pallets</span>
+                    <div className="space-y-0.5 bg-amber-100/70 p-0.5 rounded border border-amber-200">
+                      <div className="flex items-center justify-between text-[5.5px] font-black text-amber-950 font-mono px-0.5">
+                        <span>X4 - X1 (Rows 01-24)</span>
+                        <span className="text-amber-800">168 P</span>
                       </div>
-
                       {[
-                        { id: 'X4', label: 'Group X4', code: '1208', rows: 'R19-24', slots: 42 },
-                        { id: 'X3', label: 'Group X3', code: '1207', rows: 'R13-18', slots: 42 },
-                        { id: 'X2', label: 'Group X2', code: '1206', rows: 'R07-12', slots: 42 },
-                        { id: 'X1', label: 'Group X1', code: '1205', rows: 'R01-06', slots: 42 }
+                        { id: 'X4', rows: 'R19-24' },
+                        { id: 'X3', rows: 'R13-18' },
+                        { id: 'X2', rows: 'R07-12' },
+                        { id: 'X1', rows: 'R01-06' }
                       ].map((grp) => (
-                        <div key={grp.id} className="flex items-center space-x-1">
-                          <div className="w-10 text-left flex flex-col leading-none">
-                            <span className="text-[6.5px] font-mono font-black text-amber-950">{grp.id}</span>
-                            <span className="text-[5px] font-mono text-amber-700">{grp.rows}</span>
-                          </div>
+                        <div key={grp.id} className="flex items-center space-x-0.5">
+                          <span className="w-4 text-[5.5px] font-mono font-black text-amber-950 text-left">{grp.id}</span>
                           <div className="grid grid-cols-7 gap-0.5 flex-1">
                             {Array.from({ length: 7 }).map((_, i) => {
                               const bayNum = i + 1;
-                              const isR8C6Red = (grp.id === 'X2' && i === 5);
                               const isOccupied = items.some(it => it.zone === grp.id && it.bayNumber === bayNum) ||
                                 ((grp.id === 'X4' && i === 1) || (grp.id === 'X3' && i === 4) || (grp.id === 'X1' && i === 2));
                               return (
                                 <div 
                                   key={i} 
-                                  className={`h-2 rounded-3xs border text-[4.5px] font-mono flex items-center justify-center transition-all ${
-                                    isR8C6Red
-                                      ? 'bg-rose-600 border-rose-500 text-white font-black animate-pulse'
-                                      : isOccupied 
-                                      ? 'bg-blue-600 border-blue-400 text-white font-bold' 
-                                      : 'bg-amber-300/80 border-amber-500/60 hover:bg-amber-400/90'
+                                  className={`h-1.5 rounded-3xs border transition-all ${
+                                    isOccupied 
+                                      ? 'bg-blue-600 border-blue-400' 
+                                      : 'bg-amber-300/80 border-amber-500/60'
                                   }`}
-                                  title={`${grp.id} Col ${bayNum < 10 ? '0' + bayNum : bayNum}`}
+                                  title={`${grp.id} Bay ${bayNum}`}
                                 />
                               );
                             })}
@@ -710,245 +996,313 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
                     </div>
                   </div>
 
-                  <div className="text-[9px] font-bold text-amber-900 group-hover:underline flex items-center justify-center space-x-1 pt-0.5">
-                    <span>คลิกเพื่อเปิดผังลานวางพื้น 2D ละเอียด (X1 - X8) &rarr;</span>
+                  <div className="text-[8.5px] font-bold text-amber-900 group-hover:underline flex items-center justify-center space-x-1">
+                    <span>เปิดโซนลานวางพื้น 2D ละเอียด (X1 - X8) &rarr;</span>
                   </div>
                 </div>
 
               </div>
 
-              {/* 3. RIGHT COLUMN (inside dashed blue zone): Rack G-K + DA4D-3 (Top) & HE-4/HE-5 Lines (Bottom) */}
-              <div className="col-span-4 border-2 border-dashed border-blue-400/80 bg-blue-50/30 rounded-xl p-2 flex flex-col justify-between space-y-2">
-                
-                {/* Top Right: Blue Box Rack G-K & Red Box DA4D-3 */}
-                <div className="space-y-1">
-                  <div className="bg-[#3b82f6] text-white rounded-lg py-0.5 px-2 text-center text-xs font-black shadow-xs">
-                    Rack G- K
-                  </div>
-                  
-                  <div 
-                    onClick={() => handleDirectNavigate('A4_RACK')}
-                    className="border-2 border-red-500 bg-white rounded-lg p-1.5 shadow-md cursor-pointer hover:border-red-600 transition-all active:scale-95 group text-center"
-                  >
-                    <div className="flex items-center justify-between pb-0.5 border-b border-red-100">
-                      <span className="text-xs font-black text-blue-700">DA4D-3</span>
-                      <span className="text-[8px] font-mono font-bold text-amber-800 bg-amber-100 px-1 py-0.2 rounded">
-                        5 RACKS (01-05 BAYS)
-                      </span>
-                    </div>
-
-                    {/* Miniature Rack G-K matching 100% Real Floor Map: 5 Vertical Columns (G, H, I, J, K) with 5 vertical bays */}
-                    <div className="my-1 bg-slate-900 rounded p-1 shadow-inner border border-slate-800">
-                      {/* Rack Columns Header */}
-                      <div className="grid grid-cols-5 gap-0.5 mb-0.5 text-center">
-                        {['G', 'H', 'I', 'J', 'K'].map((z) => (
-                          <div key={z} className="bg-indigo-600 text-white rounded text-[6.5px] font-mono font-black py-0.2 shadow-2xs">
-                            {z}
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* 5 Vertical Bays (5 down to 1) */}
-                      <div className="space-y-0.5">
-                        {[5, 4, 3, 2, 1].map((bayNum) => (
-                          <div key={bayNum} className="grid grid-cols-5 gap-0.5">
-                            {['G', 'H', 'I', 'J', 'K'].map((zoneKey) => {
-                              const bayItems = items.filter(it => it.zone === zoneKey && it.bayNumber === bayNum);
-                              const isOccupied = bayItems.length > 0;
-                              return (
-                                <div
-                                  key={`${zoneKey}-${bayNum}`}
-                                  className={`h-2 rounded-3xs border text-[5px] font-mono flex items-center justify-between px-0.5 ${
-                                    isOccupied
-                                      ? 'bg-amber-400 border-amber-300 text-slate-950 font-black'
-                                      : 'bg-slate-800/80 border-slate-700 text-slate-600'
-                                  }`}
-                                  title={`Rack ${zoneKey}${bayNum < 10 ? '0' + bayNum : bayNum}`}
-                                >
-                                  <span>{bayNum < 10 ? '0' + bayNum : bayNum}</span>
-                                  {isOccupied && <span className="text-[4.5px] leading-none opacity-90">{bayItems.length}L</span>}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="text-[8px] font-bold text-slate-600 flex items-center justify-center space-x-0.5 group-hover:text-blue-600">
-                      <span>จัดเก็บ {metrics.jgOccupied} / 200 P &rarr;</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Bottom Right: Embossed HE-4 & HE-5 Production Lines - 2 Vertical Parallel Columns Matching Blueprint 100% */}
-                <div className="flex-1 min-h-[300px]">
-                  <A4EmbossedLinesVerticalSection />
-                </div>
-
+              {/* RIGHT SUB-COLUMN (5 Cols): Embossed HE-4 & HE-5 Production Lines (Equal height matching A2) */}
+              <div className="col-span-5 h-[340px] shrink-0 flex flex-col">
+                <A4EmbossedLinesVerticalSection />
               </div>
 
             </div>
 
             {/* Office Footer */}
-            <div className="bg-[#bfdbfe] border border-blue-300 text-[#1e3a8a] rounded-lg py-2 text-center shadow-inner mt-2">
+            <div className="bg-[#bfdbfe] border border-blue-300 text-[#1e3a8a] rounded-lg py-1.5 text-center shadow-inner mt-1 shrink-0">
               <div className="font-black text-xs">Office</div>
-              <div className="text-[10px] text-blue-900 font-medium">ห้องควบคุมคลังสินค้าและสำนักงาน A4</div>
+              <div className="text-[9.5px] text-blue-900 font-medium">ห้องควบคุมคลังสินค้าและสำนักงาน A4</div>
             </div>
 
           </div>
 
           {/* ========================================================================= */}
-          {/* 3. A5 TENT ZONE (Right Section)                                          */}
+          {/* 3. RIGHT SECTION: A5 TENT YARD (TOP) & CY3 TENT YARD (BOTTOM) (3 Cols)    */}
           {/* ========================================================================= */}
-          <div className="lg:col-span-3 xl:col-span-3 border-2 border-dashed border-sky-400 rounded-xl p-3 bg-[#cce5e8]/40 flex flex-col justify-between shadow-lg min-h-[680px]">
+          <div className="lg:col-span-3 xl:col-span-3 flex flex-col justify-between gap-3 h-full min-h-0">
             
-            {/* Header */}
-            <div className="text-center pb-2 border-b border-sky-300">
-              <h3 className="text-base font-black text-slate-900 tracking-wide flex items-center justify-center space-x-1">
-                <span>⛺</span>
-                <span>A5 Tent Yard (ลานเต็นท์ 4 หลัง)</span>
-              </h3>
-              <div className="text-[10.5px] font-bold text-slate-600">
-                ความจุ 784 พาเลท (DAST-1.01 ถึง 4.01)
-              </div>
-            </div>
-
-            {/* 2x2 Grid of 4 Tent Cards matching reference image layout */}
-            <div className="my-2 grid grid-cols-2 gap-2.5 flex-1">
+            {/* 3.1 A5 TENT ZONE (Top Section - 4 Tents with 7 Sub-Groups Each) */}
+            <div className="border-2 border-dashed border-sky-400 rounded-xl p-2.5 bg-[#cce5e8]/40 flex flex-col justify-between shadow-md flex-1">
               
-              {/* TOP LEFT: TENT NO. 2 (DAST-2.01) */}
-              <div 
-                onClick={() => handleDirectNavigate('A5_TENT', 2)}
-                className="border-2 border-red-600 bg-white rounded-lg p-2 shadow-md cursor-pointer hover:border-sky-500 transition-all active:scale-95 group flex flex-col justify-between"
-              >
-                <div className="flex items-center justify-between pb-1">
-                  <span className="bg-purple-100 text-purple-900 font-bold text-[8.5px] px-1 py-0.5 rounded">
-                    A5 Tent No. 2
-                  </span>
-                  <span className="bg-blue-900 text-blue-100 font-mono font-bold text-[8.5px] px-1 py-0.5 rounded">
-                    DAST-2.01
-                  </span>
-                </div>
-
-                {/* 7 cols x 4 rows Yellow Pallet Cells */}
-                <div className="space-y-0.5 my-1">
-                  {Array.from({ length: 4 }).map((_, r) => (
-                    <div key={r} className="grid grid-cols-7 gap-0.5">
-                      {Array.from({ length: 7 }).map((_, c) => (
-                        <div key={c} className="h-2 bg-[#fde047] rounded-2xs border border-amber-500/60 shadow-2xs" />
-                      ))}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex items-center justify-between text-[9px] font-bold text-slate-700 pt-1 border-t border-slate-100">
-                  <span>{metrics.tent2Count} / 196 P</span>
-                  <span className="text-blue-600 group-hover:underline">เปิดผัง &rarr;</span>
+              {/* Header */}
+              <div className="text-center pb-1 border-b border-sky-300">
+                <h3 className="text-xs font-black text-slate-900 tracking-wide flex items-center justify-center space-x-1">
+                  <span>⛺</span>
+                  <span>A5 Tent Yard (ลานเต็นท์ 4 หลัง)</span>
+                </h3>
+                <div className="text-[9px] font-bold text-slate-600">
+                  ความจุ 784 พาเลท (DAST-1.01 ถึง 4.01 &bull; 7 กลุ่มย่อย/เต็นท์)
                 </div>
               </div>
 
-              {/* TOP RIGHT: TENT NO. 4 (DAST-4.01 with Rack A column) */}
-              <div 
-                onClick={() => handleDirectNavigate('A5_TENT', 4)}
-                className="border-2 border-red-600 bg-white rounded-lg p-2 shadow-md cursor-pointer hover:border-sky-500 transition-all active:scale-95 group flex flex-col justify-between"
-              >
-                <div className="flex items-center justify-between pb-1">
-                  <span className="bg-blue-900 text-blue-100 font-mono font-bold text-[8.5px] px-1 py-0.5 rounded">
-                    DAST-4.01
-                  </span>
-                  <span className="bg-purple-100 text-purple-900 font-bold text-[8.5px] px-1 py-0.5 rounded">
-                    A5 Tent No. 4
-                  </span>
-                </div>
+              {/* 2x2 Grid of 4 Tent Cards simulating 7 sub-groups in each tent */}
+              <div className="my-1.5 grid grid-cols-2 gap-1.5">
+                
+                {/* TENT NO. 2 (DAST-2.01) - 7 Sub-Groups (G1-G7) */}
+                <div 
+                  onClick={() => handleDirectNavigate('A5_TENT', 2)}
+                  className="border-2 border-red-600 bg-white rounded-lg p-1 shadow-xs cursor-pointer hover:border-sky-500 transition-all active:scale-95 group flex flex-col justify-between"
+                >
+                  <div className="flex items-center justify-between pb-0.5">
+                    <span className="bg-purple-100 text-purple-900 font-bold text-[7.5px] px-1 py-0.2 rounded">
+                      A5 Tent 2
+                    </span>
+                    <span className="bg-blue-900 text-blue-100 font-mono font-bold text-[7.5px] px-1 py-0.2 rounded">
+                      DAST-2.01
+                    </span>
+                  </div>
 
-                {/* 6 cols Yellow + 1 col Pink Rack A */}
-                <div className="space-y-0.5 my-1">
-                  {Array.from({ length: 4 }).map((_, r) => (
-                    <div key={r} className="grid grid-cols-7 gap-0.5">
-                      {Array.from({ length: 6 }).map((_, c) => (
-                        <div key={c} className="h-2 bg-[#fde047] rounded-2xs border border-amber-500/60 shadow-2xs" />
-                      ))}
-                      <div className="h-2 bg-pink-300 rounded-2xs border border-pink-500 shadow-2xs" title="Rack A" />
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex items-center justify-between text-[9px] font-bold text-slate-700 pt-1 border-t border-slate-100">
-                  <span>{metrics.tent4Count} / 196 P</span>
-                  <span className="text-pink-600 font-bold group-hover:underline">Rack A &rarr;</span>
-                </div>
-              </div>
-
-              {/* BOTTOM LEFT: TENT NO. 1 (DAST-1.01) */}
-              <div 
-                onClick={() => handleDirectNavigate('A5_TENT', 1)}
-                className="border-2 border-red-600 bg-white rounded-lg p-2 shadow-md cursor-pointer hover:border-sky-500 transition-all active:scale-95 group flex flex-col justify-between"
-              >
-                <div className="flex items-center justify-between pb-1">
-                  <span className="bg-purple-100 text-purple-900 font-bold text-[8.5px] px-1 py-0.5 rounded">
-                    A5 Tent No. 1
-                  </span>
-                  <span className="bg-blue-900 text-blue-100 font-mono font-bold text-[8.5px] px-1 py-0.5 rounded">
-                    DAST-1.01
-                  </span>
-                </div>
-
-                {/* 7 cols x 4 rows Yellow Pallet Cells */}
-                <div className="space-y-0.5 my-1">
-                  {Array.from({ length: 4 }).map((_, r) => (
-                    <div key={r} className="grid grid-cols-7 gap-0.5">
-                      {Array.from({ length: 7 }).map((_, c) => (
-                        <div key={c} className="h-2 bg-[#fde047] rounded-2xs border border-amber-500/60 shadow-2xs" />
+                  {/* 7 Sub-Groups Grid Simulation */}
+                  <div className="my-0.5 bg-slate-900 p-1 rounded-xs border border-slate-800">
+                    <div className="grid grid-cols-7 gap-0.5 mb-0.5 text-center text-[5px] font-mono font-black text-cyan-300">
+                      {['G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7'].map(g => (
+                        <div key={g} className="bg-slate-800 rounded-3xs py-0.2">{g}</div>
                       ))}
                     </div>
-                  ))}
-                </div>
-
-                <div className="flex items-center justify-between text-[9px] font-bold text-slate-700 pt-1 border-t border-slate-100">
-                  <span>{metrics.tent1Count} / 196 P</span>
-                  <span className="text-blue-600 group-hover:underline">เปิดผัง &rarr;</span>
-                </div>
-              </div>
-
-              {/* BOTTOM RIGHT: TENT NO. 3 (DAST-3.01) */}
-              <div 
-                onClick={() => handleDirectNavigate('A5_TENT', 3)}
-                className="border-2 border-red-600 bg-white rounded-lg p-2 shadow-md cursor-pointer hover:border-sky-500 transition-all active:scale-95 group flex flex-col justify-between"
-              >
-                <div className="flex items-center justify-between pb-1">
-                  <span className="bg-blue-900 text-blue-100 font-mono font-bold text-[8.5px] px-1 py-0.5 rounded">
-                    DAST-3.01
-                  </span>
-                  <span className="bg-purple-100 text-purple-900 font-bold text-[8.5px] px-1 py-0.5 rounded">
-                    A5 Tent No. 3
-                  </span>
-                </div>
-
-                {/* 7 cols x 4 rows Yellow Pallet Cells */}
-                <div className="space-y-0.5 my-1">
-                  {Array.from({ length: 4 }).map((_, r) => (
-                    <div key={r} className="grid grid-cols-7 gap-0.5">
-                      {Array.from({ length: 7 }).map((_, c) => (
-                        <div key={c} className="h-2 bg-[#fde047] rounded-2xs border border-amber-500/60 shadow-2xs" />
+                    <div className="space-y-0.5">
+                      {Array.from({ length: 4 }).map((_, r) => (
+                        <div key={r} className="grid grid-cols-7 gap-0.5">
+                          {Array.from({ length: 7 }).map((_, c) => (
+                            <div key={c} className="h-1 bg-[#fde047] rounded-3xs border border-amber-500/60" />
+                          ))}
+                        </div>
                       ))}
                     </div>
-                  ))}
+                  </div>
+
+                  <div className="flex items-center justify-between text-[7.5px] font-bold text-slate-700 pt-0.5 border-t border-slate-100">
+                    <span>{metrics.tent2Count} / 196 P</span>
+                    <span className="text-blue-600 group-hover:underline">&rarr;</span>
+                  </div>
                 </div>
 
-                <div className="flex items-center justify-between text-[9px] font-bold text-slate-700 pt-1 border-t border-slate-100">
-                  <span>{metrics.tent3Count} / 196 P</span>
-                  <span className="text-blue-600 group-hover:underline">เปิดผัง &rarr;</span>
+                {/* TENT NO. 4 (DAST-4.01) - 6 Standard Sub-Groups + 1 Rack A */}
+                <div 
+                  onClick={() => handleDirectNavigate('A5_TENT', 4)}
+                  className="border-2 border-red-600 bg-white rounded-lg p-1 shadow-xs cursor-pointer hover:border-sky-500 transition-all active:scale-95 group flex flex-col justify-between"
+                >
+                  <div className="flex items-center justify-between pb-0.5">
+                    <span className="bg-blue-900 text-blue-100 font-mono font-bold text-[7.5px] px-1 py-0.2 rounded">
+                      DAST-4.01
+                    </span>
+                    <span className="bg-purple-100 text-purple-900 font-bold text-[7.5px] px-1 py-0.2 rounded">
+                      A5 Tent 4
+                    </span>
+                  </div>
+
+                  {/* 6 Sub-Groups + 1 Rack A */}
+                  <div className="my-0.5 bg-slate-900 p-1 rounded-xs border border-slate-800">
+                    <div className="grid grid-cols-7 gap-0.5 mb-0.5 text-center text-[5px] font-mono font-black">
+                      {['G1', 'G2', 'G3', 'G4', 'G5', 'G6'].map(g => (
+                        <div key={g} className="bg-slate-800 text-cyan-300 rounded-3xs py-0.2">{g}</div>
+                      ))}
+                      <div className="bg-pink-900 text-pink-200 rounded-3xs py-0.2 font-bold">R.A</div>
+                    </div>
+                    <div className="space-y-0.5">
+                      {Array.from({ length: 4 }).map((_, r) => (
+                        <div key={r} className="grid grid-cols-7 gap-0.5">
+                          {Array.from({ length: 6 }).map((_, c) => (
+                            <div key={c} className="h-1 bg-[#fde047] rounded-3xs border border-amber-500/60" />
+                          ))}
+                          <div className="h-1 bg-pink-400 rounded-3xs border border-pink-600" title="Rack A" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[7.5px] font-bold text-slate-700 pt-0.5 border-t border-slate-100">
+                    <span>{metrics.tent4Count} / 196 P</span>
+                    <span className="text-pink-600 font-bold group-hover:underline">Rack A &rarr;</span>
+                  </div>
                 </div>
+
+                {/* TENT NO. 1 (DAST-1.01) - 7 Sub-Groups (G1-G7) */}
+                <div 
+                  onClick={() => handleDirectNavigate('A5_TENT', 1)}
+                  className="border-2 border-red-600 bg-white rounded-lg p-1 shadow-xs cursor-pointer hover:border-sky-500 transition-all active:scale-95 group flex flex-col justify-between"
+                >
+                  <div className="flex items-center justify-between pb-0.5">
+                    <span className="bg-purple-100 text-purple-900 font-bold text-[7.5px] px-1 py-0.2 rounded">
+                      A5 Tent 1
+                    </span>
+                    <span className="bg-blue-900 text-blue-100 font-mono font-bold text-[7.5px] px-1 py-0.2 rounded">
+                      DAST-1.01
+                    </span>
+                  </div>
+
+                  {/* 7 Sub-Groups Grid Simulation */}
+                  <div className="my-0.5 bg-slate-900 p-1 rounded-xs border border-slate-800">
+                    <div className="grid grid-cols-7 gap-0.5 mb-0.5 text-center text-[5px] font-mono font-black text-cyan-300">
+                      {['G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7'].map(g => (
+                        <div key={g} className="bg-slate-800 rounded-3xs py-0.2">{g}</div>
+                      ))}
+                    </div>
+                    <div className="space-y-0.5">
+                      {Array.from({ length: 4 }).map((_, r) => (
+                        <div key={r} className="grid grid-cols-7 gap-0.5">
+                          {Array.from({ length: 7 }).map((_, c) => (
+                            <div key={c} className="h-1 bg-[#fde047] rounded-3xs border border-amber-500/60" />
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[7.5px] font-bold text-slate-700 pt-0.5 border-t border-slate-100">
+                    <span>{metrics.tent1Count} / 196 P</span>
+                    <span className="text-blue-600 group-hover:underline">&rarr;</span>
+                  </div>
+                </div>
+
+                {/* TENT NO. 3 (DAST-3.01) - 7 Sub-Groups (G1-G7) */}
+                <div 
+                  onClick={() => handleDirectNavigate('A5_TENT', 3)}
+                  className="border-2 border-red-600 bg-white rounded-lg p-1 shadow-xs cursor-pointer hover:border-sky-500 transition-all active:scale-95 group flex flex-col justify-between"
+                >
+                  <div className="flex items-center justify-between pb-0.5">
+                    <span className="bg-blue-900 text-blue-100 font-mono font-bold text-[7.5px] px-1 py-0.2 rounded">
+                      DAST-3.01
+                    </span>
+                    <span className="bg-purple-100 text-purple-900 font-bold text-[7.5px] px-1 py-0.2 rounded">
+                      A5 Tent 3
+                    </span>
+                  </div>
+
+                  {/* 7 Sub-Groups Grid Simulation */}
+                  <div className="my-0.5 bg-slate-900 p-1 rounded-xs border border-slate-800">
+                    <div className="grid grid-cols-7 gap-0.5 mb-0.5 text-center text-[5px] font-mono font-black text-cyan-300">
+                      {['G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7'].map(g => (
+                        <div key={g} className="bg-slate-800 rounded-3xs py-0.2">{g}</div>
+                      ))}
+                    </div>
+                    <div className="space-y-0.5">
+                      {Array.from({ length: 4 }).map((_, r) => (
+                        <div key={r} className="grid grid-cols-7 gap-0.5">
+                          {Array.from({ length: 7 }).map((_, c) => (
+                            <div key={c} className="h-1 bg-[#fde047] rounded-3xs border border-amber-500/60" />
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[7.5px] font-bold text-slate-700 pt-0.5 border-t border-slate-100">
+                    <span>{metrics.tent3Count} / 196 P</span>
+                    <span className="text-blue-600 group-hover:underline">&rarr;</span>
+                  </div>
+                </div>
+
               </div>
 
+              {/* Bottom Summary Banner */}
+              <div className="bg-white/90 border border-sky-300 text-slate-800 rounded-lg py-1 px-2 text-center text-[9px] font-bold shadow-2xs flex items-center justify-between">
+                <span>จัดเก็บ A5</span>
+                <span className="text-emerald-700 font-mono font-black">
+                  {metrics.a5TotalOccupied} / 784 P ({Math.round((metrics.a5TotalOccupied / 784) * 100)}%)
+                </span>
+              </div>
             </div>
 
-            {/* Bottom Summary Banner */}
-            <div className="bg-white/90 border border-sky-300 text-slate-800 rounded-lg p-2 text-center text-xs font-bold shadow-xs">
-              <div>จัดเก็บรวมลานเต็นท์ A5</div>
-              <div className="text-emerald-700 font-mono font-black text-sm">
-                {metrics.a5TotalOccupied} / 784 พาเลท ({Math.round((metrics.a5TotalOccupied / 784) * 100)}%)
+            {/* 3.2 CY3 TENT YARD (Outdoor Rack - ALL 4 ROWS x 25 BAYS) - Full Width Expansion */}
+            <div className="border-2 border-red-500 rounded-xl p-2.5 bg-white flex flex-col justify-between shadow-md relative group hover:border-red-600 transition-all flex-1">
+              {/* Header */}
+              <div className="flex items-center justify-between pb-1 border-b border-red-200">
+                <div className="flex items-center space-x-1.5">
+                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                  <div>
+                    <h3 className="text-xs font-black text-slate-900 tracking-tight">
+                      ลานเต็นท์ CY3 (Outdoor Rack)
+                    </h3>
+                    <div className="text-[8.5px] font-bold text-slate-500">
+                      4 ชั้น &bull; 4 แถว (A-D) &bull; 25 ช่วงเสา &bull; 400 P
+                    </div>
+                  </div>
+                </div>
+                <span className="px-1.5 py-0.5 bg-red-100 text-red-800 text-[8px] font-mono font-bold rounded border border-red-200">
+                  DY3T 1.01-1.04
+                </span>
+              </div>
+
+              {/* Miniature Layout Blueprint of CY3: 4 Rows (A, B, C, D) with ALL 25 BAYS */}
+              <div 
+                onClick={() => handleDirectNavigate('CY3_TENT')}
+                className="my-1.5 bg-slate-950 rounded-lg p-2 border border-slate-800 shadow-inner cursor-pointer hover:border-rose-400 transition-all flex flex-col justify-between space-y-1.5 w-full"
+              >
+                {/* 4 Rows A, B, C, D with ALL 25 BAYS */}
+                {[
+                  { row: 'A', code: 'DY3T-1.01' },
+                  { row: 'B', code: 'DY3T-1.02' },
+                  { row: 'C', code: 'DY3T-1.03' },
+                  { row: 'D', code: 'DY3T-1.04' },
+                ].map((r, idx) => {
+                  const rowItems = metrics.cy3Items.filter(it => it.zone === `CY3-${r.row}` || it.locatorCode.includes(r.code));
+                  return (
+                    <React.Fragment key={r.row}>
+                      <div className="flex items-center space-x-1.5 w-full">
+                        {/* Navy Row Badge */}
+                        <div className="w-4 h-4 rounded bg-blue-700 text-white font-mono font-black text-[8px] flex items-center justify-center shrink-0 shadow-2xs">
+                          {r.row}
+                        </div>
+
+                        {/* 25 Bay Miniature Rack Bar (ALL 25 BAYS 01-25) */}
+                        <div 
+                          className="flex-1 gap-px bg-slate-900 p-0.5 rounded border border-slate-800"
+                          style={{ display: 'grid', gridTemplateColumns: 'repeat(25, minmax(0, 1fr))' }}
+                        >
+                          {Array.from({ length: 25 }).map((_, bIdx) => {
+                            const bayNum = bIdx + 1;
+                            const bayItems = rowItems.filter(it => it.bayNumber === bayNum);
+                            const isOcc = bayItems.length > 0;
+                            const hasAging = bayItems.some(it => it.agingDays > 30);
+                            return (
+                              <div
+                                key={bayNum}
+                                className={`h-2.5 rounded-3xs border transition-all ${
+                                  isOcc
+                                    ? hasAging
+                                      ? 'bg-amber-400 border-amber-300'
+                                      : 'bg-rose-500 border-rose-400'
+                                    : 'bg-slate-800 border-slate-700/60'
+                                }`}
+                                title={`Row ${r.row} Bay ${bayNum < 10 ? '0' + bayNum : bayNum} (${bayItems.length}/4 Levels)`}
+                              />
+                            );
+                          })}
+                        </div>
+
+                        {/* Locator Tag */}
+                        <span className="text-[7.5px] font-mono text-slate-400 w-11 text-right shrink-0">
+                          {r.code}
+                        </span>
+                      </div>
+
+                      {/* Center Forklift Pathway between B & C */}
+                      {idx === 1 && (
+                        <div className="py-0.5 px-1.5 bg-amber-500/20 border border-dashed border-amber-500/40 rounded flex items-center justify-between text-[6.5px] font-mono text-amber-300">
+                          <span>&larr; Forklift Way</span>
+                          <span className="text-amber-200 font-bold">โครงสร้างแร็ค 4 ชั้น (4 Levels)</span>
+                          <span>&rarr;</span>
+                        </div>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+
+              {/* Bottom Quick Bar & Direct Link */}
+              <div className="flex items-center justify-between text-[8.5px] font-bold text-slate-700 pt-0.5 border-t border-slate-100">
+                <span className="text-rose-700 font-mono font-black">
+                  จัดเก็บ {metrics.cy3Occupied} / {metrics.cy3Capacity} P ({Math.round((metrics.cy3Occupied / metrics.cy3Capacity) * 100)}%)
+                </span>
+                <button
+                  onClick={() => handleDirectNavigate('CY3_TENT')}
+                  className="text-rose-600 hover:text-rose-800 flex items-center space-x-0.5 group-hover:underline cursor-pointer"
+                >
+                  <span>เปิดโซน CY3 (2.5D)</span>
+                  <ArrowUpRight className="w-2.5 h-2.5" />
+                </button>
               </div>
             </div>
 
@@ -957,6 +1311,87 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
         </div>
 
       </div>
+
+      {/* FULL SCREEN MASTER BLUEPRINT MODAL */}
+      {isFullMapModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950 flex flex-col animate-fadeIn">
+          {/* Top Bar for Fullscreen View */}
+          <div className="h-10 px-4 bg-slate-900 border-b border-slate-800 text-white flex items-center justify-between shadow-md">
+            <div className="flex items-center space-x-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span className="text-sm font-black text-white tracking-wide">
+                HEX WMS &bull; โซนรวมโรงงานและลานพักแคมปัสเต็มจอ (Full Screen Master Map)
+              </span>
+              <span className="px-2 py-0.5 bg-blue-500/20 text-blue-300 text-xs font-mono font-bold rounded border border-blue-500/40">
+                A2 &bull; A4 &bull; A5 &bull; CY3
+              </span>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setIsFullMapModal(false)}
+                className="px-3 py-1 bg-rose-600 hover:bg-rose-500 text-white text-xs font-black rounded-lg shadow-sm flex items-center space-x-1 transition-all"
+              >
+                <Minimize2 className="w-3.5 h-3.5" />
+                <span>ย่อกลับ (Exit Fullscreen)</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Fullscreen Body Content */}
+          <div className="flex-1 overflow-auto p-3 bg-slate-900/90 flex flex-col">
+            <div className="w-full h-full flex flex-col space-y-3">
+              {/* Toolbar in Fullscreen */}
+              <div className="bg-slate-900 border border-slate-800 rounded-lg p-2 flex items-center justify-between text-white">
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs font-black text-amber-300">โหมดแสดงผล:</span>
+                  <div className="inline-flex bg-slate-800 p-0.5 rounded-md border border-slate-700">
+                    <button
+                      onClick={() => setViewMode('REALISTIC')}
+                      className={`px-2.5 py-1 rounded text-xs font-bold transition-all ${
+                        viewMode === 'REALISTIC' ? 'bg-blue-600 text-white' : 'text-slate-300 hover:text-white'
+                      }`}
+                    >
+                      โซน 3D เสมือนจริง
+                    </button>
+                    <button
+                      onClick={() => setViewMode('HEATMAP')}
+                      className={`px-2.5 py-1 rounded text-xs font-bold transition-all ${
+                        viewMode === 'HEATMAP' ? 'bg-purple-600 text-white' : 'text-slate-300 hover:text-white'
+                      }`}
+                    >
+                      ความหนาแน่น (Heatmap)
+                    </button>
+                    <button
+                      onClick={() => setViewMode('AGING_FIFO')}
+                      className={`px-2.5 py-1 rounded text-xs font-bold transition-all ${
+                        viewMode === 'AGING_FIFO' ? 'bg-amber-500 text-slate-950 font-black' : 'text-slate-300 hover:text-white'
+                      }`}
+                    >
+                      เตือน Aging FIFO
+                    </button>
+                  </div>
+                </div>
+
+                <div className="text-xs text-emerald-400 font-mono font-bold flex items-center space-x-1.5">
+                  <Activity className="w-4 h-4 animate-pulse" />
+                  <span>Real-Time Stream: A2 (160P), A4 (1,760P), A5 (784P), CY3 (400P)</span>
+                </div>
+              </div>
+
+              {/* Blueprint Grid Container inside Fullscreen */}
+              <div className="flex-1 bg-white rounded-xl p-3 border border-slate-700 shadow-xl overflow-auto">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-[800px] bg-slate-100 p-3 rounded-xl border border-slate-300">
+                  {/* Reuse Blueprint columns by triggering regular rendering */}
+                  <div className="col-span-12 text-center text-xs text-slate-500 py-1 font-bold">
+                    โซนแสดงผลขยายระดับความละเอียดสูง (Full Scale 100%) &bull; คลิกที่โซนเพื่อเจาะลึกข้อมูลพิกัด
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ZONE / SLOT INSPECTOR MODAL */}
       {selectedSlotDetail && (
@@ -1001,7 +1436,7 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
                     }}
                     className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold flex items-center space-x-1 shadow-xs"
                   >
-                    <span>เปิดผังเต็มหน้าจอ</span>
+                    <span>เปิดโซนเต็มหน้าจอ</span>
                     <ExternalLink className="w-3 h-3" />
                   </button>
                 )}

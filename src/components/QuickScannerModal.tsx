@@ -4,7 +4,6 @@ import {
   X, 
   QrCode, 
   CheckCircle2, 
-  AlertTriangle, 
   AlertCircle,
   ArrowDownRight, 
   ArrowUpRight, 
@@ -13,71 +12,14 @@ import {
   Zap, 
   Repeat, 
   Box, 
-  History, 
-  Trash2, 
-  RotateCcw, 
   MapPin,
   ChevronDown,
   ChevronUp,
   Sliders,
-  Sparkles,
-  Building2,
-  Layers,
-  HelpCircle
+  Edit3,
+  Layers
 } from 'lucide-react';
 import { QRScanner } from './QRScanner';
-
-export interface RecentScanEntry {
-  id: string;
-  type: MovementType;
-  modelHE: string;
-  partName?: string;
-  zone: StorageZone;
-  bayNumber: number;
-  level: ShelfLevel;
-  actualQty: number;
-  useLine: string;
-  scanInput: string;
-  stdQtyPerPallet?: number;
-  fullPallets?: number;
-  looseQty?: number;
-  timestamp: string;
-}
-
-const DEFAULT_RECENT_SCANS: RecentScanEntry[] = [
-  {
-    id: 'scan-init-1',
-    type: 'IN',
-    modelHE: 'ADL74920904',
-    partName: 'HE Core Frame Bracket',
-    zone: 'E',
-    bayNumber: 6,
-    level: 1,
-    actualQty: 480,
-    useLine: 'HE2',
-    scanInput: 'ADL74920904_2026-08-20_HE2_480',
-    stdQtyPerPallet: 80,
-    fullPallets: 6,
-    looseQty: 0,
-    timestamp: '10:45 น.'
-  },
-  {
-    id: 'scan-init-2',
-    type: 'OUT',
-    modelHE: 'ACG76284709',
-    partName: 'Compressor Mounting Bracket',
-    zone: 'D',
-    bayNumber: 4,
-    level: 2,
-    actualQty: 160,
-    useLine: 'HE1',
-    scanInput: 'ACG76284709_2026-08-20_HE1_160',
-    stdQtyPerPallet: 80,
-    fullPallets: 2,
-    looseQty: 0,
-    timestamp: '09:30 น.'
-  }
-];
 
 interface QuickScannerModalProps {
   isOpen: boolean;
@@ -106,6 +48,31 @@ interface QuickScannerModalProps {
   masterData?: MasterDataItem[];
 }
 
+// Helper to format proper locator code across campus zones
+export const formatLocatorCode = (z: StorageZone | string, bay: number, lvl: ShelfLevel | number): string => {
+  const zStr = String(z);
+  if (zStr.startsWith('CY3') || zStr.startsWith('DY3T')) {
+    let rowCode = 'A';
+    if (zStr.includes('B') || zStr.includes('1.02')) rowCode = 'B';
+    else if (zStr.includes('C') || zStr.includes('1.03')) rowCode = 'C';
+    else if (zStr.includes('D') || zStr.includes('1.04')) rowCode = 'D';
+    const rowNum = rowCode === 'A' ? '1.01' : rowCode === 'B' ? '1.02' : rowCode === 'C' ? '1.03' : '1.04';
+    return `DY3T-${rowNum}-${rowCode}${bay}-L${lvl}`;
+  }
+  if (zStr.startsWith('X')) {
+    return `DA4D-1-${zStr}-${bay}`;
+  }
+  if (zStr.startsWith('R') || zStr.startsWith('FR')) {
+    const railNum = zStr.replace(/\D/g, '');
+    return `DA2D-1-R${railNum}-${String(bay).padStart(2, '0')}`;
+  }
+  if (zStr.startsWith('T') || zStr.startsWith('DA5T')) {
+    const tentNum = zStr.replace(/\D/g, '') || '1';
+    return `DA5T-${tentNum}.01-${String(bay).padStart(2, '0')}`;
+  }
+  return `${zStr}${bay}-L${lvl}`;
+};
+
 export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
   isOpen,
   onClose,
@@ -129,12 +96,13 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
   const [locatorDetectedMsg, setLocatorDetectedMsg] = useState<string | null>(null);
   const [cameraTarget, setCameraTarget] = useState<'PRODUCT' | 'LOCATOR'>('PRODUCT');
   const [modelHE, setModelHE] = useState<string>('ADL74920904');
+  const [isEditingModel, setIsEditingModel] = useState<boolean>(false);
   const [zone, setZone] = useState<StorageZone>(initialZone);
   const [bayNumber, setBayNumber] = useState<number>(initialBayNumber);
   const [level, setLevel] = useState<ShelfLevel>(initialLevel);
+  const [showManualLocatorPicker, setShowManualLocatorPicker] = useState<boolean>(false);
   const [labelQty, setLabelQty] = useState<number>(600);
   const [actualQty, setActualQty] = useState<number>(600);
-  const [isQtyConfirmed, setIsQtyConfirmed] = useState<boolean>(true);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [useLine, setUseLine] = useState<string>('HE2');
   const [remark, setRemark] = useState<string>('');
@@ -144,58 +112,14 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
   const [itemFilterQuery, setItemFilterQuery] = useState<string>('');
   const [showItemSearchDrawer, setShowItemSearchDrawer] = useState<boolean>(false);
 
-  // Collapsible UI state for clean layout
+  // Collapsible Advanced Pallet Tools
   const [showAdvancedTools, setShowAdvancedTools] = useState<boolean>(false);
-  const [showRecentScans, setShowRecentScans] = useState<boolean>(true);
-
-  // Pallet Breakdown Calculator state
-  const [calcMode, setCalcMode] = useState<'PALLET' | 'DIRECT'>('PALLET');
+  const [calcMode, setCalcMode] = useState<'PALLET' | 'DIRECT'>('DIRECT');
   const [stdQtyPerPalletInput, setStdQtyPerPalletInput] = useState<number>(80);
   const [fullPalletsInput, setFullPalletsInput] = useState<number>(1);
   const [looseQtyInput, setLooseQtyInput] = useState<number>(0);
 
-  // Recent Scans State & Persistence
-  const [recentScans, setRecentScans] = useState<RecentScanEntry[]>(() => {
-    try {
-      const saved = localStorage.getItem('wms_recent_scans');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {
-      console.warn('Failed to load recent scans:', e);
-    }
-    return DEFAULT_RECENT_SCANS;
-  });
-
-  const handleReSelectScan = (scan: RecentScanEntry) => {
-    setType(scan.type);
-    setModelHE(scan.modelHE);
-    setZone(scan.zone);
-    setBayNumber(scan.bayNumber);
-    setLevel(scan.level);
-    setLocatorScanInput(`${scan.zone}${scan.bayNumber}-L${scan.level}`);
-    setActualQty(scan.actualQty);
-    setLabelQty(scan.actualQty);
-    setUseLine(scan.useLine);
-    setScanInput(scan.scanInput);
-    if (scan.stdQtyPerPallet) setStdQtyPerPalletInput(scan.stdQtyPerPallet);
-    if (scan.fullPallets !== undefined) setFullPalletsInput(scan.fullPallets);
-    if (scan.looseQty !== undefined) setLooseQtyInput(scan.looseQty);
-    setSuccessMessage(`⚡ โหลดข้อมูลการสแกนล่าสุด ${scan.modelHE} (${scan.zone}${scan.bayNumber}-L${scan.level}) เรียบร้อย!`);
-    setTimeout(() => {
-      setSuccessMessage(null);
-    }, 2000);
-  };
-
-  const handleClearRecentScans = () => {
-    setRecentScans([]);
-    try {
-      localStorage.removeItem('wms_recent_scans');
-    } catch (e) {}
-  };
-
-  // Filter existing items for quick lookup selection
+  // Filter existing items for quick search drawer
   const filteredExistingItems = existingItems.filter((item) => {
     if (!itemFilterQuery.trim()) return true;
     const q = itemFilterQuery.toLowerCase().trim();
@@ -210,7 +134,6 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
 
   const updateQuantitiesFromPallets = (std: number, full: number, loose: number) => {
     const total = (full * std) + loose;
-    setLabelQty(total);
     setActualQty(total);
   };
 
@@ -244,10 +167,21 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
       setZone(initialZone);
       setBayNumber(initialBayNumber);
       setLevel(initialLevel);
-      setLocatorScanInput(`${initialZone}${initialBayNumber}-L${initialLevel}`);
+      const initialLoc = formatLocatorCode(initialZone, initialBayNumber, initialLevel);
+      setLocatorScanInput(initialLoc);
       setType(initialMode);
       setSuccessMessage(null);
-      setLocatorDetectedMsg(null);
+      setValidationError(null);
+      setShowManualLocatorPicker(false);
+      setIsEditingModel(false);
+
+      if (String(initialZone).startsWith('CY3') || String(initialZone).startsWith('DY3T')) {
+        const rowCode = String(initialZone).replace('CY3-', '');
+        const rowNum = rowCode === 'A' ? '1.01' : rowCode === 'B' ? '1.02' : rowCode === 'C' ? '1.03' : '1.04';
+        setLocatorDetectedMsg(`⛺ เต็นท์ CY3: แถว ${rowCode} Bay ${rowCode}${initialBayNumber} ชั้น ${initialLevel} (DY3T-${rowNum}-${rowCode}${initialBayNumber}-L${initialLevel})`);
+      } else {
+        setLocatorDetectedMsg(null);
+      }
 
       // Pre-fill existing item if present at level
       const found = existingItems.find(
@@ -259,25 +193,62 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
         setLabelQty(found.quantity);
         setActualQty(found.quantity);
         setUseLine(found.useLine);
-        setScanInput(found.qrCode || `${found.modelHE}_2026-07-01_HE1_${found.quantity}`);
+        setScanInput(found.qrCode || `${found.modelHE}_2026-07-01_${found.useLine}_${found.quantity}`);
       } else {
         setScanInput('ADL74920904_2026-06-25_09:27_HE2_600');
+        setModelHE('ADL74920904');
+        setLabelQty(600);
+        setActualQty(600);
+        setUseLine('HE2');
       }
     }
   }, [isOpen, initialZone, initialBayNumber, initialLevel, initialMode, existingItems]);
 
   if (!isOpen) return null;
 
-  // Determine current Zone Category & Max Bay/Level limits
-  const isA4SelectiveRack = ['B', 'C', 'D', 'E', 'F'].includes(zone as string);
-  const isA4HighRack = ['G', 'H', 'I', 'J', 'K'].includes(zone as string);
+  // Determine current Zone Category & Max Bay limits
   const isA4FloorStaging = (zone as string).startsWith('X');
   const isA2FlowRail = (zone as string).startsWith('R') || (zone as string).startsWith('FR');
   const isA5Tent = (zone as string).startsWith('T') || (zone as string).startsWith('DA5T');
+  const isCY3Tent = (zone as string).startsWith('CY3') || (zone as string).startsWith('DY3T');
+  const isRackZone = !isA4FloorStaging && !isA2FlowRail && !isA5Tent; // CY3 Tent or A4 Rack (B-K)
+
+  // Current items in this bay across all levels
+  const currentBayItems = existingItems.filter(
+    (it) => it.zone === zone && it.bayNumber === bayNumber
+  );
+  const activeLevelItem = currentBayItems.find((it) => it.level === level);
+
+  const handleSelectLevel = (targetLvl: ShelfLevel) => {
+    setLevel(targetLvl);
+    const newLoc = formatLocatorCode(zone, bayNumber, targetLvl);
+    setLocatorScanInput(newLoc);
+
+    if (isCY3Tent) {
+      const rowCode = (zone as string).replace('CY3-', '');
+      const rowNum = rowCode === 'A' ? '1.01' : rowCode === 'B' ? '1.02' : rowCode === 'C' ? '1.03' : '1.04';
+      setLocatorDetectedMsg(`⛺ เต็นท์ CY3: แถว ${rowCode} Bay ${rowCode}${bayNumber} ชั้น ${targetLvl} (DY3T-${rowNum}-${rowCode}${bayNumber}-L${targetLvl})`);
+    } else if (!isA4FloorStaging && !isA2FlowRail && !isA5Tent) {
+      setLocatorDetectedMsg(`พิกัด: Zone ${zone} Bay ${bayNumber} ชั้น ${targetLvl}`);
+    }
+
+    // Auto-populate item data in OUT mode if found
+    const targetItem = currentBayItems.find((it) => it.level === targetLvl);
+    if (targetItem) {
+      if (type === 'OUT') {
+        setModelHE(targetItem.modelHE);
+        setLabelQty(targetItem.quantity);
+        setActualQty(targetItem.quantity);
+        setUseLine(targetItem.useLine);
+        setScanInput(targetItem.qrCode || `${targetItem.modelHE}_2026-07-01_${targetItem.useLine}_${targetItem.quantity}`);
+      }
+    }
+  };
 
   const getMaxBaysForZone = (z: string): number => {
     if (['B', 'C', 'D', 'E', 'F'].includes(z)) return 12;
     if (['G', 'H', 'I', 'J', 'K'].includes(z)) return 5;
+    if (z.startsWith('CY3') || z.startsWith('DY3T')) return 25;
     if (z.startsWith('X')) return 12;
     if (z.startsWith('R') || z.startsWith('FR')) return 8;
     if (z.startsWith('T') || z.startsWith('DA5T')) return 20;
@@ -286,6 +257,7 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
 
   const getBayLabelForZone = (z: string): string => {
     if (['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'].includes(z)) return 'ช่วงเสา (Bay):';
+    if (z.startsWith('CY3') || z.startsWith('DY3T')) return 'ช่วงเสา (Bay 1-25):';
     if (z.startsWith('X')) return 'คอลัมน์ (Col):';
     if (z.startsWith('R') || z.startsWith('FR')) return 'ตำแหน่งราง (Pos):';
     if (z.startsWith('T') || z.startsWith('DA5T')) return 'ช่องจัดวาง (Slot):';
@@ -306,7 +278,7 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
     const floorMatch = clean.match(/(?:DA4D-1(?:\.01)?[-_])?(?:(X[1-8])|R([1-9]|[1-4][0-9]|48))[-_\s]*0?([1-9]|1[0-2])?/i);
     if (floorMatch && (floorMatch[1] || clean.startsWith('DA4D-1') || /^X[1-8]/i.test(clean))) {
       let xGroup = floorMatch[1]?.toUpperCase();
-      let rowNum = floorMatch[2] ? parseInt(floorMatch[2], 10) : undefined;
+      const rowNum = floorMatch[2] ? parseInt(floorMatch[2], 10) : undefined;
       const colNum = floorMatch[3] ? parseInt(floorMatch[3], 10) : 1;
 
       if (rowNum && !xGroup) {
@@ -319,10 +291,10 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
       setZone(xGroup);
       setBayNumber(colNum);
       setLevel(1);
-      setLocatorDetectedMsg(`🏗️ ลานกองพื้น A4: DA4D-1 ${xGroup} Col ${String(colNum).padStart(2, '0')} (Floor Staging)`);
+      setLocatorDetectedMsg(`🏗️ ลานกองพื้น A4: DA4D-1 ${xGroup} Col ${String(colNum).padStart(2, '0')}`);
 
       const existing = existingItems.find(i => 
-        i.zone === xGroup && i.bayNumber === colNum || 
+        (i.zone === xGroup && i.bayNumber === colNum) || 
         i.locatorCode.includes(xGroup)
       );
       if (existing) {
@@ -346,10 +318,10 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
       setZone(railZone);
       setBayNumber(posNum);
       setLevel(1);
-      setLocatorDetectedMsg(`🛞 รางเลื่อน A2: DA2D-1 Rail R${railNum} Pos ${String(posNum).padStart(2, '0')} (Flow Rail)`);
+      setLocatorDetectedMsg(`🛞 รางเลื่อน A2: DA2D-1 Rail R${railNum} Pos ${String(posNum).padStart(2, '0')}`);
 
       const existing = existingItems.find(i => 
-        i.zone === railZone && i.bayNumber === posNum || 
+        (i.zone === railZone && i.bayNumber === posNum) || 
         i.zone === `FR${railNum}` || 
         i.locatorCode.includes(`R${railNum}-`)
       );
@@ -374,7 +346,7 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
       setZone(tentZone);
       setBayNumber(slotNum);
       setLevel(1);
-      setLocatorDetectedMsg(`⛺ ลานเต็นท์ A5: DAST-${tentNum}.01 Tent ${tentZone} Slot ${slotNum} (Outdoor)`);
+      setLocatorDetectedMsg(`⛺ ลานเต็นท์ A5: DAST-${tentNum}.01 Tent ${tentZone} Slot ${slotNum}`);
 
       const existing = existingItems.find(i => 
         i.zone === tentZone || i.locatorCode.includes(`DA5T-${tentNum}`) || i.locatorCode.includes(`DAST-${tentNum}`)
@@ -385,6 +357,41 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
         if (type === 'OUT') {
           setLabelQty(existing.quantity);
           setActualQty(existing.quantity);
+        }
+      }
+      return;
+    }
+
+    // 3.5 CY3 Tent Yard (DY3T-1.01 to DY3T-1.04, CY3-A to CY3-D, 4 Levels): e.g. "DY3T-1.01-A1-L1", "DY3T-1.01-A12-L4", "DY3T-1.02-B25-L2", "DY3T-1.04-D22-L3"
+    const cy3Match = clean.match(/(?:DY3T[-_]1\.0([1-4])|CY3[-_]([A-D])|DY3T[-_]([A-D]))[-_\s]*(?:([A-D])?0?([1-9]|1[0-9]|2[0-5]))(?:[-_\s]*(?:LEVEL|LVL|L)?[-_\s]*([1-4]))?/i);
+    if (cy3Match && (clean.includes('DY3T') || clean.includes('CY3'))) {
+      const numCode = cy3Match[1];
+      const letterCode = cy3Match[2] || cy3Match[3] || cy3Match[4];
+      const rowLetter = letterCode ? letterCode.toUpperCase() : (numCode === '1' ? 'A' : numCode === '2' ? 'B' : numCode === '3' ? 'C' : 'D');
+      const bNum = cy3Match[5] ? parseInt(cy3Match[5], 10) : 1;
+      const lNum = cy3Match[6] ? (parseInt(cy3Match[6], 10) as ShelfLevel) : 1;
+      const cy3Zone = `CY3-${rowLetter}` as StorageZone;
+      const rowNum = rowLetter === 'A' ? '1.01' : rowLetter === 'B' ? '1.02' : rowLetter === 'C' ? '1.03' : '1.04';
+      const locTag = `DY3T-${rowNum}-${rowLetter}${bNum}-L${lNum}`;
+
+      setZone(cy3Zone);
+      setBayNumber(bNum);
+      setLevel(lNum);
+      setLocatorDetectedMsg(`⛺ เต็นท์ CY3: แถว ${rowLetter} Bay ${rowLetter}${bNum} ชั้น ${lNum} (${locTag})`);
+
+      const existing = existingItems.find(i => 
+        (i.zone === cy3Zone && i.bayNumber === bNum && i.level === lNum) ||
+        (i.locatorCode.includes(`DY3T-${rowNum}-${rowLetter}${bNum}-L${lNum}`)) ||
+        (i.locatorCode.includes(`-${rowLetter}${bNum}-L${lNum}`)) ||
+        (i.locatorCode.includes(`-${String(bNum).padStart(2, '0')}-L${lNum}`))
+      );
+      if (existing) {
+        setModelHE(existing.modelHE);
+        setUseLine(existing.useLine);
+        if (type === 'OUT') {
+          setLabelQty(existing.quantity);
+          setActualQty(existing.quantity);
+          setScanInput(existing.qrCode || `${existing.modelHE}_2026-07-01_${existing.useLine}_${existing.quantity}`);
         }
       }
       return;
@@ -407,7 +414,7 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
         setBayNumber(validBay);
         setLevel(l);
         
-        const bldgArea = isHigh ? 'A4 DA4D-3 (High Rack)' : 'A4 DA4D-2 (Selective Rack)';
+        const bldgArea = isHigh ? 'A4 High Rack (DA4D-3)' : 'A4 Selective Rack (DA4D-2)';
         setLocatorDetectedMsg(`🏢 ${bldgArea}: Zone ${z} Bay ${validBay} ชั้น ${l}`);
 
         const existing = existingItems.find(i => i.zone === z && i.bayNumber === validBay && (!l || i.level === l));
@@ -423,19 +430,19 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
     }
   };
 
-  // Auto Parse Product QR Code string when changed
+  // Auto Parse Product QR Code string
   const handleScanInputChange = (raw: string) => {
     setScanInput(raw);
     if (!raw.trim()) return;
 
-    // If user scanned a locator tag format into product input, redirect to locator
+    // If user scanned a locator tag into product input, redirect to locator
     const clean = raw.trim().toUpperCase();
     if (/^(?:LOC[-_]|DA4D|DA2D|DAST|DA5T)?[B-K|X|R|T](?:[1-9]|1[0-9]|20)?(?:[-_]L?[1-4])?$/i.test(clean)) {
       handleLocatorInputChange(clean);
       return;
     }
 
-    // Pattern format example: "ADL74920904_2026-06-25_09:27_HE2_600"
+    // Pattern example: "ADL74920904_2026-06-25_09:27_HE2_600"
     const parts = raw.split('_');
     if (parts.length >= 1 && parts[0].length >= 5) {
       setModelHE(parts[0]);
@@ -454,7 +461,7 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
   const handleQRScan = (decodedText: string) => {
     if (cameraTarget === 'LOCATOR') {
       handleLocatorInputChange(decodedText);
-      setSuccessMessage(`📍 สแกนพิกัดเสา/ตำแหน่งสำเร็จ: ${decodedText}`);
+      setSuccessMessage(`📍 สแกนพิกัดสำเร็จ: ${decodedText}`);
     } else {
       const clean = decodedText.trim().toUpperCase();
       if (/^(?:DA4D|DA2D|DAST|DA5T|LOC[-_])?[B-K|X|R|T](?:[1-9]|1[0-9]|20)?(?:[-_]L?[1-4])?$/i.test(clean)) {
@@ -462,6 +469,7 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
         setSuccessMessage(`📍 ตรวจพบว่าเป็น QR พิกัดเสา: ${decodedText}`);
       } else {
         handleScanInputChange(decodedText);
+        setSuccessMessage(`📦 สแกนป้ายสินค้าสำเร็จ: ${decodedText}`);
       }
     }
     setCameraActive(false);
@@ -477,14 +485,14 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
   };
 
   const qtyGap = actualQty - labelQty;
+  const matchedPart = existingItems.find(i => i.modelHE === modelHE) || masterData.find(m => m.modelHE === modelHE);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setValidationError(null);
 
-    // Validation: Require operator to enter/confirm quantity
     if (!actualQty || actualQty <= 0) {
-      setValidationError('⚠️ กรุณากรอกและยืนยันจำนวนที่ตรวจนับจริง (Confirmed Qty) ให้มากกว่า 0 ก่อนกดยืนยัน');
+      setValidationError('⚠️ กรุณาระบุจำนวนสินค้าให้มากกว่า 0');
       return;
     }
 
@@ -504,33 +512,7 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
       looseQty: calcMode === 'PALLET' ? looseQtyInput : (actualQty % stdQtyPerPalletInput)
     });
 
-    // Record into recent scans list
-    const newScanEntry: RecentScanEntry = {
-      id: 'scan-' + Date.now(),
-      type,
-      modelHE,
-      partName: existingItems.find(i => i.modelHE === modelHE)?.partName || masterData.find(m => m.modelHE === modelHE)?.partName || 'Raw Material',
-      zone,
-      bayNumber,
-      level,
-      actualQty,
-      useLine,
-      scanInput: scanInput || modelHE,
-      stdQtyPerPallet: stdQtyPerPalletInput,
-      fullPallets: calcMode === 'PALLET' ? fullPalletsInput : Math.floor(actualQty / stdQtyPerPalletInput),
-      looseQty: calcMode === 'PALLET' ? looseQtyInput : (actualQty % stdQtyPerPalletInput),
-      timestamp: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.'
-    };
-
-    setRecentScans(prev => {
-      const updated = [newScanEntry, ...prev.filter(s => !(s.modelHE === newScanEntry.modelHE && s.zone === newScanEntry.zone && s.bayNumber === newScanEntry.bayNumber && s.level === newScanEntry.level && s.type === newScanEntry.type))].slice(0, 10);
-      try {
-        localStorage.setItem('wms_recent_scans', JSON.stringify(updated));
-      } catch (e) {}
-      return updated;
-    });
-
-    setSuccessMessage(`✅ บันทึกสแกน ${type === 'IN' ? 'รับเข้า' : 'เบิกออก'} ${modelHE} ตำแหน่ง ${zone}${bayNumber}-L${level} สำเร็จ!`);
+    setSuccessMessage(`✅ บันทึกสแกน ${type === 'IN' ? 'รับเข้า' : 'เบิกจ่าย'} ${modelHE} ตำแหน่ง ${zone}${bayNumber}-L${level} (${actualQty.toLocaleString()} ชิ้น) สำเร็จ!`);
     
     if (batchMode) {
       setScanInput('');
@@ -541,37 +523,40 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
     } else {
       setTimeout(() => {
         onClose();
-      }, 1200);
+      }, 1000);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-fadeIn">
-      <div className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full max-h-[94vh] overflow-y-auto p-4 sm:p-5 text-slate-900 shadow-2xl relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-950/80 backdrop-blur-xs animate-fadeIn">
+      {/* MOBILE-RESPONSIVE CLEAN CONTAINER */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md max-h-[92dvh] overflow-y-auto overscroll-contain p-3.5 sm:p-5 text-slate-100 shadow-2xl relative flex flex-col">
         
-        {/* TOP HEADER */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-          <div className="flex items-center space-x-2.5">
-            <div className={`p-2 rounded-xl shrink-0 ${type === 'IN' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-blue-50 text-blue-700 border border-blue-200'}`}>
+        {/* CLEAN HEADER */}
+        <div className="flex items-center justify-between pb-2.5 border-b border-slate-800 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className={`p-2 rounded-xl shrink-0 ${type === 'IN' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'}`}>
               <QrCode className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-black text-base tracking-tight text-slate-900 flex items-center space-x-1.5">
-                <span>สแกน QR Code คลังสินค้า</span>
-                <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-700 rounded-full border border-slate-300">
-                  ทุกโซน A2/A4/A5
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h3 className="font-black text-sm sm:text-base tracking-tight text-white">
+                  สแกน QR Code คลังสินค้า
+                </h3>
+                <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 bg-slate-800 text-slate-300 rounded border border-slate-700">
+                  A2/A4/A5
                 </span>
-              </h3>
-              <p className="text-[11px] text-slate-500">
-                รองรับพิกัดแร็ค, ลานกองพื้น, รางเลื่อน และเต็นท์
+              </div>
+              <p className="text-[11px] text-slate-400 leading-tight">
+                แร็ค, ลานกองพื้น, รางเลื่อน และเต็นท์
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all shrink-0"
-            title="ปิดหน้าต่างสแกน"
+            className="w-8 h-8 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 flex items-center justify-center transition-colors shrink-0"
+            title="ปิดหน้าต่าง"
           >
             <X className="w-5 h-5" />
           </button>
@@ -579,112 +564,106 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
 
         {/* Success Alert Banner */}
         {successMessage && (
-          <div className="my-2.5 p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-bold flex items-center space-x-2 animate-fadeIn shadow-xs">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>{successMessage}</span>
+          <div className="my-2 p-2 bg-emerald-950/80 border border-emerald-600 rounded-xl text-emerald-300 text-xs font-bold flex items-center gap-2 animate-fadeIn shrink-0">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span className="truncate">{successMessage}</span>
           </div>
         )}
 
         {/* Validation Error Banner */}
         {validationError && (
-          <div className="my-2.5 p-2.5 bg-rose-50 border border-rose-300 rounded-xl text-rose-800 text-xs font-bold flex items-center space-x-2 animate-fadeIn shadow-xs">
-            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+          <div className="my-2 p-2 bg-rose-950/80 border border-rose-600 rounded-xl text-rose-300 text-xs font-bold flex items-center gap-2 animate-fadeIn shrink-0">
+            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
             <span>{validationError}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="mt-3 space-y-3">
+        <form onSubmit={handleSubmit} className="mt-2.5 space-y-2.5 flex-1 flex flex-col">
           
-          {/* 1. Mode Selector (IN / OUT) */}
-          <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200">
+          {/* 1. MOVEMENT TYPE SWITCHER (IN / OUT) */}
+          <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-950 rounded-xl border border-slate-800 shrink-0">
             <button
               type="button"
               onClick={() => setType('IN')}
-              className={`py-2 rounded-lg font-black text-xs flex items-center justify-center space-x-1.5 transition-all ${
+              className={`h-9 rounded-lg font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all active:scale-98 ${
                 type === 'IN'
-                  ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-700'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                  ? 'bg-emerald-600 text-white shadow-md ring-1 ring-emerald-400'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
               }`}
             >
               <ArrowDownRight className="w-4 h-4" />
-              <span>📥 รับเข้าจัดเก็บ (IN)</span>
+              <span>รับเข้าจัดเก็บ (IN)</span>
             </button>
 
             <button
               type="button"
               onClick={() => setType('OUT')}
-              className={`py-2 rounded-lg font-black text-xs flex items-center justify-center space-x-1.5 transition-all ${
+              className={`h-9 rounded-lg font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all active:scale-98 ${
                 type === 'OUT'
-                  ? 'bg-blue-600 text-white shadow-sm ring-1 ring-blue-700'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                  ? 'bg-blue-600 text-white shadow-md ring-1 ring-blue-400'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
               }`}
             >
               <ArrowUpRight className="w-4 h-4" />
-              <span>📤 เบิกจ่ายไลน์ (OUT)</span>
+              <span>เบิกจ่ายไลน์ (OUT)</span>
             </button>
           </div>
 
-          {/* 2. Product QR Scan Input */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between">
-              <label className="block text-xs font-bold text-slate-700">
-                1. รหัสสินค้า / บาร์โค้ด QR สินค้า:
+          {/* 2. PRODUCT QR SCAN SECTION */}
+          <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800 space-y-1.5 shrink-0">
+            <div className="flex items-center justify-between text-xs">
+              <label className="font-bold text-slate-200 flex items-center gap-1">
+                <Box className="w-3.5 h-3.5 text-blue-400" />
+                <span>1. รหัสสินค้า / QR บาร์โค้ด:</span>
               </label>
               <button
                 type="button"
                 onClick={() => setShowItemSearchDrawer(!showItemSearchDrawer)}
-                className="text-blue-600 hover:text-blue-800 text-[11px] font-bold flex items-center space-x-1"
+                className="text-blue-400 hover:text-blue-300 text-[11px] font-bold flex items-center gap-1"
               >
                 <Search className="w-3 h-3" />
-                <span>{showItemSearchDrawer ? 'ซ่อนค้นหา' : '🔍 ค้นหาในคลัง'}</span>
+                <span>{showItemSearchDrawer ? 'ปิดค้นหา' : 'ค้นหาในคลัง'}</span>
               </button>
             </div>
 
             {/* Quick Item Filter Search Drawer */}
             {showItemSearchDrawer && (
-              <div className="bg-slate-50 border border-blue-200 rounded-xl p-2.5 space-y-2 shadow-inner">
+              <div className="bg-slate-900 border border-blue-500/40 rounded-xl p-2 space-y-1.5 animate-fadeIn">
                 <div className="relative">
-                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" />
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
                     value={itemFilterQuery}
                     onChange={(e) => setItemFilterQuery(e.target.value)}
-                    placeholder="พิมพ์รหัส Model, Zone, Line หรือชื่อสินค้า..."
-                    className="w-full bg-white border border-slate-300 rounded-lg pl-8 pr-2 py-1 text-xs text-slate-800 focus:outline-none focus:border-blue-500"
+                    placeholder="ค้นหา Model, Zone, Line..."
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg pl-8 pr-2 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
                   />
                 </div>
 
-                <div className="max-h-36 overflow-y-auto space-y-1 text-xs pr-1">
+                <div className="max-h-32 overflow-y-auto space-y-1 text-xs pr-1">
                   {filteredExistingItems.length > 0 ? (
                     filteredExistingItems.map((item) => (
                       <button
                         key={item.id}
                         type="button"
                         onClick={() => handleSelectFilteredItem(item)}
-                        className="w-full text-left p-1.5 rounded bg-white hover:bg-blue-50 border border-slate-200 transition-all flex items-center justify-between group"
+                        className="w-full text-left p-1.5 rounded-lg bg-slate-950/80 hover:bg-blue-950/60 border border-slate-800 hover:border-blue-500/50 transition-colors flex items-center justify-between group"
                       >
                         <div className="truncate mr-2">
-                          <div className="font-mono font-bold text-blue-600 group-hover:text-blue-700 truncate">
+                          <span className="font-mono font-bold text-blue-400 group-hover:text-blue-300">
                             {item.modelHE}
-                          </div>
-                          <div className="text-[10px] text-slate-500 truncate">
-                            {item.partName} | Line {item.useLine}
-                          </div>
+                          </span>
+                          <span className="text-[10px] text-slate-400 ml-1.5">
+                            Line {item.useLine}
+                          </span>
                         </div>
-                        <div className="text-right shrink-0">
-                          <div className="flex items-center space-x-1 justify-end mb-0.5">
-                            <span className="px-1.5 py-0.2 rounded bg-blue-100 text-blue-900 font-extrabold text-[10px]">
-                              {item.locatorCode || `Zone ${item.zone}${item.bayNumber}`}
-                            </span>
-                          </div>
-                          <div className="text-[10px] text-slate-500">
-                            คงเหลือ {item.quantity.toLocaleString()} ชิ้น
-                          </div>
-                        </div>
+                        <span className="px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300 font-mono font-bold text-[10px]">
+                          {item.locatorCode || `${item.zone}${item.bayNumber}`} ({item.quantity} ชิ้น)
+                        </span>
                       </button>
                     ))
                   ) : (
-                    <div className="text-center py-2 text-slate-400 text-xs">
+                    <div className="text-center py-1.5 text-slate-500 text-xs">
                       ไม่พบรายการที่ค้นหา
                     </div>
                   )}
@@ -692,50 +671,97 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
               </div>
             )}
 
-            <div className="relative">
+            {/* Barcode Input Field */}
+            <div className="relative flex items-center">
               <input
                 type="text"
                 value={scanInput}
                 onChange={(e) => handleScanInputChange(e.target.value)}
-                placeholder="ยิงบาร์โค้ด หรือพิมพ์ข้อความ QR สินค้า..."
-                className="w-full bg-slate-50 border border-slate-300 focus:border-blue-500 rounded-xl pl-3.5 pr-20 py-2 text-xs text-blue-700 font-mono font-bold focus:outline-none focus:bg-white transition-all shadow-xs"
+                placeholder="ยิงบาร์โค้ด หรือพิมพ์ QR สินค้า..."
+                className="w-full h-10 bg-slate-900 border border-slate-700 focus:border-blue-500 rounded-lg pl-3 pr-20 text-xs sm:text-sm font-mono font-bold text-blue-300 placeholder-slate-500 focus:outline-none"
                 required
               />
               <button
                 type="button"
                 onClick={() => handleToggleCamera('PRODUCT')}
-                className="absolute right-1 top-1 p-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-[10px] font-semibold flex items-center space-x-1 shadow-2xs"
+                className="absolute right-1 h-7 px-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-md text-[11px] font-bold flex items-center gap-1"
               >
-                <Camera className="w-3.5 h-3.5 text-blue-600" />
-                <span>{cameraActive && cameraTarget === 'PRODUCT' ? 'ปิดกล้อง' : 'กล้อง'}</span>
+                <Camera className="w-3.5 h-3.5 text-blue-400" />
+                <span>{cameraActive && cameraTarget === 'PRODUCT' ? 'ปิด' : 'กล้อง'}</span>
               </button>
+            </div>
+
+            {/* Parsed Model & Line Info Badge */}
+            <div className="flex items-center justify-between text-xs pt-0.5">
+              <div className="flex items-center gap-1.5 truncate">
+                <span className="text-slate-400 font-bold text-[11px]">Model:</span>
+                {isEditingModel ? (
+                  <input
+                    type="text"
+                    value={modelHE}
+                    onChange={(e) => setModelHE(e.target.value)}
+                    onBlur={() => setIsEditingModel(false)}
+                    autoFocus
+                    className="h-5 px-1 bg-slate-900 border border-blue-500 rounded text-xs font-mono font-bold text-blue-300"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingModel(true)}
+                    className="font-mono font-black text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                  >
+                    <span>{modelHE}</span>
+                    <Edit3 className="w-2.5 h-2.5 opacity-60" />
+                  </button>
+                )}
+                {matchedPart?.partName && (
+                  <span className="text-[10.5px] text-slate-400 truncate hidden sm:inline">
+                    ({matchedPart.partName})
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1 shrink-0">
+                <span className="text-slate-400 font-bold text-[11px]">ไลน์:</span>
+                <select
+                  value={useLine}
+                  onChange={(e) => setUseLine(e.target.value)}
+                  className="h-6 bg-slate-900 border border-slate-700 text-amber-300 rounded px-1 text-[11px] font-bold focus:outline-none"
+                >
+                  {useLines.map((line) => (
+                    <option key={line.id} value={line.id}>
+                      {line.name || line.id}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
 
-          {/* Camera View Finder */}
+          {/* Camera View Finder (If Activated) */}
           {cameraActive && (
-            <div className="space-y-2 p-2 bg-slate-900 rounded-xl border border-blue-500 shadow-lg">
-              <div className="flex items-center justify-between px-2 text-white text-xs">
-                <span className="font-bold flex items-center space-x-1.5">
-                  <Camera className="w-4 h-4 text-cyan-400 animate-pulse" />
+            <div className="space-y-1.5 p-2 bg-slate-950 rounded-xl border border-blue-500 shadow-lg shrink-0">
+              <div className="flex items-center justify-between px-1 text-white text-xs">
+                <span className="font-bold flex items-center gap-1.5">
+                  <Camera className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
                   <span>
-                    กำลังสแกน: {cameraTarget === 'LOCATOR' ? '🎯 ป้าย QR พิกัดตำแหน่ง (ทุกโซน)' : '📦 ป้าย QR สินค้า'}
+                    กำลังสแกน: {cameraTarget === 'LOCATOR' ? '🎯 ป้ายพิกัด' : '📦 ป้ายสินค้า'}
                   </span>
                 </span>
-                <div className="flex items-center space-x-1">
+                <div className="flex items-center gap-1">
                   <button
                     type="button"
                     onClick={() => setCameraTarget(cameraTarget === 'LOCATOR' ? 'PRODUCT' : 'LOCATOR')}
-                    className="px-2 py-0.5 rounded bg-blue-600 hover:bg-blue-500 text-[10px] font-bold text-white transition-all"
+                    className="px-2 py-0.5 rounded bg-blue-600 hover:bg-blue-500 text-[10px] font-bold text-white"
                   >
-                    สลับไปสแกน {cameraTarget === 'LOCATOR' ? 'ป้ายสินค้า' : 'ป้ายพิกัด'}
+                    สลับไป{cameraTarget === 'LOCATOR' ? 'สินค้า' : 'พิกัด'}
                   </button>
                   <button
                     type="button"
                     onClick={() => setCameraActive(false)}
-                    className="p-1 text-slate-400 hover:text-white rounded"
+                    className="p-1 text-slate-400 hover:text-white"
                   >
-                    <X className="w-4 h-4" />
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
@@ -743,617 +769,405 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
             </div>
           )}
 
-          {/* 3. 📍 Universal Locator Tag Scanner (ครอบคลุมทุกโซนในคลัง) */}
-          <div className="p-3 bg-gradient-to-r from-amber-50/70 to-orange-50/40 border border-amber-300 rounded-xl space-y-2 shadow-xs">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-black text-amber-950 flex items-center space-x-1.5">
-                <MapPin className="w-4 h-4 text-amber-600 shrink-0" />
-                <span>2. สแกน / ระบุพิกัดจัดเก็บ (All Zones Locator Tag):</span>
+          {/* 3. STORAGE LOCATOR SECTION (SIMPLE & CLEAN) */}
+          <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800 space-y-2 shrink-0">
+            <div className="flex items-center justify-between text-xs">
+              <label className="font-bold text-slate-200 flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5 text-amber-400" />
+                <span>2. พิกัดจัดเก็บ (Locator Tag):</span>
               </label>
-              <button
-                type="button"
-                onClick={() => handleToggleCamera('LOCATOR')}
-                className="p-1 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded-lg text-[10px] font-bold flex items-center space-x-1 shadow-2xs transition-all"
-              >
-                <Camera className="w-3.5 h-3.5 text-amber-700" />
-                <span>{cameraActive && cameraTarget === 'LOCATOR' ? 'ปิดกล้อง' : 'สแกนพิกัด'}</span>
-              </button>
-            </div>
-
-            {/* Quick scan tag string input */}
-            <div className="relative">
-              <input
-                type="text"
-                value={locatorScanInput}
-                onChange={(e) => handleLocatorInputChange(e.target.value)}
-                placeholder="ยิงบาร์โค้ดพิกัด (เช่น DA4D-2-B6-L1, DA4D-1-X3, DA2D-1-R12, DAST-1.01-T1, E6-L1)..."
-                className="w-full bg-white border border-amber-300 focus:border-amber-500 rounded-xl px-3 py-1.5 text-xs text-amber-950 font-mono font-bold focus:outline-none focus:ring-1 focus:ring-amber-500 shadow-2xs transition-all"
-              />
-            </div>
-
-            {/* Detected Tag Badge */}
-            {locatorDetectedMsg && (
-              <div className="text-[11px] bg-emerald-50 text-emerald-800 font-bold px-2.5 py-1 rounded-lg border border-emerald-200 flex items-center space-x-1.5 animate-fadeIn">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                <span>{locatorDetectedMsg}</span>
-              </div>
-            )}
-
-            {/* Structured Zone Selector with Categorized OptGroups */}
-            <div className="grid grid-cols-12 gap-2 pt-0.5">
-              
-              {/* Zone Category & Name */}
-              <div className="col-span-5">
-                <label className="block text-[10px] font-bold text-slate-700 mb-0.5">โซน / พื้นที่:</label>
-                <select
-                  value={zone}
-                  onChange={(e) => {
-                    const newZ = e.target.value as StorageZone;
-                    setZone(newZ);
-                    const maxB = getMaxBaysForZone(newZ);
-                    const newB = Math.min(bayNumber, maxB);
-                    setBayNumber(newB);
-                    const newL = (newZ.startsWith('X') || newZ.startsWith('R') || newZ.startsWith('T') || newZ.startsWith('FR')) ? 1 : level;
-                    setLevel(newL as ShelfLevel);
-                    setLocatorScanInput(`${newZ}${newB}-L${newL}`);
-                  }}
-                  className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-2 py-1 text-xs font-bold focus:outline-none focus:border-amber-500 shadow-2xs"
-                >
-                  <optgroup label="🏢 อาคาร A4 (Selective Rack: DA4D-2)">
-                    <option value="B">Zone B (Selective Bay 1-12)</option>
-                    <option value="C">Zone C (Selective Bay 1-12)</option>
-                    <option value="D">Zone D (Selective Bay 1-12)</option>
-                    <option value="E">Zone E (Selective Bay 1-12)</option>
-                    <option value="F">Zone F (Selective Bay 1-12)</option>
-                  </optgroup>
-                  <optgroup label="🏢 อาคาร A4 (High Rack: DA4D-3)">
-                    <option value="G">Zone G (High Rack Bay 1-5)</option>
-                    <option value="H">Zone H (High Rack Bay 1-5)</option>
-                    <option value="I">Zone I (High Rack Bay 1-5)</option>
-                    <option value="J">Zone J (High Rack Bay 1-5)</option>
-                    <option value="K">Zone K (High Rack Bay 1-5)</option>
-                  </optgroup>
-                  <optgroup label="🏗️ อาคาร A4 (ลานวางพื้น: DA4D-1)">
-                    <option value="X1">Zone X1 (Floor Staging)</option>
-                    <option value="X2">Zone X2 (Floor Staging)</option>
-                    <option value="X3">Zone X3 (Floor Staging)</option>
-                    <option value="X4">Zone X4 (Floor Staging)</option>
-                    <option value="X5">Zone X5 (Floor Staging)</option>
-                    <option value="X6">Zone X6 (Floor Staging)</option>
-                    <option value="X7">Zone X7 (Floor Staging)</option>
-                    <option value="X8">Zone X8 (Floor Staging)</option>
-                  </optgroup>
-                  <optgroup label="🛞 อาคาร A2 (รางเลื่อน Flow Rail: DA2D-1)">
-                    {Array.from({ length: 20 }, (_, idx) => {
-                      const rNum = idx + 1;
-                      return (
-                        <option key={`R${rNum}`} value={`R${rNum}`}>
-                          Rail R{rNum} (Flow Rail 1-8)
-                        </option>
-                      );
-                    })}
-                  </optgroup>
-                  <optgroup label="⛺ ลานเต็นท์ A5 ด้านนอก (DAST 1-4)">
-                    <option value="T1">Tent 1 (DAST-1.01)</option>
-                    <option value="T2">Tent 2 (DAST-2.01)</option>
-                    <option value="T3">Tent 3 (DAST-3.01)</option>
-                    <option value="T4">Tent 4 (DAST-4.01)</option>
-                  </optgroup>
-                </select>
-              </div>
-
-              {/* Dynamic Bay / Column / Slot */}
-              <div className="col-span-3">
-                <label className="block text-[10px] font-bold text-slate-700 mb-0.5">
-                  {getBayLabelForZone(zone as string)}
-                </label>
-                <select
-                  value={bayNumber}
-                  onChange={(e) => {
-                    const newB = Number(e.target.value);
-                    setBayNumber(newB);
-                    setLocatorScanInput(`${zone}${newB}-L${level}`);
-                  }}
-                  className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-2 py-1 text-xs font-bold focus:outline-none focus:border-amber-500 shadow-2xs font-mono"
-                >
-                  {Array.from({ length: getMaxBaysForZone(zone as string) }, (_, i) => i + 1).map((b) => (
-                    <option key={b} value={b}>
-                      {isA4FloorStaging ? `Col ${b}` : isA2FlowRail ? `Pos ${b}` : isA5Tent ? `Slot ${b}` : `Bay ${b}`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Shelf Level (1-4 for Racks, Level 1 Ground for Floor/Rail/Tent) */}
-              <div className="col-span-4">
-                <label className="block text-[10px] font-bold text-amber-900 mb-0.5">
-                  ชั้น (Shelf Level):
-                </label>
-                {isA4FloorStaging || isA2FlowRail || isA5Tent ? (
-                  <div className="w-full bg-slate-100 border border-slate-300 text-slate-700 rounded-lg px-2 py-1 text-xs font-bold text-center">
-                    ชั้น 1 (พื้นราบ)
-                  </div>
-                ) : (
-                  <select
-                    value={level}
-                    onChange={(e) => {
-                      const newL = Number(e.target.value) as ShelfLevel;
-                      setLevel(newL);
-                      setLocatorScanInput(`${zone}${bayNumber}-L${newL}`);
-                    }}
-                    className="w-full bg-white border border-amber-400 text-amber-950 rounded-lg px-2 py-1 text-xs font-black focus:outline-none shadow-2xs"
-                  >
-                    <option value={1}>ชั้น 1 (L1 Ground)</option>
-                    <option value={2}>ชั้น 2 (L2 Heavy)</option>
-                    <option value={3}>ชั้น 3 (L3 Standard)</option>
-                    <option value={4}>ชั้น 4 (L4 Top)</option>
-                  </select>
-                )}
-              </div>
-
-            </div>
-          </div>
-
-          {/* 4. Model & Production Line Fields */}
-          <div className="grid grid-cols-12 gap-2">
-            
-            {/* Model HE */}
-            <div className="col-span-7">
-              <label className="block text-[10px] font-bold text-slate-700 mb-0.5">
-                รหัสสินค้า (Model HE):
-              </label>
-              <input
-                type="text"
-                value={modelHE}
-                onChange={(e) => setModelHE(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold focus:outline-none focus:border-blue-500 focus:bg-white shadow-2xs"
-                required
-              />
-            </div>
-
-            {/* Use Line */}
-            <div className="col-span-5">
-              <label className="block text-[10px] font-bold text-slate-700 mb-0.5">
-                ไลน์ผลิต (Line):
-              </label>
-              <select
-                value={useLine}
-                onChange={(e) => setUseLine(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:border-blue-500 focus:bg-white shadow-2xs"
-              >
-                {useLines.map((line) => (
-                  <option key={line.id} value={line.id}>
-                    {line.name || line.id}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-          </div>
-
-          {/* 5. 🔍 DUAL QUANTITY VERIFICATION (จำนวนจากป้าย QR vs พนักงานกรอกยืนยัน) */}
-          <div className="p-3 bg-gradient-to-r from-blue-50/70 via-indigo-50/50 to-emerald-50/70 border-2 border-indigo-200 rounded-xl space-y-2.5 shadow-xs">
-            
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-indigo-950 flex items-center space-x-1.5">
-                <CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0" />
-                <span>3. ตรวจสอบ & ยืนยันจำนวนสินค้า (Quantity Dual-Verification)</span>
-              </span>
-              <span className="text-[10px] font-extrabold px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded-full border border-indigo-200">
-                พนักงานต้องยืนยันยอด
-              </span>
-            </div>
-
-            {/* Two Side-by-Side Quantity Boxes */}
-            <div className="grid grid-cols-2 gap-2.5">
-              
-              {/* Box 1: ดึงจากป้าย QR Code (Reference Qty from QR) */}
-              <div className="p-2.5 bg-white rounded-lg border border-blue-200 shadow-2xs flex flex-col justify-between">
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-[11px] font-extrabold text-blue-900 flex items-center space-x-1">
-                    <QrCode className="w-3.5 h-3.5 text-blue-600" />
-                    <span>จำนวนจากป้าย QR:</span>
-                  </label>
-                  <span className="text-[9px] font-bold px-1.5 py-0.2 bg-blue-50 text-blue-700 rounded border border-blue-100">
-                    ดึงจาก QR
-                  </span>
-                </div>
-                
-                <div className="relative my-1">
-                  <input
-                    type="number"
-                    min="0"
-                    value={labelQty}
-                    onChange={(e) => {
-                      const val = Math.max(0, Number(e.target.value));
-                      setLabelQty(val);
-                    }}
-                    className="w-full bg-blue-50/60 border border-blue-300 text-blue-900 rounded-lg px-2 py-1.5 text-sm font-mono font-black text-center focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
-                <div className="text-[10px] text-slate-500 text-center">
-                  ยอดตามข้อมูลปาร์ตบาร์โค้ด
-                </div>
-              </div>
-
-              {/* Box 2: พนักงานตรวจนับและกรอกยืนยันเอง (Operator Confirmed Qty) */}
-              <div className="p-2.5 bg-white rounded-lg border-2 border-emerald-400 shadow-2xs ring-2 ring-emerald-400/20 flex flex-col justify-between">
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-[11px] font-black text-emerald-900 flex items-center space-x-1">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>พนักงานกรอกยืนยันเอง: *</span>
-                  </label>
-                  <span className="text-[9px] font-black px-1.5 py-0.2 bg-emerald-100 text-emerald-800 rounded border border-emerald-300 animate-pulse">
-                    จำเป็น
-                  </span>
-                </div>
-                
-                <div className="relative my-1">
-                  <input
-                    type="number"
-                    min="1"
-                    value={actualQty || ''}
-                    onChange={(e) => {
-                      const val = e.target.value === '' ? 0 : Math.max(0, Number(e.target.value));
-                      setActualQty(val);
-                      setValidationError(null);
-                    }}
-                    placeholder="กรอกยอดนับจริง..."
-                    className="w-full bg-emerald-50/80 border-2 border-emerald-500 text-emerald-950 rounded-lg px-2 py-1.5 text-sm font-mono font-black text-center focus:outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500 shadow-inner"
-                    required
-                  />
-                </div>
-                <div className="text-[10px] text-emerald-700 font-bold text-center">
-                  ยอดที่พนักงานนับจริงหน้างาน
-                </div>
-              </div>
-
-            </div>
-
-            {/* Quick Action Buttons for Operator */}
-            <div className="flex flex-wrap items-center justify-between gap-1 pt-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setActualQty(labelQty);
-                  setValidationError(null);
-                }}
-                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold shadow-2xs flex items-center space-x-1 transition-all"
-              >
-                <CheckCircle2 className="w-3 h-3 text-white" />
-                <span>⚡ ยืนยันยอดเท่าป้าย QR ({labelQty.toLocaleString()} ชิ้น)</span>
-              </button>
-
-              <div className="flex items-center space-x-1">
-                {[+10, +80, +160, 480, 600].map((preset) => (
-                  <button
-                    key={preset}
-                    type="button"
-                    onClick={() => {
-                      const newQty = preset > 100 ? preset : actualQty + preset;
-                      setActualQty(newQty);
-                      setValidationError(null);
-                    }}
-                    className="px-1.5 py-0.5 bg-white hover:bg-slate-100 text-slate-700 hover:text-blue-700 border border-slate-300 rounded text-[10px] font-mono font-bold transition-colors shadow-2xs"
-                  >
-                    {preset > 100 ? `${preset}` : `+${preset}`}
-                  </button>
-                ))}
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setActualQty(0);
-                  }}
-                  className="px-1.5 py-0.5 bg-slate-200 hover:bg-slate-300 text-slate-600 rounded text-[10px] font-bold"
-                  title="ล้างเพื่อกรอกใหม่"
+                  onClick={() => setShowManualLocatorPicker(!showManualLocatorPicker)}
+                  className="text-slate-400 hover:text-amber-300 text-[11px] font-bold flex items-center gap-0.5"
                 >
-                  ล้าง
+                  <span>{showManualLocatorPicker ? 'ซ่อน' : 'เลือกเอง'}</span>
+                  {showManualLocatorPicker ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleToggleCamera('LOCATOR')}
+                  className="h-6 px-2 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 rounded text-[11px] font-bold flex items-center gap-1"
+                >
+                  <Camera className="w-3 h-3" />
+                  <span>{cameraActive && cameraTarget === 'LOCATOR' ? 'ปิด' : 'กล้อง'}</span>
                 </button>
               </div>
             </div>
 
-            {/* Real-time Verification Status Banner */}
-            {actualQty > 0 ? (
-              qtyGap === 0 ? (
-                <div className="p-2 bg-emerald-100/90 border border-emerald-300 rounded-lg text-emerald-900 text-xs font-bold flex items-center space-x-2 animate-fadeIn">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
-                  <div className="flex-1 flex items-center justify-between">
-                    <span>✅ ยอดตรงกันสมบูรณ์ (ป้าย: {labelQty.toLocaleString()} = ยืนยัน: {actualQty.toLocaleString()} ชิ้น)</span>
-                    <span className="text-[10px] bg-emerald-200 text-emerald-900 px-2 py-0.2 rounded font-extrabold">ถูกต้อง</span>
-                  </div>
+            {/* Locator Input */}
+            <div className="relative flex items-center">
+              <input
+                type="text"
+                value={locatorScanInput}
+                onChange={(e) => handleLocatorInputChange(e.target.value)}
+                placeholder="ยิงบาร์โค้ดพิกัด (เช่น E6-L1, X3, R12, T1-05)..."
+                className="w-full h-10 bg-slate-900 border border-slate-700 focus:border-amber-400 rounded-lg px-3 text-xs sm:text-sm font-mono font-bold text-amber-300 placeholder-slate-500 focus:outline-none"
+                required
+              />
+            </div>
+
+            {/* Compact Manual Selector (Only when opened) */}
+            {showManualLocatorPicker && (
+              <div className="grid grid-cols-12 gap-1.5 p-2 bg-slate-900 rounded-lg border border-slate-800 animate-fadeIn text-xs">
+                <div className="col-span-5">
+                  <label className="block text-[10px] text-slate-400 mb-0.5">โซน:</label>
+                  <select
+                    value={zone}
+                    onChange={(e) => {
+                      const newZ = e.target.value as StorageZone;
+                      setZone(newZ);
+                      const maxB = getMaxBaysForZone(newZ);
+                      const newB = Math.min(bayNumber, maxB);
+                      setBayNumber(newB);
+                      const newL = (newZ.startsWith('X') || newZ.startsWith('R') || newZ.startsWith('T') || newZ.startsWith('FR')) ? 1 : level;
+                      setLevel(newL as ShelfLevel);
+                      const newLoc = formatLocatorCode(newZ, newB, newL);
+                      setLocatorScanInput(newLoc);
+                    }}
+                    className="w-full h-7 bg-slate-950 border border-slate-700 text-white rounded px-1.5 text-xs font-bold focus:outline-none"
+                  >
+                    <optgroup label="A4 Selective Rack (B-F)">
+                      {['B', 'C', 'D', 'E', 'F'].map(z => (
+                        <option key={z} value={z}>Zone {z}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="A4 High Rack (G-K)">
+                      {['G', 'H', 'I', 'J', 'K'].map(z => (
+                        <option key={z} value={z}>Zone {z}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="A4 Floor (X1-X8)">
+                      {['X1','X2','X3','X4','X5','X6','X7','X8'].map(x => (
+                        <option key={x} value={x}>{x} Floor</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="A2 Flow Rail (R1-R20)">
+                      {Array.from({ length: 20 }, (_, idx) => `R${idx + 1}`).map(r => (
+                        <option key={r} value={r}>Rail {r}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="A5 Tent (T1-T4)">
+                      {['T1', 'T2', 'T3', 'T4'].map(t => (
+                        <option key={t} value={t}>Tent {t}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="CY3 Tent (4-Floor Rack)">
+                      {['CY3-A', 'CY3-B', 'CY3-C', 'CY3-D'].map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </optgroup>
+                  </select>
                 </div>
-              ) : (
-                <div className="p-2 bg-amber-100 border border-amber-300 rounded-lg text-amber-950 text-xs font-bold flex items-center space-x-2 animate-fadeIn">
-                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                  <div className="flex-1">
-                    <span className="text-amber-900">
-                      ⚠️ พบส่วนต่าง (Gap): ป้าย QR ระบุ <strong>{labelQty.toLocaleString()}</strong> ชิ้น แต่พนักงานยืนยัน <strong>{actualQty.toLocaleString()}</strong> ชิ้น
-                    </span>
-                    <div className="text-[11px] font-mono font-extrabold text-amber-800 mt-0.5">
-                      ส่วนต่าง: {qtyGap > 0 ? `+${qtyGap.toLocaleString()}` : qtyGap.toLocaleString()} ชิ้น ({qtyGap > 0 ? 'เกิน' : 'ขาด'})
+
+                <div className="col-span-4">
+                  <label className="block text-[10px] text-slate-400 mb-0.5">{getBayLabelForZone(zone as string)}</label>
+                  <select
+                    value={bayNumber}
+                    onChange={(e) => {
+                      const newB = Number(e.target.value);
+                      setBayNumber(newB);
+                      const newLoc = formatLocatorCode(zone, newB, level);
+                      setLocatorScanInput(newLoc);
+                    }}
+                    className="w-full h-7 bg-slate-950 border border-slate-700 text-white rounded px-1.5 text-xs font-mono font-bold focus:outline-none"
+                  >
+                    {Array.from({ length: getMaxBaysForZone(zone as string) }, (_, i) => i + 1).map((b) => (
+                      <option key={b} value={b}>
+                        {isA4FloorStaging ? `Col ${b}` : isA2FlowRail ? `Pos ${b}` : isA5Tent ? `Slot ${b}` : `Bay ${b}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="col-span-3">
+                  <label className="block text-[10px] text-slate-400 mb-0.5">ชั้น:</label>
+                  {isA4FloorStaging || isA2FlowRail || isA5Tent ? (
+                    <div className="w-full h-7 bg-slate-950 border border-slate-800 text-slate-400 rounded flex items-center justify-center text-[10.5px] font-bold">
+                      ชั้น 1 (พื้น)
                     </div>
-                  </div>
+                  ) : (
+                    <select
+                      value={level}
+                      onChange={(e) => {
+                        const newL = Number(e.target.value) as ShelfLevel;
+                        setLevel(newL);
+                        const newLoc = formatLocatorCode(zone, bayNumber, newL);
+                        setLocatorScanInput(newLoc);
+                      }}
+                      className="w-full h-7 bg-slate-950 border border-slate-700 text-amber-300 rounded px-1 text-xs font-bold focus:outline-none"
+                    >
+                      <option value={1}>L1</option>
+                      <option value={2}>L2</option>
+                      <option value={3}>L3</option>
+                      <option value={4}>L4</option>
+                    </select>
+                  )}
                 </div>
-              )
-            ) : (
-              <div className="p-2 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-xs font-bold flex items-center space-x-2">
-                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                <span>⚠️ กรุณาระบุจำนวนที่ตรวจนับจริงเพื่อยืนยันก่อนกดรับงานหรือเบิกงาน</span>
               </div>
             )}
 
+            {/* Clean Location Indicator & Shelf Floor Pills (Simple, Flat, No clutter) */}
+            {isRackZone ? (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-[11px] text-slate-400 font-medium">
+                  <span className="text-amber-300 font-bold">
+                    Zone {zone} &bull; Bay {bayNumber} &bull; ชั้น {level}
+                  </span>
+                  <span className="text-[10px]">เลือกระดับชั้น (L1-L4):</span>
+                </div>
+
+                {/* 4 Level Quick Pills in Clean Horizontal Grid */}
+                <div className="grid grid-cols-4 gap-1.5">
+                  {([4, 3, 2, 1] as ShelfLevel[]).map((lvl) => {
+                    const item = currentBayItems.find((it) => it.level === lvl);
+                    const isSelected = level === lvl;
+                    const lvlLabel = lvl === 4 ? 'L4 (5.5m)' : lvl === 3 ? 'L3 (3.8m)' : lvl === 2 ? 'L2 (2.1m)' : 'L1 (พื้น)';
+
+                    return (
+                      <button
+                        key={lvl}
+                        type="button"
+                        onClick={() => handleSelectLevel(lvl)}
+                        className={`p-1.5 rounded-lg border text-center transition-all flex flex-col items-center justify-center ${
+                          isSelected
+                            ? type === 'OUT'
+                              ? 'bg-amber-500/20 border-amber-400 text-white shadow-xs ring-1 ring-amber-400'
+                              : 'bg-emerald-500/20 border-emerald-400 text-white shadow-xs ring-1 ring-emerald-400'
+                            : item
+                            ? 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-500'
+                            : 'bg-slate-900/40 border-slate-800 text-slate-500 hover:border-slate-700'
+                        }`}
+                      >
+                        <span className={`text-xs font-mono font-black ${isSelected ? 'text-white' : 'text-slate-200'}`}>
+                          {lvlLabel}
+                        </span>
+                        <div className="text-[9.5px] truncate w-full mt-0.5">
+                          {item ? (
+                            <span className="text-amber-300 font-bold truncate block">
+                              📦 {item.quantity}
+                            </span>
+                          ) : (
+                            <span className="text-emerald-400 font-medium truncate block">
+                              🟢 ว่าง
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="text-xs text-emerald-400 flex items-center gap-1.5 bg-emerald-950/40 px-2 py-1 rounded-lg border border-emerald-800/50">
+                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">
+                  {locatorDetectedMsg || `พิกัดจัดเก็บระดับพื้นราบ (L1): Zone ${zone} ${isA4FloorStaging ? `Col ${bayNumber}` : isA2FlowRail ? `Pos ${bayNumber}` : `Slot ${bayNumber}`}`}
+                </span>
+              </div>
+            )}
           </div>
 
-          {/* 6. COLLAPSIBLE ADVANCED TOOLS (Pallet Breakdown, Notes, Batch Mode) */}
-          <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
+          {/* 4. QUANTITY INPUT (CLEAN & DIRECT) */}
+          <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800 space-y-2 shrink-0">
+            <div className="flex items-center justify-between text-xs">
+              <label className="font-bold text-slate-200 flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                <span>3. จำนวนสินค้า (Qty):</span>
+              </label>
+              {labelQty > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setActualQty(labelQty)}
+                  className="text-[10.5px] font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20"
+                >
+                  ตามป้าย ({labelQty.toLocaleString()} ชิ้น)
+                </button>
+              )}
+            </div>
+
+            {/* Stepper + Input */}
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setActualQty(prev => Math.max(0, prev - (stdQtyPerPalletInput || 80)))}
+                className="w-10 h-10 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 font-black text-base border border-slate-700 flex items-center justify-center shrink-0"
+              >
+                -
+              </button>
+
+              <div className="relative flex-1">
+                <input
+                  type="number"
+                  min="1"
+                  value={actualQty || ''}
+                  onChange={(e) => {
+                    const val = e.target.value === '' ? 0 : Math.max(0, Number(e.target.value));
+                    setActualQty(val);
+                    setValidationError(null);
+                  }}
+                  placeholder="กรอกจำนวน..."
+                  className="w-full h-10 bg-slate-900 border border-slate-700 focus:border-emerald-400 rounded-lg text-center text-lg font-mono font-black text-white focus:outline-none"
+                  required
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 pointer-events-none">
+                  ชิ้น
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setActualQty(prev => prev + (stdQtyPerPalletInput || 80))}
+                className="w-10 h-10 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 font-black text-base border border-slate-700 flex items-center justify-center shrink-0"
+              >
+                +
+              </button>
+            </div>
+
+            {/* Preset Adjuster Chips */}
+            <div className="flex items-center gap-1 overflow-x-auto pt-0.5">
+              {[+10, +80, +160, 480, 600].map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => {
+                    const newQty = preset > 100 ? preset : actualQty + preset;
+                    setActualQty(newQty);
+                    setValidationError(null);
+                  }}
+                  className="h-6 px-2 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 rounded text-[11px] font-mono font-bold shrink-0"
+                >
+                  {preset > 100 ? `${preset}` : `+${preset}`}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setActualQty(0)}
+                className="h-6 px-2 bg-slate-900 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-800 rounded text-[11px] font-bold shrink-0 ml-auto"
+              >
+                ล้าง
+              </button>
+            </div>
+          </div>
+
+          {/* 5. COLLAPSIBLE PALLET / REMARK (COLLAPSED BY DEFAULT) */}
+          <div className="border border-slate-800 rounded-xl overflow-hidden shrink-0">
             <button
               type="button"
               onClick={() => setShowAdvancedTools(!showAdvancedTools)}
-              className="w-full px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 flex items-center justify-between text-xs font-bold transition-colors"
+              className="w-full px-3 py-1.5 bg-slate-950/40 hover:bg-slate-900 text-slate-400 flex items-center justify-between text-xs font-medium"
             >
-              <span className="flex items-center space-x-1.5">
-                <Sliders className="w-3.5 h-3.5 text-blue-600" />
-                <span>ตัวเลือกเสริม & คำนวณพาเลทละเอียด (Pallet Calc & Gap)</span>
+              <span className="flex items-center gap-1">
+                <Sliders className="w-3 h-3 text-slate-400" />
+                <span>ตัวเลือกเพิ่มเติม (คำนวณพาเลท, หมายเหตุ)</span>
               </span>
-              <div className="flex items-center space-x-1 text-[11px] text-slate-500">
-                <span>{showAdvancedTools ? 'ซ่อน' : 'แสดงเครื่องมือ'}</span>
-                {showAdvancedTools ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              <div className="flex items-center gap-1 text-[10px]">
+                {showAdvancedTools ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
               </div>
             </button>
 
             {showAdvancedTools && (
-              <div className="p-3 bg-white space-y-3 border-t border-slate-200 animate-fadeIn text-xs">
-                
+              <div className="p-2.5 bg-slate-950 space-y-2 border-t border-slate-800 animate-fadeIn text-xs">
                 {/* Pallet Breakdown Calculator */}
-                <div className="p-2.5 bg-blue-50/70 border border-blue-200 rounded-lg space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-1 font-bold text-blue-900">
-                      <Box className="w-3.5 h-3.5 text-blue-600" />
-                      <span>คำนวณพาเลท (Pallet Breakdown Calculator)</span>
-                    </div>
-                    <div className="flex bg-white p-0.5 rounded border border-blue-200 text-[10px]">
-                      <button
-                        type="button"
-                        onClick={() => setCalcMode('PALLET')}
-                        className={`px-2 py-0.5 rounded transition-all ${
-                          calcMode === 'PALLET' ? 'bg-blue-600 text-white font-bold' : 'text-slate-600'
-                        }`}
-                      >
-                        ตามพาเลท
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCalcMode('DIRECT')}
-                        className={`px-2 py-0.5 rounded transition-all ${
-                          calcMode === 'DIRECT' ? 'bg-blue-600 text-white font-bold' : 'text-slate-600'
-                        }`}
-                      >
-                        ป้อนจำนวนตรง
-                      </button>
-                    </div>
-                  </div>
-
-                  {calcMode === 'PALLET' && (
-                    <div className="space-y-2">
-                      <div className="grid grid-cols-3 gap-2">
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
-                            มาตรฐาน/พาเลท:
-                          </label>
-                          <input
-                            type="number"
-                            min="1"
-                            value={stdQtyPerPalletInput}
-                            onChange={(e) => {
-                              const val = Math.max(1, Number(e.target.value));
-                              setStdQtyPerPalletInput(val);
-                              updateQuantitiesFromPallets(val, fullPalletsInput, looseQtyInput);
-                            }}
-                            className="w-full bg-white border border-blue-300 rounded px-2 py-1 text-center font-mono font-bold text-blue-800"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
-                            จำนวนพาเลทเต็ม:
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={fullPalletsInput}
-                            onChange={(e) => {
-                              const val = Math.max(0, Number(e.target.value));
-                              setFullPalletsInput(val);
-                              updateQuantitiesFromPallets(stdQtyPerPalletInput, val, looseQtyInput);
-                            }}
-                            className="w-full bg-white border border-blue-300 rounded px-2 py-1 text-center font-mono font-bold text-blue-800"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-[10px] font-bold text-amber-800 mb-0.5">
-                            จำนวนเศษ (Loose):
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={looseQtyInput}
-                            onChange={(e) => {
-                              const val = Math.max(0, Number(e.target.value));
-                              setLooseQtyInput(val);
-                              updateQuantitiesFromPallets(stdQtyPerPalletInput, fullPalletsInput, val);
-                            }}
-                            className="w-full bg-white border border-amber-300 rounded px-2 py-1 text-center font-mono font-bold text-amber-800"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="p-1.5 bg-blue-100/80 rounded text-[11px] text-blue-900 font-mono font-bold flex items-center justify-between">
-                        <span>สูตร: ({stdQtyPerPalletInput} × {fullPalletsInput}P) + {looseQtyInput}</span>
-                        <span>= {(fullPalletsInput * stdQtyPerPalletInput) + looseQtyInput} ชิ้น</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Gap Check */}
-                <div className="grid grid-cols-3 gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200">
+                <div className="grid grid-cols-3 gap-1.5">
                   <div>
-                    <label className="block text-[10px] text-slate-600 font-bold mb-0.5">จำนวนป้าย QR:</label>
+                    <label className="block text-[10px] text-slate-400 mb-0.5">มาตรฐาน/พาเลท:</label>
                     <input
                       type="number"
-                      value={labelQty}
-                      onChange={(e) => setLabelQty(Number(e.target.value))}
-                      className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-center font-bold"
+                      min="1"
+                      value={stdQtyPerPalletInput}
+                      onChange={(e) => {
+                        const val = Math.max(1, Number(e.target.value));
+                        setStdQtyPerPalletInput(val);
+                        updateQuantitiesFromPallets(val, fullPalletsInput, looseQtyInput);
+                      }}
+                      className="w-full h-7 bg-slate-900 border border-slate-700 rounded px-1.5 text-center font-mono font-bold text-blue-300"
                     />
                   </div>
+
                   <div>
-                    <label className="block text-[10px] text-emerald-700 font-bold mb-0.5">นับจริง (Actual):</label>
+                    <label className="block text-[10px] text-slate-400 mb-0.5">จำนวนพาเลท:</label>
                     <input
                       type="number"
-                      value={actualQty}
-                      onChange={(e) => setActualQty(Number(e.target.value))}
-                      className="w-full bg-white border border-emerald-300 text-emerald-800 rounded px-2 py-1 text-center font-bold"
+                      min="0"
+                      value={fullPalletsInput}
+                      onChange={(e) => {
+                        const val = Math.max(0, Number(e.target.value));
+                        setFullPalletsInput(val);
+                        updateQuantitiesFromPallets(stdQtyPerPalletInput, val, looseQtyInput);
+                      }}
+                      className="w-full h-7 bg-slate-900 border border-slate-700 rounded px-1.5 text-center font-mono font-bold text-blue-300"
                     />
                   </div>
+
                   <div>
-                    <label className="block text-[10px] text-amber-700 font-bold mb-0.5">ส่วนต่าง (Gap):</label>
-                    <div className={`py-1 text-center rounded font-bold ${qtyGap === 0 ? 'bg-slate-200 text-slate-600' : 'bg-amber-100 text-amber-800 border border-amber-200'}`}>
-                      {qtyGap}
-                    </div>
+                    <label className="block text-[10px] text-slate-400 mb-0.5">เศษ (Loose):</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={looseQtyInput}
+                      onChange={(e) => {
+                        const val = Math.max(0, Number(e.target.value));
+                        setLooseQtyInput(val);
+                        updateQuantitiesFromPallets(stdQtyPerPalletInput, fullPalletsInput, val);
+                      }}
+                      className="w-full h-7 bg-slate-900 border border-slate-700 rounded px-1.5 text-center font-mono font-bold text-amber-300"
+                    />
                   </div>
                 </div>
 
-                {/* Remark */}
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-700 mb-0.5">หมายเหตุเพิ่มเติม:</label>
+                  <label className="block text-[10px] text-slate-400 mb-0.5">หมายเหตุ:</label>
                   <input
                     type="text"
                     value={remark}
                     onChange={(e) => setRemark(e.target.value)}
-                    placeholder="ระบุหมายเหตุ (เช่น Pallet ชำรุด, Lot พิเศษ)..."
-                    className="w-full bg-slate-50 border border-slate-200 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:border-blue-500 focus:bg-white"
+                    placeholder="ระบุหมายเหตุ..."
+                    className="w-full h-7 bg-slate-900 border border-slate-700 rounded px-2 text-xs text-white placeholder-slate-500"
                   />
                 </div>
 
-                {/* Batch Mode */}
-                <div className="flex items-center space-x-2 pt-1">
+                <div className="flex items-center gap-2 pt-0.5">
                   <input 
                     type="checkbox" 
                     id="batchModeToggleClean"
                     checked={batchMode}
                     onChange={(e) => setBatchMode(e.target.checked)}
-                    className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                    className="w-3.5 h-3.5 rounded bg-slate-900 border-slate-700"
                   />
-                  <label htmlFor="batchModeToggleClean" className="text-xs font-bold text-slate-700 flex items-center cursor-pointer">
-                    <Repeat className="w-3.5 h-3.5 mr-1 text-slate-500" />
-                    <span>โหมดสแกนต่อเนื่อง (Batch Mode - สแกนแล้วไม่ปิดหน้าต่าง)</span>
+                  <label htmlFor="batchModeToggleClean" className="text-xs text-slate-300 cursor-pointer">
+                    สแกนต่อเนื่อง (Batch Mode)
                   </label>
                 </div>
-
               </div>
             )}
           </div>
 
-          {/* 7. PRIMARY SUBMIT BUTTON */}
-          <button
-            type="submit"
-            disabled={!actualQty || actualQty <= 0}
-            className={`w-full py-2.5 rounded-xl font-black text-xs sm:text-sm text-white shadow-md flex items-center justify-center space-x-2 transition-transform active:scale-98 ${
-              !actualQty || actualQty <= 0
-                ? 'bg-slate-400 cursor-not-allowed opacity-75'
-                : type === 'IN'
-                ? 'bg-emerald-600 hover:bg-emerald-700 ring-2 ring-emerald-400/30'
-                : 'bg-blue-600 hover:bg-blue-700 ring-2 ring-blue-400/30'
-            }`}
-          >
-            <Zap className="w-4 h-4 text-white" />
-            <span>
-              {actualQty > 0
-                ? `⚡ ยืนยันสแกน ${type === 'IN' ? 'รับเข้าจัดเก็บ' : 'เบิกจ่ายวัตถุดิบ'} (ยืนยันยอด: ${actualQty.toLocaleString()} ชิ้น)`
-                : `⚠️ กรุณากรอกและยืนยันจำนวนก่อน ${type === 'IN' ? 'รับเข้า' : 'เบิกจ่าย'}`}
-            </span>
-          </button>
+          {/* 6. PRIMARY ACTION BUTTON */}
+          <div className="pt-1 mt-auto shrink-0">
+            <button
+              type="submit"
+              disabled={!actualQty || actualQty <= 0}
+              className={`w-full h-11 rounded-xl font-black text-sm text-white shadow-md flex items-center justify-center gap-2 transition-all active:scale-[0.99] ${
+                !actualQty || actualQty <= 0
+                  ? 'bg-slate-800 cursor-not-allowed text-slate-500'
+                  : type === 'IN'
+                  ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-950'
+                  : 'bg-blue-600 hover:bg-blue-500 shadow-blue-950'
+              }`}
+            >
+              <Zap className="w-4 h-4" />
+              <span>
+                {actualQty > 0
+                  ? `ยืนยัน${type === 'IN' ? 'รับเข้าจัดเก็บ' : 'เบิกจ่าย'} (${actualQty.toLocaleString()} ชิ้น)`
+                  : 'กรุณาระบุจำนวนสินค้า'}
+              </span>
+            </button>
+          </div>
         </form>
 
-        {/* 7. RECENT SCANS SECTION (Collapsible & Compact) */}
-        <div className="mt-4 pt-3 border-t border-slate-200">
-          <div className="flex items-center justify-between mb-2">
-            <button
-              type="button"
-              onClick={() => setShowRecentScans(!showRecentScans)}
-              className="flex items-center space-x-1.5 text-xs font-bold text-slate-800 hover:text-blue-600 transition-colors"
-            >
-              <History className="w-3.5 h-3.5 text-blue-600" />
-              <span>ประวัติการสแกนล่าสุด ({recentScans.length})</span>
-              {showRecentScans ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-            </button>
-
-            {recentScans.length > 0 && (
-              <button
-                type="button"
-                onClick={handleClearRecentScans}
-                className="text-[10px] font-semibold text-slate-400 hover:text-red-600 flex items-center space-x-1 px-1.5 py-0.5 rounded hover:bg-red-50 transition-colors"
-                title="ล้างประวัติ"
-              >
-                <Trash2 className="w-3 h-3" />
-                <span>ล้างประวัติ</span>
-              </button>
-            )}
-          </div>
-
-          {showRecentScans && (
-            <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-              {recentScans.length > 0 ? (
-                recentScans.map((scan) => {
-                  const isScanIn = scan.type === 'IN';
-                  return (
-                    <div
-                      key={scan.id}
-                      className="flex items-center justify-between p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-all"
-                    >
-                      <div className="flex items-center space-x-2 min-w-0">
-                        <span
-                          className={`px-1.5 py-0.2 rounded text-[9px] font-black uppercase shrink-0 ${
-                            isScanIn
-                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                              : 'bg-blue-100 text-blue-800 border border-blue-300'
-                          }`}
-                        >
-                          {isScanIn ? 'IN' : 'OUT'}
-                        </span>
-                        <div className="min-w-0 truncate">
-                          <span className="font-mono font-bold text-xs text-slate-900 mr-1.5">
-                            {scan.modelHE}
-                          </span>
-                          <span className="text-[10px] font-bold text-amber-900 bg-amber-100 px-1 py-0.2 rounded border border-amber-200 mr-1">
-                            {scan.zone}{scan.bayNumber}-L{scan.level}
-                          </span>
-                          <span className="text-[10px] text-slate-500 font-medium">
-                            {scan.actualQty} ชิ้น ({scan.useLine})
-                          </span>
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => handleReSelectScan(scan)}
-                        className="px-2 py-0.5 text-[10px] font-bold bg-white hover:bg-blue-600 hover:text-white text-blue-700 border border-slate-300 rounded shadow-2xs transition-all flex items-center space-x-1 shrink-0 ml-1.5 active:scale-95"
-                      >
-                        <RotateCcw className="w-2.5 h-2.5" />
-                        <span>เลือกซ้ำ</span>
-                      </button>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="text-center py-2 text-slate-400 text-[11px]">
-                  ยังไม่มีประวัติการสแกนล่าสุด
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        {/* Note: ประวัติการสแกนด้านล่างถูกนำออกตามที่ผู้ใช้ร้องขอ ("ประวะติ ด้านล่าง เอาออก") */}
 
       </div>
     </div>
