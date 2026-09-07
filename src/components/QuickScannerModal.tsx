@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { InventoryItem, MasterDataItem, MovementType, ShelfLevel, StorageZone, UseLineMaster } from '../types';
+import { 
+  InventoryItem, 
+  MasterDataItem, 
+  MovementType, 
+  ShelfLevel, 
+  StorageZone, 
+  UseLineMaster,
+  ProtectionMethod,
+  ProductType,
+  ProductStorageType
+} from '../types';
 import { 
   X, 
   QrCode, 
@@ -20,6 +30,7 @@ import {
   Layers
 } from 'lucide-react';
 import { QRScanner } from './QRScanner';
+import { validateVinylWrappingAllowed } from '../utils/vinylWrappingRule';
 
 interface QuickScannerModalProps {
   isOpen: boolean;
@@ -38,6 +49,10 @@ interface QuickScannerModalProps {
     stdQtyPerPallet?: number;
     fullPallets?: number;
     looseQty?: number;
+    // Vinyl Wrapping extensions
+    protectionMethod?: ProtectionMethod;
+    productType?: ProductType;
+    productStorageType?: ProductStorageType;
   }) => void;
   initialZone?: StorageZone;
   initialBayNumber?: number;
@@ -118,6 +133,12 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
   const [stdQtyPerPalletInput, setStdQtyPerPalletInput] = useState<number>(80);
   const [fullPalletsInput, setFullPalletsInput] = useState<number>(1);
   const [looseQtyInput, setLooseQtyInput] = useState<number>(0);
+
+  // --- VINYL WRAPPING FIELDS ---
+  const [protectionMethod, setProtectionMethod] = useState<ProtectionMethod>('NOT_APPLICABLE');
+  const [productType, setProductType] = useState<ProductType>('IN_HOUSE');
+  const [productStorageType, setProductStorageType] = useState<ProductStorageType>('INDOOR');
+  // -----------------------------
 
   // Filter existing items for quick search drawer
   const filteredExistingItems = existingItems.filter((item) => {
@@ -496,6 +517,33 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
       return;
     }
 
+    // --- VINYL WRAPPING QR OUT BLOCKING RULE ---
+    if (type === 'OUT') {
+      const currentItem = existingItems.find(i => i.zone === zone && i.bayNumber === bayNumber && i.level === level);
+      if (currentItem && currentItem.protectionMethod === 'VINYL_WRAPPING') {
+        const blockedStatuses = ['DUE_TODAY', 'EXPIRED', 'CONDITION_NG', 'DATA_INCOMPLETE'];
+        if (blockedStatuses.includes(currentItem.agingStatus)) {
+           setValidationError(`⛔ ไม่สามารถจ่ายสินค้า Lot นี้ได้ เนื่องจาก ${currentItem.holdReason || `สถานะ ${currentItem.agingStatus}`} กรุณาติดต่อ Quality หรือ Warehouse Supervisor`);
+           return; // BLOCK QR OUT
+        }
+        if (currentItem.holdStatus) {
+           setValidationError(`⛔ ไม่สามารถจ่ายสินค้า Lot นี้ได้ เนื่องจากสินค้าถูก Hold อยู่ กรุณาติดต่อ Quality หรือ Warehouse Supervisor`);
+           return;
+        }
+      }
+    }
+    // -------------------------------------------
+
+    // --- VINYL WRAPPING VALIDATION (QR IN) ---
+    if (type === 'IN' && protectionMethod === 'VINYL_WRAPPING') {
+       const validate = validateVinylWrappingAllowed(productType, productStorageType);
+       if (!validate.allowed) {
+          setValidationError(`⛔ ${validate.reason}`);
+          return;
+       }
+    }
+    // -----------------------------------------
+
     onSaveMovement({
       type,
       scanInput,
@@ -509,7 +557,10 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
       remark,
       stdQtyPerPallet: stdQtyPerPalletInput,
       fullPallets: calcMode === 'PALLET' ? fullPalletsInput : Math.floor(actualQty / stdQtyPerPalletInput),
-      looseQty: calcMode === 'PALLET' ? looseQtyInput : (actualQty % stdQtyPerPalletInput)
+      looseQty: calcMode === 'PALLET' ? looseQtyInput : (actualQty % stdQtyPerPalletInput),
+      protectionMethod,
+      productType,
+      productStorageType
     });
 
     setSuccessMessage(`✅ บันทึกสแกน ${type === 'IN' ? 'รับเข้า' : 'เบิกจ่าย'} ${modelHE} ตำแหน่ง ${zone}${bayNumber}-L${level} (${actualQty.toLocaleString()} ชิ้น) สำเร็จ!`);
@@ -1140,6 +1191,57 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
                     สแกนต่อเนื่อง (Batch Mode)
                   </label>
                 </div>
+
+                {/* VINYL WRAPPING SETTINGS (QR IN ONLY) */}
+                {type === 'IN' && (
+                  <div className="pt-2 mt-2 border-t border-slate-800 space-y-2">
+                    <div className="text-[10px] font-bold text-amber-400 mb-1">🔧 การตั้งค่า Vinyl Wrapping (อายุควบคุม 28 วัน)</div>
+                    <div className="grid grid-cols-1 gap-2">
+                      <div>
+                        <label className="block text-[10px] text-slate-400 mb-0.5">การป้องกันปลายท่อ:</label>
+                        <select
+                          value={protectionMethod}
+                          onChange={(e) => setProtectionMethod(e.target.value as ProtectionMethod)}
+                          className="w-full h-7 bg-slate-900 border border-slate-700 rounded px-1.5 text-[11px] text-slate-200"
+                        >
+                          <option value="NOT_APPLICABLE">Not Applicable (ไม่ระบุ)</option>
+                          <option value="RUBBER_CAP">Rubber Cap (จุกยาง)</option>
+                          <option value="VINYL_WRAPPING">Vinyl Wrapping (ไวนิลแร็ป - ควบคุม 28 วัน)</option>
+                        </select>
+                      </div>
+                    </div>
+                    {protectionMethod === 'VINYL_WRAPPING' && (
+                      <div className="grid grid-cols-2 gap-2 animate-fadeIn">
+                        <div>
+                          <label className="block text-[10px] text-slate-400 mb-0.5">ประเภทสินค้า:</label>
+                          <select
+                            value={productType}
+                            onChange={(e) => setProductType(e.target.value as ProductType)}
+                            className="w-full h-7 bg-slate-900 border border-slate-700 rounded px-1.5 text-[11px] text-slate-200"
+                          >
+                            <option value="IN_HOUSE">IN HOUSE</option>
+                            <option value="CSKD">CSKD</option>
+                            <option value="DO">DO</option>
+                            <option value="OTHER">OTHER</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-slate-400 mb-0.5">ประเภทพื้นที่จัดเก็บ:</label>
+                          <select
+                            value={productStorageType}
+                            onChange={(e) => setProductStorageType(e.target.value as ProductStorageType)}
+                            className="w-full h-7 bg-slate-900 border border-slate-700 rounded px-1.5 text-[11px] text-slate-200"
+                          >
+                            <option value="INDOOR">INDOOR</option>
+                            <option value="CANOPY">CANOPY</option>
+                            <option value="OUTDOOR">OUTDOOR</option>
+                          </select>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {/* ------------------------------------ */}
               </div>
             )}
           </div>

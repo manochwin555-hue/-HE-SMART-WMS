@@ -5,6 +5,7 @@ import { SlotMiniStatsOverlay, MiniStatsSlotData } from './SlotMiniStatsOverlay'
 import { CY3IsometricView } from './CY3IsometricView';
 import { CY3FrontElevationView } from './CY3FrontElevationView';
 import { MiniatureRackIcon } from './MiniatureRackIcon';
+import { MultiLevelRackZoneLayout, MultiLevelRackRowConfig } from './zone-standard';
 import { 
   Building2, 
   Search, 
@@ -104,12 +105,25 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
   onNavigateToCampus,
   onPrintLabel
 }) => {
-  const [viewMode, setViewMode] = useState<'REFERENCE_2D' | 'ISOMETRIC_25D' | 'FRONT_ELEVATION' | 'HEATMAP' | 'FIFO_AGING'>('REFERENCE_2D');
+  const [viewMode, setViewMode] = useState<'STANDARD_DESIGN' | 'REFERENCE_2D' | 'ISOMETRIC_25D' | 'FRONT_ELEVATION' | 'HEATMAP' | 'FIFO_AGING'>('STANDARD_DESIGN');
   const [floorFilter, setFloorFilter] = useState<'ALL' | 1 | 2 | 3 | 4>('ALL');
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'OCCUPIED' | 'EMPTY' | 'AGING'>('ALL');
   const [localSearch, setLocalSearch] = useState<string>(searchQuery);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [lastSyncTime, setLastSyncTime] = useState<string>('ซิงค์แล้ว');
+  
+  // Standardized Rack Row Configurations
+  const standardCY3Rows: MultiLevelRackRowConfig[] = useMemo(() => {
+    return CY3_ROWS.map(r => ({
+      rowCode: `Row ${r.rowCode}`,
+      zoneId: r.zoneId as StorageZone,
+      locatorSign: r.locatorSign,
+      totalBays: r.totalBays,
+      description: r.description,
+      hasBottomDriveway: r.hasBottomRoad,
+      drivewayLabel: r.rowCode === 'A' ? 'ทางวิ่งรถยก Forklift Aisle A-B (กว้าง 4.0 ม. | จำกัดความเร็ว ≤ 10 km/h)' : 'ทางวิ่งรถยก Forklift Aisle C-D (กว้าง 4.0 ม. | จำกัดความเร็ว ≤ 10 km/h)'
+    }));
+  }, []);
   
   // UnifiedSlotModal Data
   const [selectedSlotModal, setSelectedSlotModal] = useState<UnifiedSlotData | null>(null);
@@ -251,6 +265,45 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
     setHoveredSlot(null);
   };
 
+  if (viewMode === 'STANDARD_DESIGN') {
+    return (
+      <div className="space-y-3 animate-fadeIn">
+        {/* Quick View Mode Switcher Header */}
+        <div className="flex flex-wrap items-center justify-between bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 gap-2">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
+            <span className="text-xs font-black text-white">มาตรฐาน WMS Design System: Template 2 (แร็ค 4 ชั้น L1-L4)</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-400">มุมมอง:</span>
+            <button
+              onClick={() => setViewMode('REFERENCE_2D')}
+              className="px-2.5 py-1 text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 transition-colors"
+            >
+              สลับเป็นมุมมองเดิม (Legacy)
+            </button>
+          </div>
+        </div>
+
+        <MultiLevelRackZoneLayout
+          zoneTitle="โซน CY3 เต็นท์คลังสินค้า (4-Tier Selective Rack)"
+          zoneSubtitle="เต็นท์จัดเก็บภายนอก CY3 &bull; แร็ค 4 ชั้น"
+          locatorSign="DY3T-1"
+          facilityCode="FAC-CY3-TENT"
+          rows={standardCY3Rows}
+          items={items}
+          searchQuery={searchQuery}
+          onOpenScanner={onOpenScanner}
+          onRelocateItem={onRelocateItem}
+          onOpen3D={(z, b) => {}}
+          onNavigateBack={onNavigateToCampus}
+          backButtonLabel="กลับไปผังรวม Campus"
+          onPrintLabel={onPrintLabel}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full bg-slate-950 text-slate-100 overflow-hidden select-none">
       
@@ -264,10 +317,10 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
           <button
             onClick={onNavigateToCampus}
             className="flex items-center gap-1 text-slate-400 hover:text-white font-bold transition-colors"
-            title="กลับสู่โซนรวมทุกอาคาร (Campus Master)"
+            title="กลับสู่ผังรวม (Master Blueprint)"
           >
             <Building2 className="w-3.5 h-3.5 text-blue-400" />
-            <span className="hidden sm:inline text-[11px]">แคมปัส</span>
+            <span className="hidden sm:inline text-[11px]">ผังรวม</span>
           </button>
           <ChevronRight className="w-3 h-3 text-slate-600 shrink-0" />
           
@@ -313,8 +366,18 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
             ))}
           </div>
 
-          {/* View Mode Switcher (4 Options matching user request) */}
+          {/* View Mode Switcher (5 Options) */}
           <div className="inline-flex items-center bg-slate-800/90 p-0.5 rounded-md border border-slate-700/80 h-7 shrink-0 gap-0.5">
+            {/* Standardized Design System */}
+            <button
+              onClick={() => setViewMode('STANDARD_DESIGN')}
+              className="h-6 px-2 rounded text-[11px] font-bold flex items-center gap-1 transition-all bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs"
+              title="สลับไปผังมาตรฐาน WMS Design System (4 ชั้น Vertical Stack)"
+            >
+              <LayoutGrid className="w-3 h-3" />
+              <span className="hidden sm:inline">ผังมาตรฐาน WMS</span>
+            </button>
+
             {/* 1. Top View (Stacked Segmented Blocks) */}
             <button
               onClick={() => setViewMode('REFERENCE_2D')}

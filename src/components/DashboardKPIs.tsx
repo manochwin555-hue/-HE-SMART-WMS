@@ -524,7 +524,7 @@ export const DashboardKPIs: React.FC<DashboardKPIsProps> = ({ stats, lowStockCou
 
             {/* Aging Alerts */}
             <div 
-              onClick={() => onSelectFilter && onSelectFilter('aging')}
+              onClick={() => onSelectFilter && onSelectFilter('inventory')}
               className={`bg-white border rounded-xl p-4 shadow-sm flex flex-col justify-between cursor-pointer transition-all ${
                 stats.agingAlertCount > 0 
                   ? 'border-amber-300 ring-2 ring-amber-400/20 bg-amber-50/20 hover:border-amber-400' 
@@ -544,7 +544,7 @@ export const DashboardKPIs: React.FC<DashboardKPIsProps> = ({ stats, lowStockCou
                 <span className="text-xs font-semibold text-slate-500">รายการ</span>
               </div>
               <div className="mt-2 text-[11px] text-amber-700 font-medium">
-                {stats.agingAlertCount > 0 ? 'สินค้าอยู่ในคลังเกิน 30 วัน' : 'ไม่มีสินค้าค้างนาน'}
+                {stats.agingAlertCount > 0 ? 'สินค้าถึงกำหนด/หมดอายุ หรือค้างนานเกินกำหนด' : 'ไม่มีสินค้าค้างนาน'}
               </div>
             </div>
           </div>

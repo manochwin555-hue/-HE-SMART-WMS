@@ -2,6 +2,14 @@ export type StorageZone = 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 
 
 export type StorageLocationType = 'RACK' | 'FLOW_RAIL' | 'FLOOR_STAGING';
 
+// --- NEW TYPES FOR VINYL WRAPPING ---
+export type ProtectionMethod = 'RUBBER_CAP' | 'VINYL_WRAPPING' | 'NOT_APPLICABLE';
+export type ProductType = 'IN_HOUSE' | 'CSKD' | 'DO' | 'OTHER';
+export type ProductStorageType = 'INDOOR' | 'CANOPY' | 'OUTDOOR'; 
+export type WrappingCondition = 'OK' | 'TORN' | 'LOOSE' | 'WET' | 'CONTAMINATED' | 'OPEN' | 'NOT_INSPECTED';
+export type AgingStatus = 'SAFE' | 'WARNING' | 'OVERDUE' | 'NORMAL' | 'URGENT' | 'DUE_TODAY' | 'EXPIRED' | 'CONDITION_NG' | 'DATA_INCOMPLETE';
+// ------------------------------------
+
 export interface WarehouseFacility {
   id: string; // e.g. "FAC-A4-MAIN", "FAC-A2-RAIL"
   code: string; // e.g. "A4-BLDG", "A2-BLDG"
@@ -51,6 +59,22 @@ export interface MasterDataItem {
   partName: string; // Tool Name
   safetyStock: number;
   stdQtyPerPallet?: number; // มาตรฐานจำนวนชิ้นต่อ 1 พาเลทเต็ม (e.g. 80 ตัว/pallet)
+  protectionMethod?: ProtectionMethod; // Default NOT_APPLICABLE
+  productType?: ProductType;
+  storageType?: ProductStorageType;
+}
+
+export interface AuditLog {
+  id: string;
+  timestamp: string;
+  action: 'UPDATE_STATUS' | 'RE_WRAPPING' | 'CONDITION_UPDATE' | 'MANUAL_EDIT' | 'SYSTEM_EVALUATION';
+  itemId: string;
+  modelHE: string;
+  locatorCode: string;
+  oldValue: string;
+  newValue: string;
+  reason?: string;
+  user?: string;
 }
 
 export interface UseLineMaster {
@@ -60,12 +84,22 @@ export interface UseLineMaster {
 }
 
 export interface AgingThresholdConfig {
-  safeDaysMax: number; // e.g. 14 (<= 14 is Safe)
-  warningDaysMax: number; // e.g. 30 (15 - 30 is Warning)
-  criticalDays: number; // e.g. 30 (> 30 is Overdue)
+  safeDaysMin?: number; // e.g. 0 (0 to safeDaysMax is Normal)
+  safeDaysMax: number; // e.g. 21 (0 - 21 is Normal)
+  warningDaysMin?: number; // e.g. 22 (warningDaysMin to warningDaysMax is Warning)
+  warningDaysMax: number; // e.g. 24 (22 - 24 is Warning)
+  urgentDaysMin?: number; // e.g. 25 (urgentDaysMin to urgentDaysMax is Urgent)
+  urgentDaysMax?: number; // e.g. 27 (25 - 27 is Urgent)
+  dueDay?: number; // e.g. 28 (Day 28 is Due Today)
+  criticalDays: number; // e.g. 28 (> 28 is Expired)
+  indoorRubberCapDays?: number; // e.g. 28 (> 28 for indoor A2/A4)
   autoAlertEnabled: boolean;
   notifyOnFifoViolation?: boolean;
   customRuleName?: string;
+  // Vinyl Wrapping Rule settings
+  vinylWarningStartDay?: number; // Default 22
+  vinylUrgentStartDay?: number; // Default 25
+  vinylMaxDueDays?: number; // Default 28
 }
 
 export interface ZoneCapacityMaster {
@@ -80,6 +114,7 @@ export interface InventoryItem {
   modelHE: string; // e.g. "ADL74920904", "ACG76284709"
   partName: string;
   quantity: number;
+  unit?: string;
   stdQtyPerPallet?: number; // มาตรฐานชิ้นต่อพาเลท (e.g. 80)
   fullPallets?: number; // จำนวนพาเลทเต็ม (e.g. 3)
   looseQty?: number; // จำนวนเศษ (e.g. 70)
@@ -94,8 +129,30 @@ export interface InventoryItem {
   stationId?: string; // e.g. 'STATION_1' | 'STATION_2'
   useLine: string; // e.g. "HE1", "HE2", "HE3"
   storageInDate: string; // ISO date string
+  
+  // Base Aging
   agingDays: number;
-  agingStatus: 'SAFE' | 'WARNING' | 'OVERDUE';
+  agingStatus: AgingStatus; // Modified to extended type
+  
+  // Vinyl Wrapping specific properties
+  lotNumber?: string;
+  protectionMethod?: ProtectionMethod;
+  productType?: ProductType;
+  productStorageType?: ProductStorageType;
+  productionDate?: string; 
+  wrappingDate?: string; 
+  agingStartDate?: string; 
+  dueDate?: string; 
+  remainingDays?: number;
+  wrappingCondition?: WrappingCondition;
+  holdStatus?: boolean;
+  holdReason?: string;
+  lastInspectionDate?: string;
+  lastInspectedBy?: string;
+  qualityDisposition?: string;
+  reWrappingDate?: string;
+  originalDueDate?: string;
+
   priorityUse: boolean;
   palletBarcode?: string;
   remark?: string;
@@ -149,6 +206,11 @@ export interface MovementLog {
   createdOn: string;
   remark?: string;
   agingDays?: number;
+  // Vinyl properties
+  holdStatus?: boolean;
+  holdReason?: string;
+  qualityDisposition?: string;
+  reWrappingDate?: string;
 }
 
 export interface WmsStats {

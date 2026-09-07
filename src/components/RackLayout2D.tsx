@@ -37,11 +37,12 @@ import { Warehouse3DMap } from './Warehouse3DMap';
 import { DA4D1FloorStagingMap } from './DA4D1FloorStagingMap';
 import { UnifiedSlotModal, UnifiedSlotData } from './UnifiedSlotModal';
 import { SlotMiniStatsOverlay, MiniStatsSlotData } from './SlotMiniStatsOverlay';
+import { MultiLevelRackZoneLayout, MultiLevelRackRowConfig } from './zone-standard';
 
 interface RackLayout2DProps {
   items: InventoryItem[];
   searchQuery?: string;
-  initialSectionTab?: 'FLOOR_DA4D1' | 'RACK_ZONES' | 'FULL3D';
+  initialSectionTab?: 'FLOOR_DA4D1' | 'RACK_ZONES' | 'FULL3D' | 'STANDARD_RACK_DESIGN';
   onSelectBay: (zone: StorageZone, bayNumber: number) => void;
   onOpen3D: (zone: StorageZone, bayNumber: number) => void;
   onOpenScanner?: (zone: StorageZone, bay: number, level: ShelfLevel, mode: MovementType) => void;
@@ -73,13 +74,26 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
   onToggleFullscreen
 }) => {
   // A4 Building Main Section Switcher: Rack Zones (DA4D-2 & DA4D-3), Floor Staging (DA4D-1), or Full 3D
-  const [a4SectionTab, setA4SectionTab] = useState<'FLOOR_DA4D1' | 'RACK_ZONES' | 'FULL3D'>(initialSectionTab);
+  const [a4SectionTab, setA4SectionTab] = useState<'FLOOR_DA4D1' | 'RACK_ZONES' | 'FULL3D' | 'STANDARD_RACK_DESIGN'>(initialSectionTab || 'STANDARD_RACK_DESIGN');
   
   useEffect(() => {
     if (initialSectionTab) {
       setA4SectionTab(initialSectionTab);
     }
   }, [initialSectionTab]);
+
+  const standardA4RackRows: MultiLevelRackRowConfig[] = useMemo(() => [
+    { rowCode: 'Rack B', zoneId: 'B', locatorSign: 'DA4D-2-B', totalBays: 12, description: 'แร็ค B (Selective Rack) - 12 ช่องเสา x 4 ชั้น', hasBottomDriveway: true },
+    { rowCode: 'Rack C', zoneId: 'C', locatorSign: 'DA4D-2-C', totalBays: 12, description: 'แร็ค C (Selective Rack) - 12 ช่องเสา x 4 ชั้น', hasBottomDriveway: false },
+    { rowCode: 'Rack D', zoneId: 'D', locatorSign: 'DA4D-2-D', totalBays: 12, description: 'แร็ค D (Selective Rack) - 12 ช่องเสา x 4 ชั้น', hasBottomDriveway: true },
+    { rowCode: 'Rack E', zoneId: 'E', locatorSign: 'DA4D-2-E', totalBays: 12, description: 'แร็ค E (Selective Rack) - 12 ช่องเสา x 4 ชั้น', hasBottomDriveway: false },
+    { rowCode: 'Rack F', zoneId: 'F', locatorSign: 'DA4D-2-F', totalBays: 12, description: 'แร็ค F (Selective Rack) - 12 ช่องเสา x 4 ชั้น', hasBottomDriveway: true },
+    { rowCode: 'Rack G', zoneId: 'G', locatorSign: 'DA4D-3-G', totalBays: 5, description: 'แร็ค G (Selective Rack) - 5 ช่องเสา x 4 ชั้น', hasBottomDriveway: false },
+    { rowCode: 'Rack H', zoneId: 'H', locatorSign: 'DA4D-3-H', totalBays: 5, description: 'แร็ค H (Selective Rack) - 5 ช่องเสา x 4 ชั้น', hasBottomDriveway: false },
+    { rowCode: 'Rack I', zoneId: 'I', locatorSign: 'DA4D-3-I', totalBays: 5, description: 'แร็ค I (Selective Rack) - 5 ช่องเสา x 4 ชั้น', hasBottomDriveway: false },
+    { rowCode: 'Rack J', zoneId: 'J', locatorSign: 'DA4D-3-J', totalBays: 5, description: 'แร็ค J (Selective Rack) - 5 ช่องเสา x 4 ชั้น', hasBottomDriveway: false },
+    { rowCode: 'Rack K', zoneId: 'K', locatorSign: 'DA4D-3-K', totalBays: 5, description: 'แร็ค K (Selective Rack) - 5 ช่องเสา x 4 ชั้น', hasBottomDriveway: false },
+  ], []);
 
   const [selectedZone, setSelectedZone] = useState<string>('ALL');
   const [filterType, setFilterType] = useState<'ALL' | 'OCCUPIED' | 'AGING'>('ALL');
@@ -333,10 +347,10 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
               <button
                 onClick={onNavigateToCampus}
                 className="h-[26px] px-2 py-0.5 rounded text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white flex items-center gap-1 border border-slate-700 transition-colors shrink-0"
-                title="กลับสู่โซนรวมแคมปัส"
+                title="กลับสู่ผังรวม (Master Blueprint)"
               >
                 <ArrowLeft className="w-3 h-3 text-slate-400" />
-                <span className="hidden xs:inline">โซนรวม</span>
+                <span className="hidden xs:inline">ผังรวม</span>
               </button>
             )}
 
@@ -353,6 +367,18 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
 
             {/* Segmented 2D / 3D Rack Switcher */}
             <div className="inline-flex items-center bg-slate-800/90 p-0.5 rounded-md border border-slate-700/80 h-[26px] shrink-0">
+              <button
+                onClick={() => setA4SectionTab('STANDARD_RACK_DESIGN')}
+                className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-all flex items-center gap-1 whitespace-nowrap ${
+                  a4SectionTab === 'STANDARD_RACK_DESIGN'
+                    ? 'bg-blue-600 text-white font-black shadow-xs'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                }`}
+                title="มาตรฐาน WMS Design System (แร็ค 4 ชั้น L1-L4)"
+              >
+                <LayoutGrid className="w-3 h-3" />
+                <span>มาตรฐาน 4 ชั้น</span>
+              </button>
               <button
                 onClick={() => setA4SectionTab('RACK_ZONES')}
                 className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-all flex items-center gap-1 whitespace-nowrap ${
@@ -770,6 +796,32 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
               })}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 🌟 TAB: STANDARDIZED 4-TIER RACK ZONE LAYOUT (Template 2)                   */}
+      {/* ========================================================================= */}
+      {a4SectionTab === 'STANDARD_RACK_DESIGN' && (
+        <div className="w-full animate-fadeIn">
+          <MultiLevelRackZoneLayout
+            zoneTitle="โซน A4 แร็คจัดเก็บสูง (DA4D-2 & DA4D-3 680P)"
+            zoneSubtitle="โรงงาน 4 อาคาร A4 &bull; แร็ค B ถึง K สูง 4 ชั้น (Selective Rack)"
+            locatorSign="DA4D-2/3"
+            facilityCode="FAC-A4-RACK"
+            rows={standardA4RackRows}
+            items={items}
+            searchQuery={activeQuery}
+            onOpenScanner={(z, b, l, m) => {
+              if (onOpenScanner) onOpenScanner(z, b, l, m);
+            }}
+            onRelocateItem={onRelocateItem}
+            onOpen3D={onOpen3D}
+            onNavigateBack={onNavigateToCampus}
+            backButtonLabel="กลับสู่โซนรวมแคมปัส"
+            isDashboardFullscreen={isFullscreenActive}
+            onToggleFullscreen={handleToggleFullscreen}
+          />
         </div>
       )}
 

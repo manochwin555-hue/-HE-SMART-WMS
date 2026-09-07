@@ -171,9 +171,9 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
             <button
               onClick={onNavigateToCampus}
               className="h-[24px] px-2 py-0.5 rounded text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-white flex items-center gap-1 border border-slate-700 shrink-0"
-              title="กลับไปที่โซนรวมแคมปัส"
+              title="กลับไปที่ผังรวม"
             >
-              <span>🏢 แคมปัส</span>
+              <span>🏢 ผังรวม</span>
             </button>
           )}
 

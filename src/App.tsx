@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { InventoryItem, MovementLog, MovementType, ShelfLevel, StorageZone, WmsStats, MasterDataItem, UseLineMaster, ZoneCapacityMaster, WarehouseFacility, AgingThresholdConfig, CustomRackSlot } from './types';
+import { InventoryItem, MovementLog, MovementType, ShelfLevel, StorageZone, WmsStats, MasterDataItem, UseLineMaster, ZoneCapacityMaster, WarehouseFacility, AgingThresholdConfig, CustomRackSlot, ProtectionMethod, ProductType, ProductStorageType } from './types';
 import { INITIAL_ITEMS, INITIAL_LOGS, INITIAL_STATS, INITIAL_FACILITIES } from './data/mockData';
 import { Navbar } from './components/Navbar';
 import { DashboardKPIs } from './components/DashboardKPIs';
 import { RackLayout2D } from './components/RackLayout2D';
 import { Rack3DViewer } from './components/Rack3DViewer';
 import { QuickScannerModal } from './components/QuickScannerModal';
+import { VinylWrappingActionModal } from './components/VinylWrappingActionModal';
+import { NotificationCenter } from './components/NotificationCenter';
 import { MovementLogsTable } from './components/MovementLogsTable';
 import { AgingFifoPanel } from './components/AgingFifoPanel';
 import { InventoryListPanel } from './components/InventoryListPanel';
@@ -16,8 +18,10 @@ import { CampusMasterOverview } from './components/CampusMasterOverview';
 import { A5TentFloorStagingMap } from './components/A5TentFloorStagingMap';
 import { CY3TentRackMap } from './components/CY3TentRackMap';
 import { DA4D1FloorStagingMap } from './components/DA4D1FloorStagingMap';
+import { MasterBlueprintLayout } from './components/MasterBlueprintLayout';
 import { TopKpiSummaryBar } from './components/TopKpiSummaryBar';
 import { GlobalSearchZoneLookup } from './components/GlobalSearchZoneLookup';
+import { calculateVinylWrappingStatus, getBangkokDateString } from './utils/vinylWrappingRule';
 
 // Extract initial master data from INITIAL_ITEMS
 const initialMasterData: MasterDataItem[] = Array.from(new Set(INITIAL_ITEMS.map(i => i.modelHE))).map(modelHE => {
@@ -44,13 +48,12 @@ const initialZoneCapacities: ZoneCapacityMaster[] = [
 ];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<string>('campus_overview');
+  const [activeTab, setActiveTab] = useState<string>('blueprint');
   const [activeStation, setActiveStation] = useState<string>('ALL');
   const [language, setLanguage] = useState<string>('th');
-  const [themeMode, setThemeMode] = useState<'light' | 'dark' | 'hdmi'>(() => {
+  const [themeMode, setThemeMode] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('themeMode') || localStorage.getItem('theme');
-    if (saved === 'hdmi') return 'hdmi';
-    if (saved === 'dark' || saved === 'true') return 'dark';
+    if (saved === 'dark' || saved === 'true' || saved === 'hdmi') return 'dark';
     return 'light';
   });
 
@@ -58,11 +61,9 @@ export default function App() {
     document.documentElement.classList.remove('dark', 'hdmi');
     if (themeMode === 'dark') {
       document.documentElement.classList.add('dark');
-    } else if (themeMode === 'hdmi') {
-      document.documentElement.classList.add('dark', 'hdmi');
     }
     localStorage.setItem('themeMode', themeMode);
-    localStorage.setItem('theme', themeMode === 'light' ? 'light' : 'dark');
+    localStorage.setItem('theme', themeMode);
   }, [themeMode]);
 
   const [masterData, setMasterData] = useState<MasterDataItem[]>(initialMasterData);
@@ -84,24 +85,53 @@ export default function App() {
   const [a4InitialTab, setA4InitialTab] = useState<'FLOOR_DA4D1' | 'RACK_ZONES' | 'FULL3D'>('FLOOR_DA4D1');
   const [a5InitialTent, setA5InitialTent] = useState<number>(1);
 
-  // Dynamic Aging Threshold Config State
+  // Dynamic Aging Threshold Config State (New 5-Level 28-day standard)
   const [agingConfig, setAgingConfig] = useState<AgingThresholdConfig>(() => {
+    const defaultVal: AgingThresholdConfig = {
+      safeDaysMin: 0,
+      safeDaysMax: 21,
+      warningDaysMin: 22,
+      warningDaysMax: 24,
+      urgentDaysMin: 25,
+      urgentDaysMax: 27,
+      dueDay: 28,
+      criticalDays: 28,
+      indoorRubberCapDays: 28,
+      autoAlertEnabled: true,
+      notifyOnFifoViolation: true,
+      customRuleName: 'มาตรฐาน Vinyl Wrapping 5 ระดับ (รอบ 28 วัน)'
+    };
+
     const saved = localStorage.getItem('lge_wms_aging_config');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        // If legacy preset (14/30 or 29/42) was cached, upgrade to new 28-day standard
+        if (parsed.safeDaysMax === 29 || parsed.safeDaysMax === 14 || parsed.criticalDays === 42 || parsed.criticalDays === 30 || !parsed.warningDaysMin) {
+          return {
+            ...defaultVal,
+            ...parsed,
+            safeDaysMin: 0,
+            safeDaysMax: parsed.safeDaysMax === 29 || parsed.safeDaysMax === 14 ? 21 : parsed.safeDaysMax,
+            warningDaysMin: parsed.warningDaysMin ?? 22,
+            warningDaysMax: parsed.warningDaysMax === 42 || parsed.warningDaysMax === 30 ? 24 : (parsed.warningDaysMax ?? 24),
+            urgentDaysMin: parsed.urgentDaysMin ?? 25,
+            urgentDaysMax: parsed.urgentDaysMax ?? 27,
+            dueDay: parsed.dueDay ?? 28,
+            criticalDays: parsed.criticalDays === 42 || parsed.criticalDays === 30 ? 28 : (parsed.criticalDays ?? 28),
+            indoorRubberCapDays: parsed.indoorRubberCapDays ?? 28,
+            customRuleName: parsed.customRuleName && !parsed.customRuleName.includes('14/30') ? parsed.customRuleName : 'มาตรฐาน Vinyl Wrapping 5 ระดับ (รอบ 28 วัน)'
+          };
+        }
+        return {
+          ...defaultVal,
+          ...parsed
+        };
       } catch {
         // ignore
       }
     }
-    return {
-      safeDaysMax: 14,
-      warningDaysMax: 30,
-      criticalDays: 30,
-      autoAlertEnabled: true,
-      notifyOnFifoViolation: true,
-      customRuleName: 'มาตรฐาน LGE (14/30 วัน)'
-    };
+    return defaultVal;
   });
 
   useEffect(() => {
@@ -166,7 +196,52 @@ export default function App() {
   const [scannerLevel, setScannerLevel] = useState<ShelfLevel>(1);
   const [scannerMode, setScannerMode] = useState<MovementType>('IN');
 
+  // Vinyl Action Modal state
+  const [activeVinylItem, setActiveVinylItem] = useState<InventoryItem | null>(null);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+
+  const handleVinylActionSave = (updatedItem: InventoryItem, log: any) => {
+     // Re-calculate the actual logic status for the updated item
+     let finalAgingStatus = updatedItem.agingStatus;
+     let finalHoldStatus = updatedItem.holdStatus;
+     let finalHoldReason = updatedItem.holdReason;
+     
+     if (updatedItem.protectionMethod === 'VINYL_WRAPPING' && updatedItem.wrappingDate) {
+        const todayStr = getBangkokDateString(new Date());
+        const vinylRes = calculateVinylWrappingStatus(updatedItem.wrappingDate, todayStr, updatedItem.wrappingCondition);
+        finalAgingStatus = vinylRes.agingStatus;
+        finalHoldStatus = vinylRes.holdStatus;
+        finalHoldReason = vinylRes.holdReason;
+     }
+
+     const newItems = items.map(it => 
+       it.id === updatedItem.id 
+         ? { ...updatedItem, agingStatus: finalAgingStatus, holdStatus: finalHoldStatus, holdReason: finalHoldReason } 
+         : it
+     );
+     setItems(newItems);
+     setAuditLogs(prev => [log, ...prev]);
+     setActiveVinylItem(null);
+  };
+
   // Trigger Scanner Modal with target location
+  
+  // Recalculate stats dynamically when items change
+  useEffect(() => {
+    const threshold = agingConfig?.criticalDays || 30;
+    const newAgingAlertCount = items.filter(it => 
+      ['WARNING', 'URGENT', 'DUE_TODAY', 'EXPIRED', 'CONDITION_NG', 'DATA_INCOMPLETE'].includes(it.agingStatus) || 
+      it.agingDays > threshold
+    ).length;
+    
+    setStats(prev => {
+      if (prev.agingAlertCount !== newAgingAlertCount) {
+        return { ...prev, agingAlertCount: newAgingAlertCount };
+      }
+      return prev;
+    });
+  }, [items, agingConfig]);
+
   const handleOpenScanner = (
     targetZone: StorageZone = selected3DZone,
     targetBay: number = selected3DBay,
@@ -209,6 +284,9 @@ export default function App() {
     stdQtyPerPallet?: number;
     fullPallets?: number;
     looseQty?: number;
+    protectionMethod?: ProtectionMethod;
+    productType?: ProductType;
+    productStorageType?: ProductStorageType;
   }) => {
     const {
       type,
@@ -224,6 +302,9 @@ export default function App() {
       stdQtyPerPallet = 80,
       fullPallets,
       looseQty,
+      protectionMethod = 'NOT_APPLICABLE',
+      productType,
+      productStorageType
     } = data;
 
     let locatorCode = `DA4D-1.05-${zone}${bayNumber}-L${level}`;
@@ -258,6 +339,23 @@ export default function App() {
 
     let newBalance = stats.totalBalanceUnits;
 
+    // Evaluate Vinyl Wrapping Status for IN
+    let agingStatusVal: any = 'SAFE';
+    let holdStatusVal = false;
+    let holdReasonVal = undefined;
+    let agingStartDateStr = undefined;
+    let dueDateStr = undefined;
+    
+    if (type === 'IN' && protectionMethod === 'VINYL_WRAPPING') {
+       const todayStr = getBangkokDateString(new Date());
+       const vinylRes = calculateVinylWrappingStatus(todayStr, todayStr, 'OK');
+       agingStatusVal = vinylRes.agingStatus;
+       holdStatusVal = vinylRes.holdStatus;
+       holdReasonVal = vinylRes.holdReason;
+       agingStartDateStr = vinylRes.agingStartDate;
+       dueDateStr = vinylRes.dueDate;
+    }
+
     if (type === 'IN') {
       newBalance += actualQty;
       if (existingIndex >= 0) {
@@ -266,6 +364,7 @@ export default function App() {
         item.stdQtyPerPallet = stdQtyPerPallet;
         item.fullPallets = fullPallets ?? Math.floor(item.quantity / stdQtyPerPallet);
         item.looseQty = looseQty ?? (item.quantity % stdQtyPerPallet);
+        // Do not reset aging of existing items unless they were empty
       } else {
         const newItem: InventoryItem = {
           id: `item-${zone}${bayNumber}-${level}-${Date.now()}`,
@@ -285,9 +384,19 @@ export default function App() {
           useLine,
           storageInDate: new Date().toISOString(),
           agingDays: 0,
-          agingStatus: 'SAFE',
+          agingStatus: agingStatusVal,
           priorityUse: false,
           remark,
+          protectionMethod,
+          productType,
+          productStorageType,
+          wrappingCondition: protectionMethod === 'VINYL_WRAPPING' ? 'OK' : 'NOT_INSPECTED',
+          holdStatus: holdStatusVal,
+          holdReason: holdReasonVal,
+          agingStartDate: agingStartDateStr,
+          dueDate: dueDateStr,
+          productionDate: agingStartDateStr,
+          wrappingDate: agingStartDateStr
         };
         updatedItems.push(newItem);
       }
@@ -438,7 +547,7 @@ export default function App() {
         language={language}
         setLanguage={setLanguage}
         isDarkMode={themeMode !== 'light'}
-        toggleDarkMode={() => setThemeMode(themeMode === 'light' ? 'dark' : themeMode === 'dark' ? 'hdmi' : 'light')}
+        toggleDarkMode={() => setThemeMode(themeMode === 'light' ? 'dark' : 'light')}
         themeMode={themeMode}
         setThemeMode={setThemeMode}
       />
@@ -519,7 +628,7 @@ export default function App() {
                   activeTab={activeTab}
                   activeFacilityId={activeFacilityId}
                   agingConfig={agingConfig}
-                  onSelectFilter={(tab) => setActiveTab(tab)}
+                  onSelectFilter={(tab) => setActiveTab(tab === 'aging' ? 'inventory' : tab)}
                   onNavigateToLayout={(target) => handleCampusZoneNavigation(target as any)}
                 />
               </div>
@@ -530,8 +639,8 @@ export default function App() {
         {/* Scrollable Main Content Container */}
         <main className="w-full flex-1 overflow-y-auto overflow-x-hidden px-2 sm:px-3 lg:px-4 py-2 sm:py-2.5 space-y-3 transition-all">
 
-          {/* Dynamic Tab Views */}
-          {(activeTab === 'dashboard' || activeTab === 'campus_overview') && (
+          {/* Dynamic Tab Views: Unified Master Map ("ผังรวม") */}
+          {(activeTab === 'blueprint' || activeTab === 'dashboard' || activeTab === 'campus_overview') && (
             <div className="space-y-6 animate-fadeIn">
               <CampusMasterOverview
                 items={displayedItems}
@@ -547,7 +656,7 @@ export default function App() {
                 onRelocateItem={(item) => {
                   setActiveTab('master');
                 }}
-                onSelectFilter={(tab) => setActiveTab(tab)}
+                onSelectFilter={(tab) => setActiveTab(tab === 'aging' ? 'inventory' : tab)}
                 onOpenPrinter={() => setActiveTab('printer')}
               />
             </div>
@@ -564,7 +673,7 @@ export default function App() {
                   setActiveTab('master');
                 }}
                 onNavigateToRack={() => setActiveTab('a4_rack')}
-                onNavigateToCampus={() => setActiveTab('campus_overview')}
+                onNavigateToCampus={() => setActiveTab('blueprint')}
                 onToggleFullscreen={toggleFullscreen}
                 isDashboardFullscreen={isFullscreen}
               />
@@ -585,7 +694,7 @@ export default function App() {
                   setActiveTab('master');
                 }}
                 onNavigateToFloor={() => setActiveTab('a4_floor')}
-                onNavigateToCampus={() => setActiveTab('campus_overview')}
+                onNavigateToCampus={() => setActiveTab('blueprint')}
                 isDashboardFullscreen={isFullscreen}
               />
             </div>
@@ -605,7 +714,7 @@ export default function App() {
                 onRelocateItem={(item) => {
                   setActiveTab('master');
                 }}
-                onNavigateToCampus={() => setActiveTab('campus_overview')}
+                onNavigateToCampus={() => setActiveTab('blueprint')}
               />
             </div>
           )}
@@ -626,7 +735,7 @@ export default function App() {
                 onRelocateItem={(item) => {
                   setActiveTab('master');
                 }}
-                onNavigateToCampus={() => setActiveTab('campus_overview')}
+                onNavigateToCampus={() => setActiveTab('blueprint')}
               />
             </div>
           )}
@@ -640,7 +749,7 @@ export default function App() {
                 onRelocateItem={(item) => {
                   setActiveTab('master');
                 }}
-                onNavigateToCampus={() => setActiveTab('campus_overview')}
+                onNavigateToCampus={() => setActiveTab('blueprint')}
                 onPrintLabel={(item) => {
                   setActiveTab('printer');
                 }}
@@ -659,6 +768,9 @@ export default function App() {
                 onUpdateSearchQuery={setGlobalSearchQuery}
                 onOpen3DForLocator={(z, b) => handleOpen3DForBay(z, b)}
                 onOpenScanForLevel={(z, b, l, m) => handleOpenScanner(z, b, l, m)}
+                onOpenVinylAction={item => setActiveVinylItem(item)}
+                agingConfig={agingConfig}
+                onQuickPickItem={handleQuickPickAgingItem}
               />
             </div>
           )}
@@ -684,19 +796,8 @@ export default function App() {
             <div className="animate-fadeIn">
               <MovementLogsTable
                 logs={logs}
+                auditLogs={auditLogs}
                 onOpen3DForLocator={(z, b) => handleOpen3DForBay(z, b)}
-              />
-            </div>
-          )}
-
-          {activeTab === 'aging' && (
-            <div className="animate-fadeIn">
-              <AgingFifoPanel
-                items={displayedItems}
-                agingConfig={agingConfig}
-                onOpen3DForLocator={(z, b) => handleOpen3DForBay(z, b)}
-                onQuickPickItem={handleQuickPickAgingItem}
-                onOpenAgingSettings={() => setActiveTab('master')}
               />
             </div>
           )}
@@ -770,6 +871,17 @@ export default function App() {
         useLines={useLines}
         masterData={masterData}
       />
+      
+      {/* Vinyl Action Modal */}
+      <VinylWrappingActionModal
+        isOpen={!!activeVinylItem}
+        item={activeVinylItem}
+        onClose={() => setActiveVinylItem(null)}
+        onSave={handleVinylActionSave}
+      />
+      
+      {/* Floating Notification Center */}
+      <NotificationCenter items={items} />
     </div>
   );
 }

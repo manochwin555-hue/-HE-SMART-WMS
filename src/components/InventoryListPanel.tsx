@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { InventoryItem, MovementType, ShelfLevel, StorageZone, WarehouseFacility } from '../types';
+import { InventoryItem, MovementType, ShelfLevel, StorageZone, WarehouseFacility, AgingThresholdConfig } from '../types';
 import { 
   Search, 
   ShieldAlert, 
@@ -22,7 +22,14 @@ import {
   Filter,
   RefreshCw,
   Boxes,
-  MapPin
+  MapPin,
+  ClockAlert,
+  ShieldCheck,
+  AlertOctagon,
+  CalendarClock,
+  Wrench,
+  Check,
+  AlertCircle
 } from 'lucide-react';
 import { HighlightText, getZoneMeta } from './GlobalSearchZoneLookup';
 
@@ -40,6 +47,9 @@ interface InventoryListPanelProps {
     level: ShelfLevel,
     mode: MovementType
   ) => void;
+  onOpenVinylAction?: (item: InventoryItem) => void;
+  agingConfig?: AgingThresholdConfig;
+  onQuickPickItem?: (item: InventoryItem) => void;
 }
 
 export type SortField = 
@@ -65,6 +75,9 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
   onUpdateSearchQuery,
   onOpen3DForLocator,
   onOpenScanForLevel,
+  onOpenVinylAction,
+  agingConfig,
+  onQuickPickItem,
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>(globalSearchQuery);
   const [filterMode, setFilterMode] = useState<'ALL' | 'LOW_STOCK' | 'SAFE_STOCK'>('ALL');
@@ -116,6 +129,176 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
     return items.filter((item) => item.quantity <= getSafetyStock(item));
   }, [items, globalSafetyThreshold]);
 
+  // Helper function to resolve aging 5-level classification & presentation
+  const getAgingInfo = (days: number = 0, status?: string) => {
+    const safeMax = agingConfig?.safeDaysMax ?? 21;
+    const warnMin = agingConfig?.warningDaysMin ?? 22;
+    const warnMax = agingConfig?.warningDaysMax ?? 24;
+    const urgMin = agingConfig?.urgentDaysMin ?? 25;
+    const urgMax = agingConfig?.urgentDaysMax ?? 27;
+    const dueD = agingConfig?.dueDay ?? 28;
+    const critD = agingConfig?.criticalDays ?? 28;
+
+    if (days > critD || status === 'EXPIRED' || status === 'OVERDUE' || status === 'CONDITION_NG') {
+      return {
+        level: 'EXPIRED' as const,
+        label: 'EXPIRED',
+        thaiLabel: `เกินเกณฑ์วิกฤต (>${critD} วัน)`,
+        daysText: `${days} วัน (เกินเกณฑ์)`,
+        badgeBg: 'bg-rose-100 text-rose-800 border-rose-300',
+        badgePill: 'bg-rose-600 text-white',
+        borderCard: 'border-rose-400 bg-rose-50/50',
+        activeRing: 'ring-2 ring-rose-500 bg-rose-100/70 border-rose-500',
+        dotColor: 'bg-rose-500',
+        actionNeeded: 'Re-wrap / ตรวจสภาพด่วน',
+        icon: Flame
+      };
+    }
+    if (days === dueD || status === 'DUE_TODAY') {
+      return {
+        level: 'DUE_TODAY' as const,
+        label: 'DUE TODAY',
+        thaiLabel: `ครบกำหนดวันนี้ (${dueD} วัน)`,
+        daysText: `${dueD} วัน (วันสุดท้าย)`,
+        badgeBg: 'bg-red-50 text-red-700 border-red-300 font-bold',
+        badgePill: 'bg-red-600 text-white',
+        borderCard: 'border-red-400 bg-red-50/50',
+        activeRing: 'ring-2 ring-red-500 bg-red-100/70 border-red-500',
+        dotColor: 'bg-red-500',
+        actionNeeded: 'เบิกจ่ายเข้าไลน์วันนี้',
+        icon: CalendarClock
+      };
+    }
+    if ((days >= urgMin && days <= urgMax) || status === 'URGENT') {
+      return {
+        level: 'URGENT' as const,
+        label: 'URGENT',
+        thaiLabel: `เร่งด่วน (${urgMin}-${urgMax} วัน)`,
+        daysText: `${days} วัน (เร่งด่วน)`,
+        badgeBg: 'bg-amber-100 text-amber-900 border-amber-300',
+        badgePill: 'bg-amber-600 text-white',
+        borderCard: 'border-amber-400 bg-amber-50/40',
+        activeRing: 'ring-2 ring-amber-500 bg-amber-100/70 border-amber-500',
+        dotColor: 'bg-amber-500',
+        actionNeeded: 'เร่งระบายสินค้าเข้าไลน์',
+        icon: AlertTriangle
+      };
+    }
+    if ((days >= warnMin && days <= warnMax) || status === 'WARNING') {
+      return {
+        level: 'WARNING' as const,
+        label: 'WARNING',
+        thaiLabel: `เฝ้าระวัง (${warnMin}-${warnMax} วัน)`,
+        daysText: `${days} วัน (เฝ้าระวัง)`,
+        badgeBg: 'bg-yellow-100 text-yellow-900 border-yellow-300',
+        badgePill: 'bg-yellow-600 text-white',
+        borderCard: 'border-yellow-400 bg-yellow-50/30',
+        activeRing: 'ring-2 ring-yellow-500 bg-yellow-100/70 border-yellow-500',
+        dotColor: 'bg-yellow-500',
+        actionNeeded: 'จัดเตรียมแผนเบิกจ่าย',
+        icon: Clock
+      };
+    }
+    return {
+      level: 'NORMAL' as const,
+      label: 'NORMAL',
+      thaiLabel: `ปกติ (0-${safeMax} วัน)`,
+      daysText: `${days} วัน`,
+      badgeBg: 'bg-emerald-50 text-emerald-700 border-emerald-300',
+      badgePill: 'bg-emerald-600 text-white',
+      borderCard: 'border-emerald-300 bg-emerald-50/20',
+      activeRing: 'ring-2 ring-emerald-500 bg-emerald-100/70 border-emerald-500',
+      dotColor: 'bg-emerald-500',
+      actionNeeded: 'หมุนเวียนสต็อกปกติ',
+      icon: CheckCircle2
+    };
+  };
+
+  // Helper check if rubber cap is required
+  const checkRubberCap = (item: InventoryItem) => {
+    const loc = `${item.facilityId || ''} ${item.zone} ${item.locatorCode}`.toUpperCase();
+    const isOutdoor = loc.includes('CY3') || loc.includes('A5') || loc.includes('OUTDOOR') || loc.includes('CANOPY');
+    const days = item.agingDays || 0;
+    const indoorThreshold = agingConfig?.indoorRubberCapDays ?? 28;
+
+    if (isOutdoor) {
+      return {
+        required: true,
+        reason: 'Outdoor (CY3/A5 บังคับใส่วันแรก Day 0+)',
+        label: 'Outdoor Cap'
+      };
+    }
+    if (days > indoorThreshold) {
+      return {
+        required: true,
+        reason: `Indoor > ${indoorThreshold} วัน (บังคับใส่จุกยาง/Re-wrapping)`,
+        label: 'Overdue Cap'
+      };
+    }
+    return {
+      required: false,
+      reason: `Indoor ≤ ${indoorThreshold} วัน (อนุโลม)`,
+      label: 'Cap OK'
+    };
+  };
+
+  // Dynamic Aging 5-Level Summary Statistics
+  const agingSummaryStats = useMemo(() => {
+    let normal = 0;
+    let warning = 0;
+    let urgent = 0;
+    let dueToday = 0;
+    let expired = 0;
+    let rubberCapCount = 0;
+
+    const safeMax = agingConfig?.safeDaysMax ?? 21;
+    const warnMin = agingConfig?.warningDaysMin ?? 22;
+    const warnMax = agingConfig?.warningDaysMax ?? 24;
+    const urgMin = agingConfig?.urgentDaysMin ?? 25;
+    const urgMax = agingConfig?.urgentDaysMax ?? 27;
+    const dueD = agingConfig?.dueDay ?? 28;
+    const critD = agingConfig?.criticalDays ?? 28;
+
+    items.forEach((it) => {
+      const days = it.agingDays || 0;
+      const status = it.agingStatus;
+
+      if (days > critD || status === 'EXPIRED' || status === 'OVERDUE' || status === 'CONDITION_NG') {
+        expired++;
+      } else if (days === dueD || status === 'DUE_TODAY') {
+        dueToday++;
+      } else if ((days >= urgMin && days <= urgMax) || status === 'URGENT') {
+        urgent++;
+      } else if ((days >= warnMin && days <= warnMax) || status === 'WARNING') {
+        warning++;
+      } else {
+        normal++;
+      }
+
+      if (checkRubberCap(it).required) {
+        rubberCapCount++;
+      }
+    });
+
+    const total = items.length || 1;
+    return {
+      normal,
+      normalPct: Math.round((normal / total) * 100),
+      warning,
+      warningPct: Math.round((warning / total) * 100),
+      urgent,
+      urgentPct: Math.round((urgent / total) * 100),
+      dueToday,
+      dueTodayPct: Math.round((dueToday / total) * 100),
+      expired,
+      expiredPct: Math.round((expired / total) * 100),
+      rubberCapCount,
+      rubberCapPct: Math.round((rubberCapCount / total) * 100),
+      overdueGroup: warning + urgent + dueToday + expired,
+      totalItems: items.length
+    };
+  }, [items, agingConfig]);
+
   // Handle header click to toggle sort or switch direction
   const handleSortClick = (field: SortField) => {
     if (sortField === field) {
@@ -165,10 +348,57 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
         (filterMode === 'LOW_STOCK' && isLowStock) ||
         (filterMode === 'SAFE_STOCK' && !isLowStock);
 
-      const matchZone = zoneFilter === 'ALL' || item.zone === zoneFilter;
+      let matchZone = true;
+      if (zoneFilter !== 'ALL') {
+        const loc = (item.locatorCode || '').toUpperCase();
+        const zoneStr = (String(item.zone || '')).toUpperCase();
+        const facId = item.facilityId || '';
+
+        if (zoneFilter === 'A2') {
+          matchZone = facId === 'FAC-A2-RAIL' || loc.startsWith('DA2D') || zoneStr.startsWith('R') || zoneStr.startsWith('FR') || zoneStr.startsWith('FL');
+        } else if (zoneFilter === 'A4_FLOOR') {
+          matchZone = facId === 'FAC-A4-FLOOR' || (loc.startsWith('DA4D-1') && !['B','C','D','E','F','G','H','I','J','K'].includes(zoneStr)) || ['X1','X2','X3','X4','X5','X6','X7','X8','FLOOR','STAGING'].includes(zoneStr);
+        } else if (zoneFilter === 'A4_RACK') {
+          matchZone = facId === 'FAC-A4-RACK' || loc.startsWith('DA4D-2') || loc.startsWith('DA4D-3') || ['B','C','D','E','F','G','H','I','J','K'].includes(zoneStr);
+        } else if (zoneFilter === 'A5') {
+          matchZone = facId === 'FAC-A5-TENT' || loc.startsWith('DA5T') || loc.startsWith('DAST') || zoneStr.startsWith('T');
+        } else if (zoneFilter === 'CY3') {
+          matchZone = facId === 'FAC-CY3-TENT' || loc.startsWith('DY3T') || zoneStr.startsWith('CY3');
+        } else {
+          matchZone = item.zone === zoneFilter || loc.includes(`-${zoneFilter}`);
+        }
+      }
       const matchLine = lineFilter === 'ALL' || item.useLine === lineFilter;
       const matchLevel = levelFilter === 'ALL' || String(item.level) === levelFilter;
-      const matchAging = agingFilter === 'ALL' || item.agingStatus === agingFilter;
+      
+      // Comprehensive 5-level Aging & Rubber Cap Filter
+      const days = item.agingDays || 0;
+      const status = item.agingStatus;
+      const safeMax = agingConfig?.safeDaysMax ?? 21;
+      const warnMin = agingConfig?.warningDaysMin ?? 22;
+      const warnMax = agingConfig?.warningDaysMax ?? 24;
+      const urgMin = agingConfig?.urgentDaysMin ?? 25;
+      const urgMax = agingConfig?.urgentDaysMax ?? 27;
+      const dueD = agingConfig?.dueDay ?? 28;
+      const critD = agingConfig?.criticalDays ?? 28;
+
+      let matchAging = true;
+      if (agingFilter === 'NORMAL') {
+        matchAging = (days <= safeMax && status !== 'EXPIRED' && status !== 'DUE_TODAY' && status !== 'URGENT' && status !== 'WARNING') || status === 'NORMAL' || status === 'SAFE';
+      } else if (agingFilter === 'WARNING') {
+        matchAging = status === 'WARNING' || (days >= warnMin && days <= warnMax);
+      } else if (agingFilter === 'URGENT') {
+        matchAging = status === 'URGENT' || (days >= urgMin && days <= urgMax);
+      } else if (agingFilter === 'DUE_TODAY') {
+        matchAging = status === 'DUE_TODAY' || days === dueD;
+      } else if (agingFilter === 'EXPIRED') {
+        matchAging = status === 'EXPIRED' || status === 'OVERDUE' || status === 'CONDITION_NG' || days > critD;
+      } else if (agingFilter === 'OVERDUE_GROUP') {
+        matchAging = days >= warnMin || ['WARNING', 'URGENT', 'DUE_TODAY', 'EXPIRED', 'OVERDUE', 'CONDITION_NG'].includes(status || '');
+      } else if (agingFilter === 'RUBBER_CAP') {
+        matchAging = checkRubberCap(item).required;
+      }
+
       const matchFacility = facilityFilter === 'ALL' || item.facilityId === facilityFilter || (!item.facilityId && facilityFilter === 'FAC-A4');
 
       return matchSearch && matchFilterMode && matchZone && matchLine && matchLevel && matchAging && matchFacility;
@@ -215,6 +445,9 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
           break;
         case 'AGING_DAYS':
           comparison = (a.agingDays || 0) - (b.agingDays || 0);
+          if (comparison === 0 && a.storageInDate && b.storageInDate) {
+            comparison = a.storageInDate.localeCompare(b.storageInDate);
+          }
           break;
         case 'LINE':
           comparison = a.useLine.localeCompare(b.useLine);
@@ -236,7 +469,8 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
     facilityFilter, 
     sortField, 
     sortDirection, 
-    globalSafetyThreshold
+    globalSafetyThreshold,
+    agingConfig
   ]);
 
   // Real-time Part No Zone Breakdown when searching
@@ -314,13 +548,18 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
       'Use Line',
       'QR Code Tag',
       'Aging Days',
-      'Aging Status'
+      'Aging Status',
+      'Aging Level (5 Levels)',
+      'Rubber Cap Rule'
     ];
 
     const rows = filteredAndSortedItems.map((item) => {
       const thresh = getSafetyStock(item);
       const isLow = item.quantity <= thresh;
       const deficit = getDeficit(item);
+      const agingInfo = getAgingInfo(item.agingDays || 0, item.agingStatus);
+      const rubberCap = checkRubberCap(item);
+
       return [
         item.modelHE,
         `"${item.partName}"`,
@@ -335,7 +574,9 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
         item.useLine,
         `"${item.qrCode}"`,
         item.agingDays || 0,
-        item.agingStatus || 'SAFE'
+        item.agingStatus || 'SAFE',
+        agingInfo.level,
+        `"${rubberCap.reason}"`
       ].join(',');
     });
 
@@ -373,7 +614,7 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
             </h2>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            ค้นหาวัตถุดิบตาม Model HE, พิกัดจัดเก็บ พร้อมระบบจัดเรียงไดนามิก (Aging Days, ยอดคงเหลือ, ส่วนต่างวิกฤต)
+            รวมศูนย์ควบคุมสต็อก Safety Stock และติดตามอายุจัดเก็บ (FIFO / Aging 5 ระดับ) ในหน้าเดียว
           </p>
         </div>
 
@@ -391,6 +632,232 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
             <Download className="w-4 h-4 text-white" />
             <span>ส่งออก Excel (.csv)</span>
           </button>
+        </div>
+      </div>
+
+      {/* 📊 AGING 5-LEVEL SUMMARY CARDS DASHBOARD (Interactive Filter) */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2 text-xs font-bold text-slate-700">
+            <ClockAlert className="w-4 h-4 text-amber-600" />
+            <span>สรุปสถานะอายุสต็อก 5 ระดับ (ตามเกณฑ์ Vinyl Wrapping &amp; กฎ 28 วัน)</span>
+            <span className="text-[10px] text-slate-400 font-normal">
+              (คลิกการ์ดเพื่อกรองตารางทันที)
+            </span>
+          </div>
+          {agingFilter !== 'ALL' && (
+            <button
+              onClick={() => setAgingFilter('ALL')}
+              className="text-[11px] font-bold text-blue-600 hover:text-blue-800 inline-flex items-center space-x-1"
+            >
+              <span>กำลังกรอง: {agingFilter}</span>
+              <X className="w-3 h-3 ml-0.5" />
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+          {/* Card 1: NORMAL (0-21 วัน) */}
+          <div
+            onClick={() => setAgingFilter(prev => prev === 'NORMAL' ? 'ALL' : 'NORMAL')}
+            className={`rounded-xl p-2.5 border transition-all cursor-pointer select-none relative overflow-hidden ${
+              agingFilter === 'NORMAL'
+                ? 'ring-2 ring-emerald-500 bg-emerald-100/70 border-emerald-500 shadow-sm'
+                : 'bg-emerald-50/50 hover:bg-emerald-50 border-emerald-200'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-600 text-white">
+                1. NORMAL
+              </span>
+              <span className="text-[10px] font-bold text-emerald-700">0 - {agingConfig?.safeDaysMax ?? 21} วัน</span>
+            </div>
+            <div className="mt-2 flex items-baseline justify-between">
+              <div className="text-xl font-black font-mono text-emerald-900">
+                {agingSummaryStats.normal}
+              </div>
+              <div className="text-[11px] font-bold text-emerald-700">
+                {agingSummaryStats.normalPct}%
+              </div>
+            </div>
+            <div className="text-[10px] text-emerald-700 mt-1 truncate">
+              ปลอดภัย หมุนเวียนปกติ
+            </div>
+            {agingFilter === 'NORMAL' && (
+              <div className="absolute right-1 bottom-1">
+                <Check className="w-3.5 h-3.5 text-emerald-700" />
+              </div>
+            )}
+          </div>
+
+          {/* Card 2: WARNING */}
+          <div
+            onClick={() => setAgingFilter(prev => prev === 'WARNING' ? 'ALL' : 'WARNING')}
+            className={`rounded-xl p-2.5 border transition-all cursor-pointer select-none relative overflow-hidden ${
+              agingFilter === 'WARNING'
+                ? 'ring-2 ring-yellow-500 bg-yellow-100/80 border-yellow-500 shadow-sm'
+                : 'bg-yellow-50/60 hover:bg-yellow-50 border-yellow-200'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-yellow-600 text-white">
+                2. WARNING
+              </span>
+              <span className="text-[10px] font-bold text-yellow-800">{agingConfig?.warningDaysMin ?? 22} - {agingConfig?.warningDaysMax ?? 24} วัน</span>
+            </div>
+            <div className="mt-2 flex items-baseline justify-between">
+              <div className="text-xl font-black font-mono text-yellow-900">
+                {agingSummaryStats.warning}
+              </div>
+              <div className="text-[11px] font-bold text-yellow-800">
+                {agingSummaryStats.warningPct}%
+              </div>
+            </div>
+            <div className="text-[10px] text-yellow-800 mt-1 truncate">
+              เริ่มมีอายุ เตรียมแผนเบิก
+            </div>
+            {agingFilter === 'WARNING' && (
+              <div className="absolute right-1 bottom-1">
+                <Check className="w-3.5 h-3.5 text-yellow-800" />
+              </div>
+            )}
+          </div>
+
+          {/* Card 3: URGENT */}
+          <div
+            onClick={() => setAgingFilter(prev => prev === 'URGENT' ? 'ALL' : 'URGENT')}
+            className={`rounded-xl p-2.5 border transition-all cursor-pointer select-none relative overflow-hidden ${
+              agingFilter === 'URGENT'
+                ? 'ring-2 ring-amber-500 bg-amber-100/80 border-amber-500 shadow-sm'
+                : 'bg-amber-50/60 hover:bg-amber-50 border-amber-200'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-600 text-white">
+                3. URGENT
+              </span>
+              <span className="text-[10px] font-bold text-amber-800">{agingConfig?.urgentDaysMin ?? 25} - {agingConfig?.urgentDaysMax ?? 27} วัน</span>
+            </div>
+            <div className="mt-2 flex items-baseline justify-between">
+              <div className="text-xl font-black font-mono text-amber-900">
+                {agingSummaryStats.urgent}
+              </div>
+              <div className="text-[11px] font-bold text-amber-800">
+                {agingSummaryStats.urgentPct}%
+              </div>
+            </div>
+            <div className="text-[10px] text-amber-800 mt-1 truncate">
+              เร่งด่วน ระบายเข้าไลน์
+            </div>
+            {agingFilter === 'URGENT' && (
+              <div className="absolute right-1 bottom-1">
+                <Check className="w-3.5 h-3.5 text-amber-800" />
+              </div>
+            )}
+          </div>
+
+          {/* Card 4: DUE TODAY */}
+          <div
+            onClick={() => setAgingFilter(prev => prev === 'DUE_TODAY' ? 'ALL' : 'DUE_TODAY')}
+            className={`rounded-xl p-2.5 border transition-all cursor-pointer select-none relative overflow-hidden ${
+              agingFilter === 'DUE_TODAY'
+                ? 'ring-2 ring-red-500 bg-red-100/80 border-red-500 shadow-sm'
+                : 'bg-red-50/60 hover:bg-red-50 border-red-200'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-red-600 text-white">
+                4. DUE TODAY
+              </span>
+              <span className="text-[10px] font-bold text-red-800">{agingConfig?.dueDay ?? 28} วัน</span>
+            </div>
+            <div className="mt-2 flex items-baseline justify-between">
+              <div className="text-xl font-black font-mono text-red-900">
+                {agingSummaryStats.dueToday}
+              </div>
+              <div className="text-[11px] font-bold text-red-800">
+                {agingSummaryStats.dueTodayPct}%
+              </div>
+            </div>
+            <div className="text-[10px] text-red-800 mt-1 truncate">
+              ครบกำหนด เบิกจ่ายวันนี้
+            </div>
+            {agingFilter === 'DUE_TODAY' && (
+              <div className="absolute right-1 bottom-1">
+                <Check className="w-3.5 h-3.5 text-red-800" />
+              </div>
+            )}
+          </div>
+
+          {/* Card 5: EXPIRED */}
+          <div
+            onClick={() => setAgingFilter(prev => prev === 'EXPIRED' ? 'ALL' : 'EXPIRED')}
+            className={`rounded-xl p-2.5 border transition-all cursor-pointer select-none relative overflow-hidden ${
+              agingFilter === 'EXPIRED'
+                ? 'ring-2 ring-rose-500 bg-rose-100/90 border-rose-500 shadow-sm'
+                : 'bg-rose-50/70 hover:bg-rose-50 border-rose-300'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-rose-600 text-white">
+                5. EXPIRED
+              </span>
+              <span className="text-[10px] font-bold text-rose-800">&gt; {agingConfig?.criticalDays ?? 28} วัน</span>
+            </div>
+            <div className="mt-2 flex items-baseline justify-between">
+              <div className="text-xl font-black font-mono text-rose-900 flex items-center space-x-1">
+                <span>{agingSummaryStats.expired}</span>
+                {agingSummaryStats.expired > 0 && (
+                  <Flame className="w-4 h-4 text-rose-600 animate-pulse" />
+                )}
+              </div>
+              <div className="text-[11px] font-bold text-rose-800">
+                {agingSummaryStats.expiredPct}%
+              </div>
+            </div>
+            <div className="text-[10px] text-rose-800 mt-1 truncate">
+              เกินเกณฑ์ ตรวจสภาพ/Wrap
+            </div>
+            {agingFilter === 'EXPIRED' && (
+              <div className="absolute right-1 bottom-1">
+                <Check className="w-3.5 h-3.5 text-rose-800" />
+              </div>
+            )}
+          </div>
+
+          {/* Card 6: Rubber Cap Rule Summary */}
+          <div
+            onClick={() => setAgingFilter(prev => prev === 'RUBBER_CAP' ? 'ALL' : 'RUBBER_CAP')}
+            className={`rounded-xl p-2.5 border transition-all cursor-pointer select-none relative overflow-hidden ${
+              agingFilter === 'RUBBER_CAP'
+                ? 'ring-2 ring-indigo-500 bg-indigo-100/90 border-indigo-500 shadow-sm'
+                : 'bg-indigo-50/50 hover:bg-indigo-50 border-indigo-200'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-indigo-600 text-white flex items-center space-x-1">
+                <Wrench className="w-2.5 h-2.5 mr-0.5" />
+                <span>RUBBER CAP</span>
+              </span>
+              <span className="text-[10px] font-bold text-indigo-700">จุกยาง</span>
+            </div>
+            <div className="mt-2 flex items-baseline justify-between">
+              <div className="text-xl font-black font-mono text-indigo-900">
+                {agingSummaryStats.rubberCapCount}
+              </div>
+              <div className="text-[11px] font-bold text-indigo-700">
+                {agingSummaryStats.rubberCapPct}%
+              </div>
+            </div>
+            <div className="text-[10px] text-indigo-700 mt-1 truncate">
+              CY3/A5 หรือ &gt;{agingConfig?.indoorRubberCapDays ?? 28} วัน
+            </div>
+            {agingFilter === 'RUBBER_CAP' && (
+              <div className="absolute right-1 bottom-1">
+                <Check className="w-3.5 h-3.5 text-indigo-700" />
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -457,12 +924,28 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
             onChange={(e) => setZoneFilter(e.target.value)}
             className="bg-slate-800 border border-slate-700 text-slate-200 font-bold px-2 py-1 rounded-lg text-xs focus:outline-none focus:border-blue-500"
           >
-            <option value="ALL">ทุก Zone</option>
-            {(['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'FR1', 'FR2', 'FR3', 'FR4', 'FL-A', 'FL-B', 'FL-C', 'FL-D', 'T1', 'T2', 'T3', 'T4'] as StorageZone[]).map((z) => (
-              <option key={z} value={z}>
-                Zone {z}
-              </option>
-            ))}
+            <option value="ALL">🌐 ทุกโซน/ทุกคลัง</option>
+            <optgroup label="📍 โซนหลัก (Main Campus Zones)">
+              <option value="A2">โรง 2: A2 (รางเลื่อน DA2D-1)</option>
+              <option value="A4_FLOOR">โรง 4: A4 วางพื้น (DA4D-1 Staging)</option>
+              <option value="A4_RACK">โรง 4: A4 แร็ค (Selective B-K)</option>
+              <option value="A5">ลานเต็นท์ A5 (Tents 1-4)</option>
+              <option value="CY3">เต็นท์คลัง CY3 (4-Tier Racks)</option>
+            </optgroup>
+            <optgroup label="📦 Selective Racks (A4)">
+              {(['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'] as StorageZone[]).map((z) => (
+                <option key={z} value={z}>
+                  Rack {z}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="⛺ Tent / Rail Sub-zones">
+              {(['FR1', 'FR2', 'FR3', 'FR4', 'FL-A', 'FL-B', 'FL-C', 'FL-D', 'T1', 'T2', 'T3', 'T4'] as StorageZone[]).map((z) => (
+                <option key={z} value={z}>
+                  Zone {z}
+                </option>
+              ))}
+            </optgroup>
           </select>
 
           {/* Line Filter */}
@@ -478,6 +961,7 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
               </option>
             ))}
           </select>
+
           {/* Level Filter */}
           <select
             value={levelFilter}
@@ -491,23 +975,70 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
             <option value="4">ชั้น 4</option>
           </select>
 
-          {/* Aging Status Filter */}
+          {/* Comprehensive 5-Level Aging Status Filter Dropdown */}
           <select
             value={agingFilter}
             onChange={(e) => setAgingFilter(e.target.value)}
-            className="bg-slate-800 border border-slate-700 text-slate-200 font-bold px-2 py-1 rounded-lg text-xs focus:outline-none focus:border-blue-500"
+            className={`border font-bold px-2.5 py-1 rounded-lg text-xs focus:outline-none ${
+              agingFilter !== 'ALL'
+                ? 'bg-amber-950 border-amber-500 text-amber-300'
+                : 'bg-slate-800 border-slate-700 text-slate-200 focus:border-blue-500'
+            }`}
           >
-            <option value="ALL">ทุก Aging</option>
-            <option value="SAFE">ปกติ (&le;15 วัน)</option>
-            <option value="WARNING">เริ่มค้าง (16-30 วัน)</option>
-            <option value="OVERDUE">Overdue (&gt;30 วัน)</option>
+            <option value="ALL">ทุก Aging (ทั้งหมด)</option>
+            <option value="NORMAL">🟢 1. NORMAL (0-21 วัน)</option>
+            <option value="WARNING">🟡 2. WARNING (22-24 วัน)</option>
+            <option value="URGENT">🟠 3. URGENT (25-27 วัน)</option>
+            <option value="DUE_TODAY">🔴 4. DUE TODAY (28 วัน)</option>
+            <option value="EXPIRED">🚨 5. EXPIRED (&gt; 28 วัน)</option>
+            <option value="OVERDUE_GROUP">⚠️ กลุ่มเตือน/ค้างทั้งหมด (&ge; 22 วัน)</option>
+            <option value="RUBBER_CAP">🪛 ต้องใส่ Rubber Cap (จุกยาง)</option>
           </select>
+
+          {/* Sort By Dropdown Selector */}
+          <div className="flex items-center space-x-1 shrink-0 bg-slate-800 border border-slate-700 rounded-lg px-2 py-0.5">
+            <ArrowUpDown className="w-3 h-3 text-slate-400" />
+            <select
+              value={`${sortField}_${sortDirection}`}
+              onChange={(e) => {
+                const [f, d] = e.target.value.split('_');
+                if (f === 'AGING' && d === 'DAYS') {
+                  // handle AGING_DAYS_DESC vs AGING_DAYS_ASC
+                  const parts = e.target.value.split('_');
+                  setSortField('AGING_DAYS');
+                  setSortDirection(parts[2] as SortDirection);
+                } else {
+                  const val = e.target.value;
+                  if (val.startsWith('AGING_DAYS_')) {
+                    setSortField('AGING_DAYS');
+                    setSortDirection(val.endsWith('DESC') ? 'DESC' : 'ASC');
+                  } else {
+                    const lastUnderscore = val.lastIndexOf('_');
+                    const field = val.substring(0, lastUnderscore) as SortField;
+                    const dir = val.substring(lastUnderscore + 1) as SortDirection;
+                    setSortField(field);
+                    setSortDirection(dir);
+                  }
+                }
+              }}
+              className="bg-transparent text-slate-200 font-bold text-xs focus:outline-none cursor-pointer"
+            >
+              <option value="AGING_DAYS_DESC">⏰ FIFO (เก่าสุดไปใหม่สุด)</option>
+              <option value="AGING_DAYS_ASC">🆕 LIFO (ใหม่สุดไปเก่าสุด)</option>
+              <option value="STATUS_ASC">⚠️ ขาด Safety Stock มากสุด</option>
+              <option value="QTY_ASC">📉 ยอดเหลือน้อยสุด &rarr; มากสุด</option>
+              <option value="QTY_DESC">📈 ยอดเหลือมากสุด &rarr; น้อยสุด</option>
+              <option value="MODEL_ASC">🔤 รหัส Model HE (A - Z)</option>
+              <option value="LOCATOR_ASC">📍 พิกัดจัดเก็บ (Locator)</option>
+              <option value="LINE_ASC">🏭 ไลน์ผลิต (Line)</option>
+            </select>
+          </div>
         </div>
 
         {/* Row 2: Status Filter Tabs & Quick Priority Sorters */}
         <div className="pt-2 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
           {/* Status Filter Chips */}
-          <div className="flex items-center flex-wrap gap-1 font-bold">
+          <div className="flex items-center flex-wrap gap-1.5 font-bold">
             <button
               onClick={() => setFilterMode('ALL')}
               className={`px-2.5 py-1 rounded-lg border text-xs transition-all ${
@@ -542,18 +1073,32 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
 
             <div className="h-4 w-px bg-slate-700 mx-1 hidden sm:block"></div>
 
-            {/* Quick Sorters */}
+            {/* Quick Sorters: Featured FIFO Button */}
             <button
               onClick={() => applyPresetSort('AGING_DAYS', 'DESC')}
-              className={`px-2 py-1 rounded-lg border text-[11px] font-bold transition-all ${
+              className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold transition-all flex items-center space-x-1 ${
                 sortField === 'AGING_DAYS' && sortDirection === 'DESC'
-                  ? 'bg-amber-500 text-slate-950 border-amber-400 font-black'
-                  : 'bg-slate-800/80 text-amber-300 border-slate-700 hover:bg-slate-700'
+                  ? 'bg-amber-400 text-slate-950 border-amber-300 font-black shadow-md ring-2 ring-amber-300/60 scale-105'
+                  : 'bg-slate-800/80 text-amber-300 border-amber-600/40 hover:bg-amber-950/40'
               }`}
-              title="จัดเรียงสินค้าค้างนานสุดก่อน (FIFO)"
+              title="จัดเรียงสินค้าตามหลัก FIFO (ค้างนานสุด/เข้าก่อน อยู่บนสุดเพื่อเบิกจ่ายก่อน)"
             >
-              ⏰ FIFO นานสุด
+              <Clock className="w-3.5 h-3.5" />
+              <span>⏰ เรียง FIFO (เก่าสุดก่อน)</span>
             </button>
+
+            <button
+              onClick={() => applyPresetSort('AGING_DAYS', 'ASC')}
+              className={`px-2 py-1 rounded-lg border text-[11px] font-bold transition-all ${
+                sortField === 'AGING_DAYS' && sortDirection === 'ASC'
+                  ? 'bg-slate-100 text-slate-900 border-white font-black'
+                  : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:bg-slate-700'
+              }`}
+              title="จัดเรียงสินค้าใหม่สุดก่อน"
+            >
+              🆕 ใหม่สุดก่อน
+            </button>
+
             <button
               onClick={() => applyPresetSort('QTY', 'ASC')}
               className={`px-2 py-1 rounded-lg border text-[11px] font-bold transition-all ${
@@ -604,6 +1149,17 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
                 ล้างตัวกรอง
               </button>
             )}
+            <button
+              onClick={() => {
+                setSortField('AGING_DAYS');
+                setSortDirection('DESC');
+              }}
+              className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-[11px] font-bold transition-all flex items-center space-x-1 border border-slate-700"
+              title="สลับเป็นเรียง FIFO ด่วน"
+            >
+              <Clock className="w-3 h-3 text-amber-400" />
+              <span>โหมด FIFO</span>
+            </button>
             <button
               onClick={() => {
                 setSortField('STATUS');
@@ -809,10 +1365,10 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
               <th 
                 onClick={() => handleSortClick('AGING_DAYS')}
                 className="px-3.5 py-3 text-center cursor-pointer hover:bg-slate-100 transition-colors group"
-                title="คลิกเพื่อเรียงอายุการจัดเก็บ (FIFO / Overdue)"
+                title="คลิกเพื่อสลับเรียงตามหลัก FIFO (ค้างนานสุดก่อน หรือ ใหม่สุดก่อน)"
               >
                 <div className="flex items-center justify-center space-x-1">
-                  <span>อายุสต็อก (Aging)</span>
+                  <span>อายุสต็อก (FIFO/Aging)</span>
                   {renderSortIndicator('AGING_DAYS')}
                 </div>
               </th>
@@ -844,6 +1400,8 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
                 const fullP = item.fullPallets ?? Math.floor(item.quantity / std);
                 const loose = item.looseQty ?? (item.quantity % std);
                 const agingDays = item.agingDays || 0;
+                const agingInfo = getAgingInfo(agingDays, item.agingStatus);
+                const rubberCap = checkRubberCap(item);
 
                 return (
                   <tr
@@ -912,23 +1470,36 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
                       {safetyThreshold.toLocaleString()} U
                     </td>
 
-                    {/* Aging Days Badge */}
+                    {/* Aging Days Badge & Rubber Cap Requirement */}
                     <td className="px-3.5 py-2.5 text-center">
-                      {agingDays > 30 ? (
-                        <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-rose-50 text-rose-700 font-extrabold border border-rose-200 text-[10px] animate-pulse">
-                          <Flame className="w-3 h-3 text-rose-600" />
-                          <span>{agingDays} วัน (Overdue)</span>
+                      <div className="flex flex-col items-center justify-center gap-1">
+                        {/* 5-Level Badge */}
+                        <span
+                          className={`inline-flex items-center space-x-1 px-2 py-0.5 rounded font-black text-[10px] border shadow-2xs ${agingInfo.badgeBg}`}
+                        >
+                          {agingInfo.level === 'EXPIRED' ? (
+                            <Flame className="w-3 h-3 text-rose-600 animate-pulse" />
+                          ) : agingInfo.level === 'DUE_TODAY' ? (
+                            <AlertCircle className="w-3 h-3 text-red-600 animate-bounce" />
+                          ) : agingInfo.level === 'URGENT' || agingInfo.level === 'WARNING' ? (
+                            <Clock className="w-3 h-3 text-amber-600" />
+                          ) : (
+                            <Check className="w-3 h-3 text-emerald-600" />
+                          )}
+                          <span>{agingDays} วัน ({agingInfo.label})</span>
                         </span>
-                      ) : agingDays > 15 ? (
-                        <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-amber-50 text-amber-800 font-extrabold border border-amber-200 text-[10px]">
-                          <Clock className="w-3 h-3 text-amber-600" />
-                          <span>{agingDays} วัน (เตือน)</span>
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-extrabold border border-emerald-200 text-[10px]">
-                          <span>{agingDays} วัน</span>
-                        </span>
-                      )}
+
+                        {/* Rubber Cap Alert Badge if required */}
+                        {rubberCap.required && (
+                          <span
+                            className="inline-flex items-center space-x-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200"
+                            title={rubberCap.reason}
+                          >
+                            <Wrench className="w-2.5 h-2.5 text-indigo-600 mr-0.5" />
+                            <span>ใส่จุกยาง</span>
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* Line */}
@@ -957,11 +1528,27 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
                           <ArrowDownRight className="w-3.5 h-3.5" />
                           <span>เติม</span>
                         </button>
+                        
+                        {item.protectionMethod === 'VINYL_WRAPPING' && onOpenVinylAction && (
+                           <button
+                             onClick={() => onOpenVinylAction(item)}
+                             className="px-2 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs inline-flex items-center space-x-1 shadow-sm transition-all active:scale-95"
+                             title="จัดการ Vinyl Wrapping (ต่ออายุ / อัปเดตสถานะ NG)"
+                           >
+                             <Flame className="w-3.5 h-3.5" />
+                           </button>
+                        )}
 
                         <button
-                          onClick={() => onOpenScanForLevel(item.zone, item.bayNumber, item.level, 'OUT')}
+                          onClick={() => {
+                            if (onQuickPickItem) {
+                              onQuickPickItem(item);
+                            } else {
+                              onOpenScanForLevel(item.zone, item.bayNumber, item.level, 'OUT');
+                            }
+                          }}
                           className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs border border-slate-300 inline-flex items-center space-x-1 shadow-sm transition-all active:scale-95"
-                          title="เบิกออก"
+                          title={onQuickPickItem ? "เบิกจ่ายด่วน (FIFO Pick)" : "เบิกออก"}
                         >
                           <ArrowUpRight className="w-3.5 h-3.5 text-blue-600" />
                           <span>เบิก</span>

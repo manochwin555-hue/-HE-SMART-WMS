@@ -14,7 +14,6 @@ import {
   Minimize,
   Moon,
   Sun,
-  Tv,
   ChevronLeft,
   ChevronRight,
   Menu,
@@ -50,14 +49,14 @@ interface NavbarProps {
   setLanguage?: (lang: string) => void;
   isDarkMode?: boolean;
   toggleDarkMode?: () => void;
-  themeMode?: 'light' | 'dark' | 'hdmi';
-  setThemeMode?: (mode: 'light' | 'dark' | 'hdmi') => void;
+  themeMode?: 'light' | 'dark';
+  setThemeMode?: (mode: 'light' | 'dark') => void;
 }
 
 const translations: Record<string, Record<string, string>> = {
   th: {
     dashboard: 'แดชบอร์ด (KPIs)',
-    campus: 'โซนรวม (A2/A4/A5)',
+    blueprint: 'ผังรวม',
     a4_floor: 'โซน A4 (วางพื้น)',
     a4_rack: 'โซน A4 (แร็ค)',
     flow: 'โซน A2 (รางเลื่อน)',
@@ -75,7 +74,7 @@ const translations: Record<string, Record<string, string>> = {
   },
   en: {
     dashboard: 'Executive Hub (GMES & KPIs)',
-    campus: 'Campus (A2/A4/A5)',
+    blueprint: 'Master Map',
     a4_floor: 'A4 Floor (X1-X8)',
     a4_rack: 'A4 Rack (B-K)',
     flow: 'A2 Map (Flow Rail)',
@@ -93,7 +92,7 @@ const translations: Record<string, Record<string, string>> = {
   },
   kh: {
     dashboard: 'ផ្ទាំងគ្រប់គ្រង',
-    campus: 'ប្លង់រួម A2/A4/A5',
+    blueprint: 'ប្លង់រួម',
     a4_floor: 'ប្លង់ A4 (ផ្ទាល់ដី)',
     a4_rack: 'ប្លង់ A4 (ធ្នើរ)',
     flow: 'ប្លង់ A2 (ផ្លូវរអិល)',
@@ -111,7 +110,7 @@ const translations: Record<string, Record<string, string>> = {
   },
   mm: {
     dashboard: 'ဒက်ရှ်ဘုတ်',
-    campus: 'A2/A4/A5 မြေပုံ',
+    blueprint: 'ပင်မမြေပုံ',
     a4_floor: 'A4 ကြမ်းပြင် (X1-X8)',
     a4_rack: 'A4 စင်မြေပုံ (B-K)',
     flow: 'A2 မြေပုံ (ရထားလမ်း)',
@@ -129,7 +128,7 @@ const translations: Record<string, Record<string, string>> = {
   },
   kr: {
     dashboard: '대시보드 (KPIs)',
-    campus: '캠퍼스 종합 (A2/A4/A5)',
+    blueprint: '종합 도면',
     a4_floor: 'A4 평치 배치도',
     a4_rack: 'A4 랙 배치도',
     flow: 'A2 배치도 (플로우레일)',
@@ -174,16 +173,14 @@ export const Navbar: React.FC<NavbarProps> = ({
   const activeFacility = facilities.find(f => f.id === activeFacilityId);
 
   const navItems = [
-    { id: 'campus_overview', label: t.campus, icon: Warehouse, badge: 'SITE' },
+    { id: 'blueprint', label: t.blueprint, icon: Map, badge: 'MAP' },
     { id: 'a4_floor', label: t.a4_floor, icon: LayoutGrid, badge: '432P' },
     { id: 'a4_rack', label: t.a4_rack, icon: Layers, badge: '680P' },
     { id: 'flow_floor', label: t.flow, icon: GitCommit, badge: 'A2' },
     { id: 'tent_layout', label: t.tent, icon: Tent, badge: 'A5' },
     { id: 'cy3_layout', label: t.cy3, icon: Layers, badge: 'CY3' },
     { id: 'inventory', label: t.inventory, icon: ShieldAlert, count: lowStockCount },
-    { id: 'scanner', label: t.scanner, icon: QrCode },
     { id: 'logs', label: t.logs, icon: ListFilter },
-    { id: 'aging', label: t.aging, icon: ClockAlert, count: agingCount },
     { id: 'printer', label: t.printer, icon: Printer },
     { id: 'master', label: t.master, icon: Box },
   ];
@@ -199,7 +196,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             {isMobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
-          <div className="flex items-center space-x-2 cursor-pointer" onClick={() => setActiveTab('campus_overview')}>
+          <div className="flex items-center space-x-2 cursor-pointer" onClick={() => setActiveTab('blueprint')}>
             <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white text-xs">
               HEX
             </div>
@@ -236,7 +233,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="p-3.5 border-b border-slate-800/80 flex items-center justify-between">
           <div
             onClick={() => {
-              setActiveTab('campus_overview');
+              setActiveTab('blueprint');
               setIsMobileOpen(false);
             }}
             className="flex items-center space-x-2.5 cursor-pointer overflow-hidden text-left"
@@ -362,7 +359,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             ) : null}
 
             <div className="flex items-center space-x-1">
-              {/* Theme Mode Toggle (Light / Dark / HDMI) */}
+              {/* Theme Mode Toggle (Light / Dark) */}
               {setThemeMode ? (
                 <div className="flex items-center bg-slate-800/90 rounded-lg p-0.5 border border-slate-700/80">
                   <button
@@ -379,18 +376,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                     className={`p-1.5 rounded-md transition-all ${
                       themeMode === 'dark' ? 'bg-blue-600 text-white font-bold shadow' : 'text-slate-400 hover:text-white'
                     }`}
-                    title="มืด True Black (Dark Mode)"
+                    title="มืด (Dark Mode)"
                   >
                     <Moon className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => setThemeMode('hdmi')}
-                    className={`p-1.5 rounded-md transition-all ${
-                      themeMode === 'hdmi' ? 'bg-sky-400 text-slate-950 font-bold shadow ring-1 ring-sky-300' : 'text-slate-400 hover:text-white'
-                    }`}
-                    title="HDMI Monitor (TV High Contrast Mode)"
-                  >
-                    <Tv className="w-3.5 h-3.5" />
                   </button>
                 </div>
               ) : toggleDarkMode ? (

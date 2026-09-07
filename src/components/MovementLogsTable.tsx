@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MovementLog, StorageZone } from '../types';
+import { MovementLog, StorageZone, AuditLog } from '../types';
 import { 
   ListFilter, 
   Search, 
@@ -10,18 +10,22 @@ import {
   Layers, 
   ArrowDownRight, 
   ArrowUpRight,
-  Filter
+  Filter,
+  ShieldAlert
 } from 'lucide-react';
 
 interface MovementLogsTableProps {
   logs: MovementLog[];
+  auditLogs?: AuditLog[];
   onOpen3DForLocator: (zone: StorageZone, bayNumber: number) => void;
 }
 
 export const MovementLogsTable: React.FC<MovementLogsTableProps> = ({
   logs,
+  auditLogs = [],
   onOpen3DForLocator,
 }) => {
+  const [activeView, setActiveView] = useState<'MOVEMENT' | 'AUDIT'>('MOVEMENT');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
@@ -42,7 +46,24 @@ export const MovementLogsTable: React.FC<MovementLogsTableProps> = ({
     const matchesLine = lineFilter === 'ALL' || log.useLine === lineFilter;
 
     // Check Zone matching from locator code or string
-    const matchesZone = zoneFilter === 'ALL' || log.locatorCode.includes(`-${zoneFilter}`) || log.locatorCode.startsWith(zoneFilter);
+    let matchesZone = true;
+    if (zoneFilter !== 'ALL') {
+      const loc = log.locatorCode.toUpperCase();
+      const grp = (log.locatorGroup || '').toUpperCase();
+      if (zoneFilter === 'A2') {
+        matchesZone = loc.startsWith('DA2D') || grp.includes('A2');
+      } else if (zoneFilter === 'A4_FLOOR') {
+        matchesZone = (loc.startsWith('DA4D-1') && !loc.includes('RACK')) || grp.includes('A4 FLOOR') || grp.includes('DA4D-1');
+      } else if (zoneFilter === 'A4_RACK') {
+        matchesZone = loc.startsWith('DA4D-2') || loc.startsWith('DA4D-3') || grp.includes('A4 RACK') || grp.includes('SELECTIVE') || ['-B', '-C', '-D', '-E', '-F', '-G', '-H', '-I', '-J', '-K'].some(k => loc.includes(k));
+      } else if (zoneFilter === 'A5') {
+        matchesZone = loc.startsWith('DA5T') || loc.startsWith('DAST') || grp.includes('A5');
+      } else if (zoneFilter === 'CY3') {
+        matchesZone = loc.startsWith('DY3T') || grp.includes('CY3');
+      } else {
+        matchesZone = log.locatorCode.includes(`-${zoneFilter}`) || log.locatorCode.startsWith(zoneFilter);
+      }
+    }
 
     // Check Gap Discrepancy
     const matchesGap =
@@ -130,6 +151,24 @@ export const MovementLogsTable: React.FC<MovementLogsTableProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center bg-slate-100 rounded-lg p-1 border border-slate-200">
+            <button
+              onClick={() => setActiveView('MOVEMENT')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+                activeView === 'MOVEMENT' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Movement Logs
+            </button>
+            <button
+              onClick={() => setActiveView('AUDIT')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+                activeView === 'AUDIT' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Audit Logs
+            </button>
+          </div>
           <button
             onClick={() => handleExportCSV('Excel')}
             className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm flex items-center space-x-1.5 transition-all"
@@ -180,10 +219,19 @@ export const MovementLogsTable: React.FC<MovementLogsTableProps> = ({
             onChange={(e) => setZoneFilter(e.target.value)}
             className="bg-slate-800 border border-slate-700 text-slate-200 font-bold px-2 py-1 rounded-lg text-xs focus:outline-none focus:border-blue-500"
           >
-            <option value="ALL">ทุก Zone</option>
-            {(['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'] as StorageZone[]).map((z) => (
-              <option key={z} value={z}>Zone {z}</option>
-            ))}
+            <option value="ALL">🌐 ทุกโซน/ทุกคลัง</option>
+            <optgroup label="📍 โซนหลัก (Main Campus Zones)">
+              <option value="A2">โรง 2: A2 (รางเลื่อน DA2D-1)</option>
+              <option value="A4_FLOOR">โรง 4: A4 วางพื้น (DA4D-1 Staging)</option>
+              <option value="A4_RACK">โรง 4: A4 แร็ค (Selective B-K)</option>
+              <option value="A5">ลานเต็นท์ A5 (Tents 1-4)</option>
+              <option value="CY3">เต็นท์คลัง CY3 (4-Tier Racks)</option>
+            </optgroup>
+            <optgroup label="📦 Selective Racks (A4)">
+              {(['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'] as StorageZone[]).map((z) => (
+                <option key={z} value={z}>Rack {z}</option>
+              ))}
+            </optgroup>
           </select>
 
           {/* Line Filter */}
@@ -251,9 +299,12 @@ export const MovementLogsTable: React.FC<MovementLogsTableProps> = ({
         </div>
       </div>
 
-      {/* Logs Data Table */}
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-        <table className="w-full text-left text-xs text-slate-700">
+      {activeView === 'MOVEMENT' ? (
+        <>
+          {/* Logs Data Table */}
+          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+            <table className="w-full text-left text-xs text-slate-700">
+
           <thead className="bg-slate-50 text-slate-600 font-bold uppercase text-[11px] border-b border-slate-200">
             <tr>
               <th className="px-3.5 py-3">ประเภท</th>
@@ -384,6 +435,53 @@ export const MovementLogsTable: React.FC<MovementLogsTableProps> = ({
           </tbody>
         </table>
       </div>
+        </>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+          <table className="w-full text-left text-xs text-slate-700">
+            <thead className="bg-slate-50 text-slate-600 font-bold uppercase text-[11px] border-b border-slate-200">
+              <tr>
+                <th className="px-3.5 py-3">Timestamp</th>
+                <th className="px-3.5 py-3">Action</th>
+                <th className="px-3.5 py-3">Model HE</th>
+                <th className="px-3.5 py-3">Locator</th>
+                <th className="px-3.5 py-3">Old Value</th>
+                <th className="px-3.5 py-3">New Value</th>
+                <th className="px-3.5 py-3">User</th>
+                <th className="px-3.5 py-3">Reason</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {auditLogs.length > 0 ? (
+                auditLogs.map((log) => (
+                  <tr key={log.id} className="hover:bg-blue-50/50 transition-colors">
+                    <td className="px-3.5 py-2.5 font-mono text-[10px] whitespace-nowrap text-slate-500">
+                      {new Date(log.timestamp).toLocaleString()}
+                    </td>
+                    <td className="px-3.5 py-2.5">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700">
+                        {log.action}
+                      </span>
+                    </td>
+                    <td className="px-3.5 py-2.5 font-bold text-blue-700">{log.modelHE}</td>
+                    <td className="px-3.5 py-2.5 font-mono">{log.locatorCode}</td>
+                    <td className="px-3.5 py-2.5 text-rose-600 font-mono text-[10px]">{log.oldValue}</td>
+                    <td className="px-3.5 py-2.5 text-emerald-600 font-mono text-[10px]">{log.newValue}</td>
+                    <td className="px-3.5 py-2.5 font-bold text-slate-500">{log.user || 'System'}</td>
+                    <td className="px-3.5 py-2.5 text-slate-500 italic">{log.reason || '-'}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={8} className="py-8 text-center text-slate-500 font-medium">
+                    ไม่พบรายการ Audit Log
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };

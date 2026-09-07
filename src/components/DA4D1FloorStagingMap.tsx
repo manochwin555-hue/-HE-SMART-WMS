@@ -261,10 +261,10 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
             <button
               onClick={onNavigateToCampus}
               className="h-[26px] px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 flex items-center gap-1 shrink-0 transition-colors"
-              title="กลับสู่โซนรวมทุกอาคาร (A2/A4/A5/CY3)"
+              title="กลับสู่ผังรวม (Master Blueprint)"
             >
               <ArrowLeft className="w-3 h-3 text-slate-400" />
-              <span className="hidden sm:inline">โซนรวม</span>
+              <span className="hidden sm:inline">ผังรวม</span>
             </button>
           )}
 
