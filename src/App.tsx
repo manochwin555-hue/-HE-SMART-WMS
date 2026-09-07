@@ -52,18 +52,13 @@ export default function App() {
   const [activeStation, setActiveStation] = useState<string>('ALL');
   const [language, setLanguage] = useState<string>('th');
   const [themeMode, setThemeMode] = useState<'light' | 'dark'>(() => {
-    const saved = localStorage.getItem('themeMode') || localStorage.getItem('theme');
-    if (saved === 'dark' || saved === 'true' || saved === 'hdmi') return 'dark';
-    return 'light';
+    return 'dark';
   });
 
   useEffect(() => {
-    document.documentElement.classList.remove('dark', 'hdmi');
-    if (themeMode === 'dark') {
-      document.documentElement.classList.add('dark');
-    }
-    localStorage.setItem('themeMode', themeMode);
-    localStorage.setItem('theme', themeMode);
+    document.documentElement.classList.add('dark');
+    localStorage.setItem('themeMode', 'dark');
+    localStorage.setItem('theme', 'dark');
   }, [themeMode]);
 
   const [masterData, setMasterData] = useState<MasterDataItem[]>(initialMasterData);
@@ -529,7 +524,7 @@ export default function App() {
   }, []);
 
   return (
-    <div ref={appContainerRef} className="min-h-screen w-full bg-slate-50 text-slate-900 font-sans antialiased selection:bg-blue-500 selection:text-white flex flex-col md:flex-row min-w-0 max-w-full overflow-x-hidden">
+    <div ref={appContainerRef} className="min-h-screen w-full bg-[#07090D] text-[#F4F7FB] font-sans antialiased selection:bg-blue-600 selection:text-white flex flex-col md:flex-row min-w-0 max-w-full overflow-x-hidden">
       {/* Collapsible Left Navigation Sidebar */}
       <Navbar
         activeTab={activeTab}
