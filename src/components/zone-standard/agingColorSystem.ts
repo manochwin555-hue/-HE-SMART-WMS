@@ -32,52 +32,52 @@ export interface AgingStyleConfig {
 
 export const AGING_STYLES: Record<AgingCategory, AgingStyleConfig> = {
   EMPTY: {
-    bgClass: 'bg-[#1E293B]',
-    textClass: 'text-slate-400',
-    borderClass: 'border-slate-700/80',
-    hoverClass: 'hover:bg-slate-800 hover:border-slate-500',
-    ringClass: 'ring-slate-600',
-    hexColor: '#1E293B',
-    label: 'ช่องว่าง (Empty)',
+    bgClass: 'bg-[#0B1017]',
+    textClass: 'text-[#667085]',
+    borderClass: 'border-[#273244]',
+    hoverClass: 'hover:bg-[#111823] hover:border-[#384860]',
+    ringClass: 'ring-[#273244]',
+    hexColor: '#0B1017',
+    label: 'พื้นที่ว่าง (Empty)',
     daysRange: 'ไม่มีสินค้า'
   },
   NORMAL: {
-    bgClass: 'bg-blue-600',
-    textClass: 'text-white',
-    borderClass: 'border-blue-400',
-    hoverClass: 'hover:bg-blue-500 hover:border-blue-300',
-    ringClass: 'ring-blue-400',
-    hexColor: '#2563EB',
+    bgClass: 'bg-[#EAF4FF]',
+    textClass: 'text-[#0F172A] font-bold',
+    borderClass: 'border-[#60A5FA]',
+    hoverClass: 'hover:bg-[#D4E8FF] hover:border-[#3B82F6]',
+    ringClass: 'ring-[#60A5FA]',
+    hexColor: '#EAF4FF',
     label: 'ปกติ (NORMAL)',
     daysRange: '0 - 21 วัน'
   },
   WARNING: {
-    bgClass: 'bg-amber-400',
-    textClass: 'text-slate-950 font-black',
-    borderClass: 'border-amber-300',
-    hoverClass: 'hover:bg-amber-300 hover:border-amber-200',
-    ringClass: 'ring-amber-400',
-    hexColor: '#FBBF24',
+    bgClass: 'bg-[#FFF4CC]',
+    textClass: 'text-[#7C4A03] font-black',
+    borderClass: 'border-[#F59E0B]',
+    hoverClass: 'hover:bg-[#FFE999] hover:border-[#D97706]',
+    ringClass: 'ring-[#F59E0B]',
+    hexColor: '#FFF4CC',
     label: 'เตือน (WARNING)',
     daysRange: '22 - 24 วัน'
   },
   URGENT: {
-    bgClass: 'bg-orange-500',
-    textClass: 'text-white font-black',
-    borderClass: 'border-orange-400',
-    hoverClass: 'hover:bg-orange-400 hover:border-orange-300',
-    ringClass: 'ring-orange-400',
-    hexColor: '#F97316',
+    bgClass: 'bg-[#FFF4CC]',
+    textClass: 'text-[#7C4A03] font-black',
+    borderClass: 'border-[#F59E0B]',
+    hoverClass: 'hover:bg-[#FFE999] hover:border-[#D97706]',
+    ringClass: 'ring-[#F59E0B]',
+    hexColor: '#FFF4CC',
     label: 'ด่วน (URGENT)',
     daysRange: '25 - 27 วัน'
   },
   EXPIRED: {
-    bgClass: 'bg-red-600',
+    bgClass: 'bg-[#D9043E]',
     textClass: 'text-white font-black',
-    borderClass: 'border-red-500',
-    hoverClass: 'hover:bg-red-500 hover:border-red-300',
-    ringClass: 'ring-red-500',
-    hexColor: '#DC2626',
+    borderClass: 'border-[#FF1744]',
+    hoverClass: 'hover:bg-[#B50333] hover:border-[#FF5277]',
+    ringClass: 'ring-[#FF1744]',
+    hexColor: '#D9043E',
     label: 'เกินกำหนด (EXPIRED)',
     daysRange: '> 28 วัน'
   }
@@ -94,35 +94,35 @@ export const AGING_LEGEND_ITEMS: Array<{
     category: 'EMPTY',
     label: 'ว่าง (Empty)',
     daysRange: 'ไม่มีสินค้า',
-    hexColor: '#1E293B',
-    badgeClass: 'bg-[#1E293B] text-slate-300 border border-slate-700'
+    hexColor: '#0B1017',
+    badgeClass: 'bg-[#0B1017] text-[#667085] border border-[#273244]'
   },
   {
     category: 'NORMAL',
     label: 'ปกติ (NORMAL)',
     daysRange: '0 - 21 วัน',
-    hexColor: '#2563EB',
-    badgeClass: 'bg-blue-600 text-white border border-blue-400'
+    hexColor: '#EAF4FF',
+    badgeClass: 'bg-[#EAF4FF] text-[#0F172A] font-bold border border-[#60A5FA]'
   },
   {
     category: 'WARNING',
     label: 'เตือน (WARNING)',
     daysRange: '22 - 24 วัน',
-    hexColor: '#FBBF24',
-    badgeClass: 'bg-amber-400 text-slate-950 font-bold border border-amber-300'
+    hexColor: '#FFF4CC',
+    badgeClass: 'bg-[#FFF4CC] text-[#7C4A03] font-bold border border-[#F59E0B]'
   },
   {
     category: 'URGENT',
     label: 'ด่วน (URGENT)',
     daysRange: '25 - 27 วัน',
-    hexColor: '#F97316',
-    badgeClass: 'bg-orange-500 text-white font-bold border border-orange-400'
+    hexColor: '#FFF4CC',
+    badgeClass: 'bg-[#FFF4CC] text-[#7C4A03] font-bold border border-[#F59E0B]'
   },
   {
     category: 'EXPIRED',
     label: 'เกินกำหนด (EXPIRED)',
     daysRange: '> 28 วัน',
-    hexColor: '#DC2626',
-    badgeClass: 'bg-red-600 text-white font-bold border border-red-500'
+    hexColor: '#D9043E',
+    badgeClass: 'bg-[#D9043E] text-white font-bold border border-[#FF1744]'
   }
 ];

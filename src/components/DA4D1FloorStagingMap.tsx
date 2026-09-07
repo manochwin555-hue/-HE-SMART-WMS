@@ -2,6 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { InventoryItem, MovementType, StorageZone, ShelfLevel } from '../types';
 import { UnifiedSlotModal, UnifiedSlotData } from './UnifiedSlotModal';
 import { SlotMiniStatsOverlay, MiniStatsSlotData } from './SlotMiniStatsOverlay';
+import { WarehouseSlotFilter } from './common/WarehouseSlotFilter';
+import { useTranslation } from '../i18n/i18nContext';
 import { 
   Box, 
   Search, 
@@ -143,6 +145,7 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
   onToggleFullscreen,
   isDashboardFullscreen
 }) => {
+  const { t } = useTranslation();
   const [selectedGroupFilter, setSelectedGroupFilter] = useState<'ALL' | 'TOP' | 'BOTTOM' | string>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'OCCUPIED' | 'EMPTY' | 'AGING'>('ALL');
   const [isGroupDropdownOpen, setIsGroupDropdownOpen] = useState<boolean>(false);
@@ -261,10 +264,10 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
             <button
               onClick={onNavigateToCampus}
               className="h-[26px] px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 flex items-center gap-1 shrink-0 transition-colors"
-              title="กลับสู่ผังรวม (Master Blueprint)"
+              title={t('navigation.campusBlueprint')}
             >
               <ArrowLeft className="w-3 h-3 text-slate-400" />
-              <span className="hidden sm:inline">ผังรวม</span>
+              <span className="hidden sm:inline">{t('navigation.campusBlueprint')}</span>
             </button>
           )}
 
@@ -272,7 +275,7 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
           <div className="flex items-center gap-1.5 shrink-0">
             <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
             <span className="text-[12px] sm:text-[13px] font-black tracking-tight text-white whitespace-nowrap">
-              โซน A4 วางพื้น (DA4D-1)
+              {t('navigation.a4Staging')}
             </span>
             <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded">
               432P
@@ -285,7 +288,7 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
           <Search className="w-3 h-3 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
-            placeholder="ค้นหา Model, Locator..."
+            placeholder={t('common.searchPlaceholder')}
             value={localSearch}
             onChange={(e) => setLocalSearch(e.target.value)}
             className="w-full h-[26px] bg-slate-800 border border-slate-700 text-white placeholder-slate-400 text-[11px] rounded-md pl-6.5 pr-6 focus:outline-none focus:border-amber-400 transition-colors"
@@ -294,7 +297,7 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
             <button
               onClick={() => setLocalSearch('')}
               className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-white"
-              title="ล้างการค้นหา"
+              title={t('common.filter')}
             >
               <X className="w-3 h-3" />
             </button>
@@ -318,7 +321,7 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
                   : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
               }`}
             >
-              ทั้งหมด (X1-X8)
+              {t('common.all')} (X1-X8)
             </button>
             <button
               onClick={() => setSelectedGroupFilter('TOP')}
@@ -328,7 +331,7 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
                   : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
               }`}
             >
-              บน (X5-X8)
+              Top (X5-X8)
             </button>
             <button
               onClick={() => setSelectedGroupFilter('BOTTOM')}
@@ -338,53 +341,22 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
                   : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
               }`}
             >
-              ล่าง (X1-X4)
+              Bottom (X1-X4)
             </button>
           </div>
 
-          {/* Status Selector: Single Segmented Group (H: 26px, Font: 11px, Pad: 2px 8px) */}
-          <div className="inline-flex items-center bg-slate-800 p-0.5 rounded-md border border-slate-700 h-[26px] shrink-0">
-            <button
-              onClick={() => setStatusFilter('ALL')}
-              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
-                statusFilter === 'ALL'
-                  ? 'bg-blue-600 text-white font-black shadow-xs'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-              }`}
-            >
-              ทั้งหมด
-            </button>
-            <button
-              onClick={() => setStatusFilter('OCCUPIED')}
-              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
-                statusFilter === 'OCCUPIED'
-                  ? 'bg-blue-600 text-white font-black shadow-xs'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-              }`}
-            >
-              มีของ ({stats.occupiedSlots})
-            </button>
-            <button
-              onClick={() => setStatusFilter('EMPTY')}
-              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
-                statusFilter === 'EMPTY'
-                  ? 'bg-blue-600 text-white font-black shadow-xs'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-              }`}
-            >
-              ว่าง ({stats.emptySlots})
-            </button>
-            <button
-              onClick={() => setStatusFilter('AGING')}
-              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
-                statusFilter === 'AGING'
-                  ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-              }`}
-            >
-              Aging ({stats.agingCount})
-            </button>
-          </div>
+          {/* Reusable Global Warehouse Slot Filter */}
+          <WarehouseSlotFilter
+            activeFilter={statusFilter}
+            onFilterChange={setStatusFilter}
+            counts={{
+              total: stats.totalSlots,
+              occupied: stats.occupiedSlots,
+              empty: stats.emptySlots,
+              aging: stats.agingCount,
+            }}
+            compact
+          />
 
           {/* Collapsed Dropdown for Specific Column Groups X1-X8 */}
           <div className="relative inline-block text-left shrink-0">
@@ -396,13 +368,13 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
                   : 'bg-slate-800 text-slate-300 border-slate-700 hover:text-white hover:bg-slate-700'
               }`}
             >
-              <span>เสา X1-X8</span>
+              <span>X1-X8</span>
               <ChevronDown className="w-2.5 h-2.5 text-slate-400" />
             </button>
 
             {isGroupDropdownOpen && (
               <div className="absolute left-0 mt-1 w-48 bg-slate-900 border border-slate-700 rounded-lg shadow-xl p-2 z-40 space-y-1 text-xs">
-                <div className="text-[10px] font-bold uppercase text-slate-400 mb-1">เลือกเสาเฉพาะ</div>
+                <div className="text-[10px] font-bold uppercase text-slate-400 mb-1">{t('common.select')}</div>
                 <div className="grid grid-cols-4 gap-1">
                   {DA4D1_GROUPS.map(g => (
                     <button
@@ -429,7 +401,7 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
                     }}
                     className="text-[10px] text-slate-400 hover:text-amber-300 font-bold"
                   >
-                    แสดงทั้งหมด
+                    {t('common.all')}
                   </button>
                 </div>
               </div>
@@ -439,35 +411,39 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
 
         {/* Right Group: Inline Capacity Stats */}
         <div className="text-[11px] font-mono text-slate-300 shrink-0 hidden md:flex items-center gap-1.5 ml-auto">
-          <span className="text-slate-400">จัดเก็บวางพื้น:</span>
+          <span className="text-slate-400">{t('legends.occupiedSlot')}:</span>
           <span className="font-bold text-amber-300">{stats.occupiedSlots}/{stats.totalSlots}P</span>
           <span className="text-amber-400 font-bold">({stats.utilizationRate}%)</span>
         </div>
       </div>
 
       {/* MATRIX OF X GROUPS (TOP TO BOTTOM: X8 down to X1) */}
-      <div className="bg-amber-50/40 border border-amber-200 rounded-xl p-2.5 sm:p-3 shadow-xs space-y-3">
+      <div className="bg-[#080B10] border border-slate-800 rounded-xl p-2.5 sm:p-3 shadow-xs space-y-3">
         
         {/* Top 12 Columns Indicator Header */}
-        <div className="flex items-center justify-between px-1 pb-1.5 border-b border-amber-200/80">
+        <div className="flex items-center justify-between px-1 pb-1.5 border-b border-slate-800">
           <div className="flex items-center space-x-2">
-            <span className="w-2 h-2 rounded-full bg-amber-500" />
-            <span className="text-[11px] font-black text-slate-800">
+            <span className="w-2 h-2 rounded-full bg-blue-500" />
+            <span className="text-[11px] font-black text-slate-200">
               DA4D-1 Staging Grid
             </span>
           </div>
           <div className="flex items-center space-x-3 text-[10px] font-bold">
-            <span className="flex items-center space-x-1 text-slate-600">
-              <span className="w-2.5 h-2.5 bg-white border border-slate-300 rounded-xs inline-block" />
+            <span className="flex items-center space-x-1 text-slate-400">
+              <span className="w-2.5 h-2.5 bg-[#0B1017] border border-[#273244] rounded-xs inline-block" />
               <span>ว่าง</span>
             </span>
-            <span className="flex items-center space-x-1 text-blue-800">
-              <span className="w-2.5 h-2.5 bg-blue-100 border border-blue-400 rounded-xs inline-block" />
+            <span className="flex items-center space-x-1 text-blue-300">
+              <span className="w-2.5 h-2.5 bg-[#EAF4FF] border border-[#60A5FA] rounded-xs inline-block" />
               <span>จัดเก็บ</span>
             </span>
-            <span className="flex items-center space-x-1 text-rose-800">
-              <span className="w-2.5 h-2.5 bg-rose-600 rounded-xs inline-block" />
-              <span>Sample Highlight</span>
+            <span className="flex items-center space-x-1 text-amber-300">
+              <span className="w-2.5 h-2.5 bg-[#FFF4CC] border border-[#F59E0B] rounded-xs inline-block" />
+              <span>Aging</span>
+            </span>
+            <span className="flex items-center space-x-1 text-rose-300">
+              <span className="w-2.5 h-2.5 bg-[#D9043E] border border-[#FF1744] rounded-xs inline-block" />
+              <span>วิกฤต/ตัวอย่าง</span>
             </span>
           </div>
         </div>
@@ -480,19 +456,19 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
           return (
             <div 
               key={group.id}
-              className="bg-white p-2 sm:p-2.5 rounded-lg border border-amber-200 shadow-2xs space-y-1.5"
+              className="bg-slate-900/90 p-2 sm:p-2.5 rounded-lg border border-slate-800 shadow-2xs space-y-1.5"
             >
               {/* Group Title Bar */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <span className="px-2 py-0.2 rounded text-[10.5px] font-black bg-amber-100 text-amber-950 border border-amber-300 font-mono">
+                  <span className="px-2 py-0.2 rounded text-[10.5px] font-black bg-blue-950 text-blue-300 border border-blue-800 font-mono">
                     {group.label} ({group.rowCode})
                   </span>
-                  <span className="text-[10px] font-mono text-slate-500 font-bold">
+                  <span className="text-[10px] font-mono text-slate-400 font-bold">
                     Rows R{group.startRow} - R{group.endRow} • {colsCount} Cols ({group.slotsPerGroup} P)
                   </span>
                 </div>
-                <span className="text-[9px] font-mono font-bold text-slate-400 bg-slate-100 px-1.5 py-0.2 rounded">
+                <span className="text-[9px] font-mono font-bold text-slate-400 bg-slate-950 px-1.5 py-0.2 rounded border border-slate-800">
                   {group.locatorPrefix}
                 </span>
               </div>
@@ -503,7 +479,7 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
                   const colNum = String(i + 1).padStart(2, '0');
                   return (
                     <div key={colNum} className="flex-1">
-                      <span className="px-1 py-0.2 bg-slate-100 rounded text-slate-700">
+                      <span className="px-1 py-0.2 bg-slate-950 rounded text-slate-400 border border-slate-800/80">
                         {colNum}
                       </span>
                     </div>
@@ -519,7 +495,7 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
                   return (
                     <div key={rowNum} className="flex items-center space-x-1.5">
                       {/* Row Label (Left) */}
-                      <div className="w-8 text-center font-mono font-black text-[10px] text-slate-700 bg-slate-100 py-1 rounded border border-slate-200 shrink-0">
+                      <div className="w-8 text-center font-mono font-black text-[10px] text-slate-300 bg-slate-950 py-1 rounded border border-slate-800 shrink-0">
                         R{rowNum}
                       </div>
 
@@ -576,11 +552,11 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
                                   ? 'opacity-20 grayscale'
                                   : item
                                   ? isDiagramRedSample
-                                    ? 'bg-rose-700 text-white border-rose-900 shadow-xs ring-1 ring-rose-500/50 hover:brightness-110'
+                                    ? 'bg-[#D9043E] text-white border-[#FF1744] shadow-xs ring-1 ring-[#FF1744]/50'
                                     : item.agingDays > 30
-                                    ? 'bg-amber-100 text-slate-900 border-amber-500 shadow-2xs hover:border-amber-600'
-                                    : 'bg-blue-50 text-slate-900 border-blue-400 shadow-2xs hover:border-blue-600'
-                                  : 'bg-slate-50/80 border-dashed border-slate-300 hover:border-amber-500 hover:bg-amber-50/50'
+                                    ? 'bg-[#FFF4CC] text-[#7C4A03] border-[#F59E0B] shadow-2xs'
+                                    : 'bg-[#EAF4FF] text-[#0F172A] border-[#60A5FA] shadow-2xs'
+                                  : 'bg-[#0B1017] border-dashed border-[#273244] text-[#667085] hover:border-[#60A5FA] hover:bg-[#111823]'
                               }`}
                             >
                               {item ? (

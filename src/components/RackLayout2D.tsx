@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { InventoryItem, MovementType, ShelfLevel, StorageZone } from '../types';
+import { WarehouseSlotFilter, WarehouseFilterType } from './common/WarehouseSlotFilter';
+import { useTranslation } from '../i18n/i18nContext';
 import { 
   Layers, 
   Eye, 
@@ -82,6 +84,8 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
     }
   }, [initialSectionTab]);
 
+  const { t } = useTranslation();
+
   const standardA4RackRows: MultiLevelRackRowConfig[] = useMemo(() => [
     { rowCode: 'Rack B', zoneId: 'B', locatorSign: 'DA4D-2-B', totalBays: 12, description: 'แร็ค B (Selective Rack) - 12 ช่องเสา x 4 ชั้น', hasBottomDriveway: true },
     { rowCode: 'Rack C', zoneId: 'C', locatorSign: 'DA4D-2-C', totalBays: 12, description: 'แร็ค C (Selective Rack) - 12 ช่องเสา x 4 ชั้น', hasBottomDriveway: false },
@@ -96,7 +100,7 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
   ], []);
 
   const [selectedZone, setSelectedZone] = useState<string>('ALL');
-  const [filterType, setFilterType] = useState<'ALL' | 'OCCUPIED' | 'AGING'>('ALL');
+  const [filterType, setFilterType] = useState<WarehouseFilterType>('ALL');
   const [viewMode, setViewMode] = useState<'STANDARD' | 'HEATMAP'>('STANDARD');
   const [layoutMode, setLayoutMode] = useState<'FIT_OVERVIEW' | 'DETAILED'>('FIT_OVERVIEW');
   const [dimMode, setDimMode] = useState<'DIM' | 'HIDE'>('DIM');
@@ -289,6 +293,8 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
 
     const totalRackCapacity = da4d2Capacity + da4d3Capacity; // 680
     const totalRackOccupied = da4d2Occupied + da4d3Occupied;
+    const rackItems = items.filter(it => purpleZones.includes(it.zone) || orangeZones.includes(it.zone));
+    const rackAgingCount = rackItems.filter(it => it.agingDays > 30 || it.agingStatus === 'WARNING' || it.agingStatus === 'OVERDUE').length;
 
     const totalA4Capacity = floorCapacity + totalRackCapacity; // 1,112
     const totalA4Occupied = floorOccupied + totalRackOccupied;
@@ -308,7 +314,8 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
       da4d3Percent: Math.round((da4d3Occupied / da4d3Capacity) * 100),
       totalRackCapacity,
       totalRackOccupied,
-      totalRackPercent: Math.round((totalRackOccupied / totalRackCapacity) * 100)
+      totalRackPercent: Math.round((totalRackOccupied / totalRackCapacity) * 100),
+      rackAgingCount
     };
   }, [items]);
 
@@ -476,39 +483,18 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
             {/* Left Group: Status Segmented Group + Zone Segmented Group */}
             <div className="flex items-center gap-1.5 shrink-0">
               
-              {/* Status Selector: Single Segmented Group (H: 26px, Font: 11px, Pad: 2px 8px) */}
-              <div className="inline-flex items-center bg-slate-800 p-0.5 rounded-md border border-slate-700 h-[26px] shrink-0">
-                <button
-                  onClick={() => setFilterType('ALL')}
-                  className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
-                    filterType === 'ALL'
-                      ? 'bg-blue-600 text-white font-black shadow-xs'
-                      : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-                  }`}
-                >
-                  ทั้งหมด
-                </button>
-                <button
-                  onClick={() => setFilterType('OCCUPIED')}
-                  className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
-                    filterType === 'OCCUPIED'
-                      ? 'bg-blue-600 text-white font-black shadow-xs'
-                      : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-                  }`}
-                >
-                  มีของ
-                </button>
-                <button
-                  onClick={() => setFilterType('AGING')}
-                  className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
-                    filterType === 'AGING'
-                      ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
-                      : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-                  }`}
-                >
-                  Aging
-                </button>
-              </div>
+              {/* Reusable Global Warehouse Slot Filter */}
+              <WarehouseSlotFilter
+                activeFilter={filterType}
+                onFilterChange={setFilterType}
+                counts={{
+                  total: a4CapacitySummary.totalRackCapacity,
+                  occupied: a4CapacitySummary.totalRackOccupied,
+                  empty: a4CapacitySummary.totalRackCapacity - a4CapacitySummary.totalRackOccupied,
+                  aging: a4CapacitySummary.rackAgingCount,
+                }}
+                compact
+              />
 
               {/* Racks Segmented Selector (B to K) */}
               <div className="inline-flex items-center bg-slate-800 p-0.5 rounded-md border border-slate-700 h-[26px] shrink-0">
@@ -711,6 +697,7 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
                       const isZoneMatch = selectedZone === 'ALL' || selectedZone === zone;
                       const isStatusMatch = filterType === 'ALL' || 
                         (filterType === 'OCCUPIED' && bayInfo.occupiedLevelsCount > 0) ||
+                        (filterType === 'EMPTY' && bayInfo.occupiedLevelsCount === 0) ||
                         (filterType === 'AGING' && bayInfo.hasAgingAlert);
                       const isCongestionMatch = congestionFilter === 'ALL' ||
                         (congestionFilter === 'HIGH' && zoneStats && zoneStats.percent >= 75) ||

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { InventoryItem, MovementLog, MovementType, ShelfLevel, StorageZone, WmsStats, MasterDataItem, UseLineMaster, ZoneCapacityMaster, WarehouseFacility, AgingThresholdConfig, CustomRackSlot, ProtectionMethod, ProductType, ProductStorageType } from './types';
 import { INITIAL_ITEMS, INITIAL_LOGS, INITIAL_STATS, INITIAL_FACILITIES } from './data/mockData';
+import { useTranslation } from './i18n/i18nContext';
 import { Navbar } from './components/Navbar';
 import { DashboardKPIs } from './components/DashboardKPIs';
 import { RackLayout2D } from './components/RackLayout2D';
@@ -48,6 +49,7 @@ const initialZoneCapacities: ZoneCapacityMaster[] = [
 ];
 
 export default function App() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<string>('blueprint');
   const [activeStation, setActiveStation] = useState<string>('ALL');
   const [language, setLanguage] = useState<string>('th');
@@ -558,7 +560,7 @@ export default function App() {
                   HEX WMS
                 </span>
                 <span className="hidden sm:inline text-xs sm:text-[13px] font-black text-slate-200 tracking-tight truncate">
-                  ระบบจัดการคลังสินค้าอัตโนมัติ (HEX WMS Automation System)
+                  {t('common.systemSubtitle')}
                 </span>
                 <span className="px-1.5 sm:px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 text-[9.5px] sm:text-[10.5px] font-mono font-black border border-blue-500/40 shrink-0">
                   A2 &bull; A4 &bull; A5 &bull; CY3
@@ -575,7 +577,7 @@ export default function App() {
                   onSelectTab={setActiveTab}
                   onOpen3DForLocator={(z, b) => handleOpen3DForBay(z, b)}
                   onOpenScanForLevel={(z, b, l, m) => handleOpenScanner(z, b, l, m)}
-                  placeholder="🔍 พิมพ์ Part No. / Model (บอกทันทีว่าอยู่โซนไหน เท่าไหร่บ้าง)..."
+                  placeholder={t('common.searchPlaceholder')}
                 />
               </div>
 
@@ -608,7 +610,7 @@ export default function App() {
                   className="px-2.5 sm:px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg shadow-xs flex items-center space-x-1 sm:space-x-1.5 transition-all active:scale-95 shrink-0 h-7 sm:h-7.5"
                 >
                   <span className="sm:hidden">📊 CSV</span>
-                  <span className="hidden sm:inline">📊 ส่งออกข้อมูล Excel (.csv)</span>
+                  <span className="hidden sm:inline">📊 {t('common.exportExcel')}</span>
                 </button>
               </div>
             </header>
@@ -845,10 +847,10 @@ export default function App() {
 
         {/* Footer Info */}
         <footer className="h-12 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between px-4 sm:px-6 lg:px-8 text-xs text-slate-500 uppercase tracking-wider shrink-0 mt-auto w-full">
-          <span className="font-semibold text-slate-700 dark:text-slate-300">HEX WMS LGETH © 2026</span>
+          <span className="font-semibold text-slate-700 dark:text-slate-300">{t('common.copyright')}</span>
           <span className="flex items-center gap-2 font-bold text-slate-700 dark:text-slate-300">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            Server Status: Online
+            {t('common.serverStatusOnline')}
           </span>
         </footer>
       </div>

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from '../i18n/i18nContext';
 import { 
   Printer, 
   Download, 
@@ -37,6 +38,7 @@ export const LabelPrinterPanel: React.FC<LabelPrinterPanelProps> = ({
   masterData = [],
   agingConfig = { safeDaysMax: 14, warningDaysMax: 30, criticalDays: 30, autoAlertEnabled: true }
 }) => {
+  const { t } = useTranslation();
   const [activeMode, setActiveMode] = useState<'LOCATION' | 'PALLET_ITEM' | 'BATCH'>('LOCATION');
 
   // Real-Time Sync Animation & Timestamp State

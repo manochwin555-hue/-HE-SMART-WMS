@@ -1,118 +1,139 @@
 import { InventoryItem } from '../../types';
 
 /**
- * Standard Design Color Tokens for Warehouse Pallets & Slots
+ * Standard Centralized Design Color Tokens for Warehouse Pallets & Slots
+ * Follows the HEX WMS LGETH Global Status Design System
  */
 export const COLOR_TOKENS = {
   EMPTY: {
-    bg: '#21262D',
-    border: '#30363D',
-    text: '#8B949E',
-    glow: 'rgba(48, 54, 61, 0.4)',
+    bg: '#0B1017',
+    border: '#273244',
+    text: '#667085',
+    subtext: '#586274',
+    glow: 'rgba(39, 50, 68, 0.4)',
     label: 'พื้นที่ว่าง',
-    labelEn: 'Empty Slot',
-    hex: '#21262D',
+    labelEn: 'Empty / Available',
+    hex: '#0B1017',
   },
   OCCUPIED: {
-    bg: '#2F81F7', // Blue for normal items
-    border: '#58A6FF',
-    text: '#FFFFFF',
-    glow: 'rgba(47, 129, 247, 0.4)',
+    bg: '#EAF4FF',
+    border: '#60A5FA',
+    text: '#0F172A',
+    subtext: '#334155',
+    glow: 'rgba(96, 165, 250, 0.4)',
     label: 'จัดเก็บปกติ',
-    labelEn: 'Occupied',
-    hex: '#2F81F7',
+    labelEn: 'Occupied / Normal',
+    hex: '#EAF4FF',
   },
   VINYL_NORMAL: {
-    bg: '#238636', // Green for Vinyl Normal
-    border: '#2EA043',
-    text: '#FFFFFF',
-    glow: 'rgba(35, 134, 54, 0.4)',
-    label: 'ปกติ (Vinyl)',
-    labelEn: 'Normal (Vinyl)',
-    hex: '#238636',
+    bg: '#EAF4FF',
+    border: '#60A5FA',
+    text: '#0F172A',
+    subtext: '#334155',
+    glow: 'rgba(96, 165, 250, 0.4)',
+    label: 'ปกติ',
+    labelEn: 'Normal',
+    hex: '#EAF4FF',
   },
   AGING_WARNING: {
-    bg: '#D29922', // Yellow/Amber
-    border: '#E3B341',
-    text: '#FFFFFF',
-    glow: 'rgba(210, 153, 34, 0.4)',
-    label: 'เตือน (Warning)',
-    labelEn: 'Warning',
-    hex: '#D29922',
+    bg: '#FFF4CC',
+    border: '#F59E0B',
+    text: '#7C4A03',
+    subtext: '#B45309',
+    glow: 'rgba(245, 158, 11, 0.4)',
+    label: 'เตือน Aging',
+    labelEn: 'Aging / Warning',
+    hex: '#FFF4CC',
   },
   URGENT: {
-    bg: '#D97706', // Orange
-    border: '#F59E0B',
-    text: '#FFFFFF',
-    glow: 'rgba(217, 119, 6, 0.4)',
-    label: 'เร่งด่วน (Urgent)',
+    bg: '#FFF0D6',
+    border: '#F97316',
+    text: '#9A3412',
+    subtext: '#C2410C',
+    glow: 'rgba(249, 115, 22, 0.4)',
+    label: 'เร่งด่วน',
     labelEn: 'Urgent',
-    hex: '#D97706',
+    hex: '#FFF0D6',
   },
   OVERDUE_CRITICAL: {
-    bg: '#F85149', // Red for Critical / Due Today
-    border: '#FF7B72',
+    bg: '#D9043E',
+    border: '#FF1744',
     text: '#FFFFFF',
-    glow: 'rgba(248, 81, 73, 0.5)',
-    label: 'วิกฤต / ครบกำหนด (Due)',
-    labelEn: 'Critical / Due',
-    hex: '#F85149',
+    subtext: '#FFE4E6',
+    glow: 'rgba(217, 4, 62, 0.5)',
+    label: 'วิกฤต / หมดอายุ',
+    labelEn: 'Critical / Expired',
+    hex: '#D9043E',
   },
   EXPIRED: {
-    bg: '#8B0000', // Dark Red
-    border: '#B22222',
+    bg: '#D9043E',
+    border: '#FF1744',
     text: '#FFFFFF',
-    glow: 'rgba(139, 0, 0, 0.5)',
+    subtext: '#FFE4E6',
+    glow: 'rgba(217, 4, 62, 0.5)',
     label: 'เกินกำหนด (Expired)',
     labelEn: 'Expired',
-    hex: '#8B0000',
+    hex: '#D9043E',
   },
   CONDITION_NG: {
-    bg: '#7F1D1D', // Dark Red
-    border: '#B91C1C',
+    bg: '#D9043E',
+    border: '#FF1744',
     text: '#FFFFFF',
-    glow: 'rgba(127, 29, 29, 0.5)',
+    subtext: '#FFE4E6',
+    glow: 'rgba(217, 4, 62, 0.5)',
     label: 'สภาพ NG',
     labelEn: 'Condition NG',
-    hex: '#7F1D1D',
+    hex: '#D9043E',
   },
   DATA_INCOMPLETE: {
-    bg: '#6E40C9', // Purple
+    bg: '#6E40C9',
     border: '#8957E5',
     text: '#FFFFFF',
+    subtext: '#E9D5FF',
     glow: 'rgba(110, 64, 201, 0.4)',
     label: 'ข้อมูลไม่ครบ',
     labelEn: 'Data Incomplete',
     hex: '#6E40C9',
   },
   SEARCH_MATCH: {
-    bg: '#2EA043',
-    border: '#3FB950',
-    text: '#FFFFFF',
-    glow: 'rgba(46, 160, 67, 0.5)',
-    label: 'ตรงกับผลค้นหา',
-    labelEn: 'Search Highlight',
-    hex: '#2EA043',
+    border: '#10B981',
+    ring: '#10B981',
+    glow: 'rgba(16, 185, 129, 0.5)',
+    label: 'เลือก / ผลการค้นหา',
+    labelEn: 'Search Match / Selected',
   },
 } as const;
 
-export type SlotStatusType = 'EMPTY' | 'OCCUPIED' | 'VINYL_NORMAL' | 'AGING_WARNING' | 'URGENT' | 'OVERDUE_CRITICAL' | 'EXPIRED' | 'CONDITION_NG' | 'DATA_INCOMPLETE' | 'SEARCH_MATCH';
+export type SlotStatusType = 
+  | 'EMPTY' 
+  | 'OCCUPIED' 
+  | 'VINYL_NORMAL' 
+  | 'AGING_WARNING' 
+  | 'URGENT' 
+  | 'OVERDUE_CRITICAL' 
+  | 'EXPIRED' 
+  | 'CONDITION_NG' 
+  | 'DATA_INCOMPLETE' 
+  | 'SEARCH_MATCH';
 
 export interface SlotStatusResult {
   status: SlotStatusType;
   bgHex: string;
   borderHex: string;
   textColorHex: string;
+  ringHex?: string;
   glowHex: string;
   label: string;
   isOccupied: boolean;
   isAging: boolean;
+  isUrgent: boolean;
   isOverdue: boolean;
   isMatch: boolean;
 }
 
 /**
  * Universal evaluator for slot status and colors
+ * Preserves underlying business status and overlays green selection/search ring when matched
  */
 export function evaluateSlotStatus(
   item: InventoryItem | null | undefined,
@@ -120,153 +141,99 @@ export function evaluateSlotStatus(
   warningDaysThreshold = 14,
   criticalDaysThreshold = 30
 ): SlotStatusResult {
-  if (isSearchMatch && item) {
+  // 1. Determine underlying status
+  let baseStatus: SlotStatusType = 'EMPTY';
+  let bgHex: string = COLOR_TOKENS.EMPTY.bg;
+  let borderHex: string = COLOR_TOKENS.EMPTY.border;
+  let textColorHex: string = COLOR_TOKENS.EMPTY.text;
+  let glowHex: string = COLOR_TOKENS.EMPTY.glow;
+  let label: string = COLOR_TOKENS.EMPTY.label;
+  let isOccupied = false;
+  let isAging = false;
+  let isUrgent = false;
+  let isOverdue = false;
+
+  if (item) {
+    isOccupied = true;
+
+    if (
+      item.agingStatus === 'EXPIRED' ||
+      item.agingStatus === 'CONDITION_NG' ||
+      (item.wrappingCondition && ['TORN', 'LOOSE', 'WET', 'CONTAMINATED', 'OPEN'].includes(item.wrappingCondition)) ||
+      item.agingStatus === 'OVERDUE' ||
+      item.agingDays > criticalDaysThreshold
+    ) {
+      baseStatus = item.agingStatus === 'EXPIRED' ? 'EXPIRED' : 'OVERDUE_CRITICAL';
+      bgHex = COLOR_TOKENS.OVERDUE_CRITICAL.bg;
+      borderHex = COLOR_TOKENS.OVERDUE_CRITICAL.border;
+      textColorHex = COLOR_TOKENS.OVERDUE_CRITICAL.text;
+      glowHex = COLOR_TOKENS.OVERDUE_CRITICAL.glow;
+      label = COLOR_TOKENS.OVERDUE_CRITICAL.label;
+      isAging = true;
+      isOverdue = true;
+    } else if (item.agingStatus === 'URGENT') {
+      baseStatus = 'URGENT';
+      bgHex = COLOR_TOKENS.URGENT.bg;
+      borderHex = COLOR_TOKENS.URGENT.border;
+      textColorHex = COLOR_TOKENS.URGENT.text;
+      glowHex = COLOR_TOKENS.URGENT.glow;
+      label = COLOR_TOKENS.URGENT.label;
+      isAging = true;
+      isUrgent = true;
+    } else if (item.agingStatus === 'WARNING' || item.agingDays > warningDaysThreshold) {
+      baseStatus = 'AGING_WARNING';
+      bgHex = COLOR_TOKENS.AGING_WARNING.bg;
+      borderHex = COLOR_TOKENS.AGING_WARNING.border;
+      textColorHex = COLOR_TOKENS.AGING_WARNING.text;
+      glowHex = COLOR_TOKENS.AGING_WARNING.glow;
+      label = COLOR_TOKENS.AGING_WARNING.label;
+      isAging = true;
+    } else if (item.agingStatus === 'DATA_INCOMPLETE') {
+      baseStatus = 'DATA_INCOMPLETE';
+      bgHex = COLOR_TOKENS.DATA_INCOMPLETE.bg;
+      borderHex = COLOR_TOKENS.DATA_INCOMPLETE.border;
+      textColorHex = COLOR_TOKENS.DATA_INCOMPLETE.text;
+      glowHex = COLOR_TOKENS.DATA_INCOMPLETE.glow;
+      label = COLOR_TOKENS.DATA_INCOMPLETE.label;
+    } else {
+      baseStatus = 'OCCUPIED';
+      bgHex = COLOR_TOKENS.OCCUPIED.bg;
+      borderHex = COLOR_TOKENS.OCCUPIED.border;
+      textColorHex = COLOR_TOKENS.OCCUPIED.text;
+      glowHex = COLOR_TOKENS.OCCUPIED.glow;
+      label = COLOR_TOKENS.OCCUPIED.label;
+    }
+  }
+
+  // 2. Interaction state (Search Match / Selected) overrides border to Green #10B981
+  if (isSearchMatch) {
     return {
-      status: 'SEARCH_MATCH',
-      bgHex: COLOR_TOKENS.SEARCH_MATCH.bg,
+      status: baseStatus,
+      bgHex,
       borderHex: COLOR_TOKENS.SEARCH_MATCH.border,
-      textColorHex: COLOR_TOKENS.SEARCH_MATCH.text,
+      textColorHex,
+      ringHex: COLOR_TOKENS.SEARCH_MATCH.ring,
       glowHex: COLOR_TOKENS.SEARCH_MATCH.glow,
-      label: COLOR_TOKENS.SEARCH_MATCH.label,
-      isOccupied: true,
-      isAging: item.agingDays > warningDaysThreshold,
-      isOverdue: item.agingDays > criticalDaysThreshold,
+      label,
+      isOccupied,
+      isAging,
+      isUrgent,
+      isOverdue,
       isMatch: true,
     };
   }
 
-  if (!item) {
-    return {
-      status: 'EMPTY',
-      bgHex: COLOR_TOKENS.EMPTY.bg,
-      borderHex: COLOR_TOKENS.EMPTY.border,
-      textColorHex: COLOR_TOKENS.EMPTY.text,
-      glowHex: COLOR_TOKENS.EMPTY.glow,
-      label: COLOR_TOKENS.EMPTY.label,
-      isOccupied: false,
-      isAging: false,
-      isOverdue: false,
-      isMatch: false,
-    };
-  }
-
-  // 1. Check for Critical/Hold Statuses First
-  if (item.agingStatus === 'CONDITION_NG' || item.wrappingCondition && ['TORN', 'LOOSE', 'WET', 'CONTAMINATED', 'OPEN'].includes(item.wrappingCondition)) {
-    return {
-      status: 'CONDITION_NG',
-      bgHex: COLOR_TOKENS.CONDITION_NG.bg,
-      borderHex: COLOR_TOKENS.CONDITION_NG.border,
-      textColorHex: COLOR_TOKENS.CONDITION_NG.text,
-      glowHex: COLOR_TOKENS.CONDITION_NG.glow,
-      label: COLOR_TOKENS.CONDITION_NG.label,
-      isOccupied: true,
-      isAging: true,
-      isOverdue: true,
-      isMatch: false,
-    };
-  }
-
-  if (item.agingStatus === 'DATA_INCOMPLETE') {
-    return {
-      status: 'DATA_INCOMPLETE',
-      bgHex: COLOR_TOKENS.DATA_INCOMPLETE.bg,
-      borderHex: COLOR_TOKENS.DATA_INCOMPLETE.border,
-      textColorHex: COLOR_TOKENS.DATA_INCOMPLETE.text,
-      glowHex: COLOR_TOKENS.DATA_INCOMPLETE.glow,
-      label: COLOR_TOKENS.DATA_INCOMPLETE.label,
-      isOccupied: true,
-      isAging: false,
-      isOverdue: false,
-      isMatch: false,
-    };
-  }
-
-  if (item.agingStatus === 'EXPIRED') {
-    return {
-      status: 'EXPIRED',
-      bgHex: COLOR_TOKENS.EXPIRED.bg,
-      borderHex: COLOR_TOKENS.EXPIRED.border,
-      textColorHex: COLOR_TOKENS.EXPIRED.text,
-      glowHex: COLOR_TOKENS.EXPIRED.glow,
-      label: COLOR_TOKENS.EXPIRED.label,
-      isOccupied: true,
-      isAging: true,
-      isOverdue: true,
-      isMatch: false,
-    };
-  }
-
-  if (item.agingStatus === 'DUE_TODAY' || item.agingStatus === 'OVERDUE' || item.agingDays > criticalDaysThreshold) {
-    return {
-      status: 'OVERDUE_CRITICAL',
-      bgHex: COLOR_TOKENS.OVERDUE_CRITICAL.bg,
-      borderHex: COLOR_TOKENS.OVERDUE_CRITICAL.border,
-      textColorHex: COLOR_TOKENS.OVERDUE_CRITICAL.text,
-      glowHex: COLOR_TOKENS.OVERDUE_CRITICAL.glow,
-      label: COLOR_TOKENS.OVERDUE_CRITICAL.label,
-      isOccupied: true,
-      isAging: true,
-      isOverdue: true,
-      isMatch: false,
-    };
-  }
-
-  if (item.agingStatus === 'URGENT') {
-    return {
-      status: 'URGENT',
-      bgHex: COLOR_TOKENS.URGENT.bg,
-      borderHex: COLOR_TOKENS.URGENT.border,
-      textColorHex: COLOR_TOKENS.URGENT.text,
-      glowHex: COLOR_TOKENS.URGENT.glow,
-      label: COLOR_TOKENS.URGENT.label,
-      isOccupied: true,
-      isAging: true,
-      isOverdue: false,
-      isMatch: false,
-    };
-  }
-
-  if (item.agingStatus === 'WARNING' || item.agingDays > warningDaysThreshold) {
-    return {
-      status: 'AGING_WARNING',
-      bgHex: COLOR_TOKENS.AGING_WARNING.bg,
-      borderHex: COLOR_TOKENS.AGING_WARNING.border,
-      textColorHex: COLOR_TOKENS.AGING_WARNING.text,
-      glowHex: COLOR_TOKENS.AGING_WARNING.glow,
-      label: COLOR_TOKENS.AGING_WARNING.label,
-      isOccupied: true,
-      isAging: true,
-      isOverdue: false,
-      isMatch: false,
-    };
-  }
-
-  if (item.agingStatus === 'NORMAL') {
-    return {
-      status: 'VINYL_NORMAL',
-      bgHex: COLOR_TOKENS.VINYL_NORMAL.bg,
-      borderHex: COLOR_TOKENS.VINYL_NORMAL.border,
-      textColorHex: COLOR_TOKENS.VINYL_NORMAL.text,
-      glowHex: COLOR_TOKENS.VINYL_NORMAL.glow,
-      label: COLOR_TOKENS.VINYL_NORMAL.label,
-      isOccupied: true,
-      isAging: false,
-      isOverdue: false,
-      isMatch: false,
-    };
-  }
-
-  // Fallback for SAFE or generic
   return {
-    status: 'OCCUPIED',
-    bgHex: COLOR_TOKENS.OCCUPIED.bg,
-    borderHex: COLOR_TOKENS.OCCUPIED.border,
-    textColorHex: COLOR_TOKENS.OCCUPIED.text,
-    glowHex: COLOR_TOKENS.OCCUPIED.glow,
-    label: COLOR_TOKENS.OCCUPIED.label,
-    isOccupied: true,
-    isAging: false,
-    isOverdue: false,
+    status: baseStatus,
+    bgHex,
+    borderHex,
+    textColorHex,
+    glowHex,
+    label,
+    isOccupied,
+    isAging,
+    isUrgent,
+    isOverdue,
     isMatch: false,
   };
 }

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from '../i18n/i18nContext';
 import { 
   X, 
   Database, 
@@ -37,6 +38,7 @@ interface OdooOneDriveModalProps {
 }
 
 export const OdooOneDriveModal: React.FC<OdooOneDriveModalProps> = ({ isOpen, onClose }) => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'ODOO' | 'ONEDRIVE' | 'LOGS'>('ODOO');
   const [config, setConfig] = useState<OdooOneDriveConfig>(getSyncConfig());
   const [logs, setLogs] = useState<SyncLogEntry[]>(getSyncLogs());

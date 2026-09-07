@@ -30,6 +30,8 @@ import {
 } from 'lucide-react';
 
 import { WarehouseFacility } from '../types';
+import { useTranslation } from '../i18n/i18nContext';
+import { Language } from '../i18n/types';
 
 interface NavbarProps {
   activeTab: string;
@@ -53,99 +55,6 @@ interface NavbarProps {
   setThemeMode?: (mode: 'light' | 'dark') => void;
 }
 
-const translations: Record<string, Record<string, string>> = {
-  th: {
-    dashboard: 'แดชบอร์ด (KPIs)',
-    blueprint: 'ผังรวม',
-    a4_floor: 'โซน A4 (วางพื้น)',
-    a4_rack: 'โซน A4 (แร็ค)',
-    flow: 'โซน A2 (รางเลื่อน)',
-    tent: 'โซน A5 (เต็นท์)',
-    cy3: 'โซน CY3 (เต็นท์ 4 ชั้น)',
-    inventory: 'สต็อก & Safety Stock',
-    rack3d: '3D Rack Inspector',
-    scanner: 'สแกน QR รับ-เบิก',
-    logs: 'ประวัติรับ-เบิก',
-    aging: 'FIFO / Aging',
-    printer: 'พิมพ์ฉลาก (Label)',
-    master: 'Master Data & ตั้งค่า',
-    subtitle: 'LGETH Warehouse Automation',
-    totalCapacity: 'ความจุรวม:',
-  },
-  en: {
-    dashboard: 'Executive Hub (GMES & KPIs)',
-    blueprint: 'Master Map',
-    a4_floor: 'A4 Floor (X1-X8)',
-    a4_rack: 'A4 Rack (B-K)',
-    flow: 'A2 Map (Flow Rail)',
-    tent: 'A5 Map (Tents)',
-    cy3: 'CY3 Map (4-Tier Rack)',
-    inventory: 'Inventory & Safety',
-    rack3d: '3D Rack Inspector',
-    scanner: 'QR Scan In/Out',
-    logs: 'Movement Logs',
-    aging: 'FIFO & Aging',
-    printer: 'Print Labels',
-    master: 'Master Data & Settings',
-    subtitle: 'LGETH Warehouse Automation',
-    totalCapacity: 'Total Cap:',
-  },
-  kh: {
-    dashboard: 'ផ្ទាំងគ្រប់គ្រង',
-    blueprint: 'ប្លង់រួម',
-    a4_floor: 'ប្លង់ A4 (ផ្ទាល់ដី)',
-    a4_rack: 'ប្លង់ A4 (ធ្នើរ)',
-    flow: 'ប្លង់ A2 (ផ្លូវរអិល)',
-    tent: 'ប្លង់ A5 (តង់)',
-    cy3: 'ប្លង់ CY3 (៤ ជាន់)',
-    inventory: 'ស្តុក & សុវត្ថិភាព',
-    rack3d: 'អ្នកត្រួតពិនិត្យ 3D',
-    scanner: 'ស្កេន QR',
-    logs: 'កំណត់ហេតុ',
-    aging: 'FIFO & Aging',
-    printer: 'បោះពុម្ពស្លាក',
-    master: 'ទិន្នន័យមេ',
-    subtitle: 'LGETH Warehouse Automation',
-    totalCapacity: 'សមត្ថភាពសរុប:',
-  },
-  mm: {
-    dashboard: 'ဒက်ရှ်ဘုတ်',
-    blueprint: 'ပင်မမြေပုံ',
-    a4_floor: 'A4 ကြမ်းပြင် (X1-X8)',
-    a4_rack: 'A4 စင်မြေပုံ (B-K)',
-    flow: 'A2 မြေပုံ (ရထားလမ်း)',
-    tent: 'A5 မြေပုံ (တဲ)',
-    cy3: 'CY3 မြေပုံ (၄ ထပ်)',
-    inventory: 'စာရင်းနှင့် သိုလှောင်မှု',
-    rack3d: '3D စင်စစ်ဆေးသူ',
-    scanner: 'QR စကင်',
-    logs: 'မှတ်တမ်းများ',
-    aging: 'FIFO နှင့် သက်တမ်း',
-    printer: 'တံဆိပ်ရိုက်နှိပ်ခြင်း',
-    master: 'ပင်မဒေတာ',
-    subtitle: 'LGETH Warehouse Automation',
-    totalCapacity: 'စုစုပေါင်းစွမ်းရည်:',
-  },
-  kr: {
-    dashboard: '대시보드 (KPIs)',
-    blueprint: '종합 도면',
-    a4_floor: 'A4 평치 배치도',
-    a4_rack: 'A4 랙 배치도',
-    flow: 'A2 배치도 (플로우레일)',
-    tent: 'A5 배치도 (야외텐트)',
-    cy3: 'CY3 배치도 (4단 랙)',
-    inventory: '재고 및 안전재고',
-    rack3d: '3D 랙 인스펙터',
-    scanner: 'QR 스캔 입출고',
-    logs: '입출고 이력',
-    aging: 'FIFO / 에이징',
-    printer: '라벨 인쇄',
-    master: '기준 정보 & 설정',
-    subtitle: 'LGETH Warehouse Automation',
-    totalCapacity: '총 용량:',
-  }
-};
-
 export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   setActiveTab,
@@ -159,31 +68,30 @@ export const Navbar: React.FC<NavbarProps> = ({
   setActiveStation,
   isFullscreen = false,
   toggleFullscreen,
-  language = 'th',
-  setLanguage,
   isDarkMode = false,
   toggleDarkMode,
   themeMode = 'light',
   setThemeMode,
 }) => {
-  const t = translations[language] || translations['th'];
+  const { language, setLanguage, t } = useTranslation();
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [isMobileOpen, setIsMobileOpen] = useState<boolean>(false);
 
   const activeFacility = facilities.find(f => f.id === activeFacilityId);
 
   const navItems = [
-    { id: 'blueprint', label: t.blueprint, icon: Map, badge: 'MAP' },
-    { id: 'a4_floor', label: t.a4_floor, icon: LayoutGrid, badge: '432P' },
-    { id: 'a4_rack', label: t.a4_rack, icon: Layers, badge: '680P' },
-    { id: 'flow_floor', label: t.flow, icon: GitCommit, badge: 'A2' },
-    { id: 'tent_layout', label: t.tent, icon: Tent, badge: 'A5' },
-    { id: 'cy3_layout', label: t.cy3, icon: Layers, badge: 'CY3' },
-    { id: 'inventory', label: t.inventory, icon: ShieldAlert, count: lowStockCount },
-    { id: 'logs', label: t.logs, icon: ListFilter },
-    { id: 'printer', label: t.printer, icon: Printer },
-    { id: 'master', label: t.master, icon: Box },
+    { id: 'blueprint', label: t('navigation.blueprint'), icon: Map, badge: 'MAP' },
+    { id: 'a4_floor', label: t('navigation.a4_floor'), icon: LayoutGrid, badge: '432P' },
+    { id: 'a4_rack', label: t('navigation.a4_rack'), icon: Layers, badge: '680P' },
+    { id: 'flow_floor', label: t('navigation.flow'), icon: GitCommit, badge: 'A2' },
+    { id: 'tent_layout', label: t('navigation.tent'), icon: Tent, badge: 'A5' },
+    { id: 'cy3_layout', label: t('navigation.cy3'), icon: Layers, badge: 'CY3' },
+    { id: 'inventory', label: t('navigation.inventory'), icon: ShieldAlert, count: lowStockCount },
+    { id: 'logs', label: t('navigation.logs'), icon: ListFilter },
+    { id: 'printer', label: t('navigation.printer'), icon: Printer },
+    { id: 'master', label: t('navigation.master'), icon: Box },
   ];
+
 
   return (
     <>
@@ -332,12 +240,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="flex items-center justify-between text-[11px] bg-slate-800/80 px-2.5 py-1.5 rounded-lg border border-slate-700/60">
               <span className="text-slate-400 font-medium flex items-center space-x-1">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>{activeFacility ? `${activeFacility.code} จุ:` : 'ความจุรวมทุกคลัง:'}</span>
+                <span>{activeFacility ? `${activeFacility.code}:` : `${t('navigation.totalCapacity')}`}</span>
               </span>
               <span className="text-emerald-400 font-bold">
                 {activeFacility 
-                  ? `${activeFacility.totalCapacityPallets} Pallets` 
-                  : `${facilities.reduce((acc, f) => acc + f.totalCapacityPallets, 0) || 680} Pallets`}
+                  ? `${activeFacility.totalCapacityPallets} ${t('common.pallets')}` 
+                  : `${facilities.reduce((acc, f) => acc + f.totalCapacityPallets, 0) || 680} ${t('common.pallets')}`}
               </span>
             </div>
           )}
@@ -346,15 +254,15 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Language Selector */}
             {!isCollapsed ? (
               <select
-                className="bg-slate-800 text-slate-300 border border-slate-700/80 rounded-lg px-2 py-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer w-full"
+                className="bg-slate-800 text-slate-300 border border-slate-700/80 rounded-lg px-2 py-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer w-full font-sans"
                 value={language}
-                onChange={(e) => setLanguage && setLanguage(e.target.value)}
+                onChange={(e) => setLanguage(e.target.value as Language)}
               >
-                <option value="th">🇹🇭 TH</option>
-                <option value="en">🇬🇧 EN</option>
-                <option value="kh">🇰🇭 KH</option>
-                <option value="mm">🇲🇲 MM</option>
-                <option value="kr">🇰🇷 KR</option>
+                <option value="th">🇹🇭 TH - ไทย</option>
+                <option value="en">🇬🇧 EN - English</option>
+                <option value="kh">🇰🇭 KH - ខ្មែរ</option>
+                <option value="mm">🇲🇲 MM - မြန်မာ</option>
+                <option value="kr">🇰🇷 KR - 한국어</option>
               </select>
             ) : null}
 

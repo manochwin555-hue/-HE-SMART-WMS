@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { InventoryItem } from '../types';
 import { Bell, X, AlertTriangle, Flame } from 'lucide-react';
+import { useTranslation } from '../i18n/i18nContext';
 
 export const NotificationCenter: React.FC<{ items: InventoryItem[] }> = ({ items }) => {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
 
   // Deriving the list of items that require attention
@@ -32,7 +34,7 @@ export const NotificationCenter: React.FC<{ items: InventoryItem[] }> = ({ items
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-950">
             <div className="flex items-center gap-2">
               <Bell className="w-4 h-4 text-amber-500" />
-              <h3 className="font-bold text-sm text-slate-100">การแจ้งเตือนแบบเรียลไทม์</h3>
+              <h3 className="font-bold text-sm text-slate-100">{t('notifications.title')}</h3>
             </div>
             <button onClick={() => setIsOpen(false)} className="text-slate-500 hover:text-white transition-colors">
               <X className="w-4 h-4" />
@@ -48,8 +50,8 @@ export const NotificationCenter: React.FC<{ items: InventoryItem[] }> = ({ items
                 <div>
                   <h4 className="text-xs font-bold text-slate-200">{alert.modelHE}</h4>
                   <p className="text-[10px] text-slate-400 leading-tight mt-0.5">
-                    ตำแหน่ง: {alert.locatorCode}<br/>
-                    สถานะ: <span className="font-bold text-amber-400">{alert.agingStatus}</span>
+                    {t('common.location')}: {alert.locatorCode}<br/>
+                    {t('common.status')}: <span className="font-bold text-amber-400">{alert.agingStatus}</span>
                     {alert.holdReason && <span className="text-rose-400"> (Hold: {alert.holdReason})</span>}
                   </p>
                 </div>
@@ -57,7 +59,7 @@ export const NotificationCenter: React.FC<{ items: InventoryItem[] }> = ({ items
             ))}
             {activeAlerts.length > 50 && (
               <div className="text-center text-[10px] text-slate-500 py-2 font-bold">
-                ยังมีรายการอื่นอีก {activeAlerts.length - 50} รายการที่ต้องตรวจสอบ
+                {t('common.total')}: {activeAlerts.length}
               </div>
             )}
           </div>

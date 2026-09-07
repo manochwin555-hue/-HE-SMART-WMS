@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from '../i18n/i18nContext';
 import { 
   Sparkles, 
   CheckCircle2, 
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react';
 
 export const SystemAdvicePanel: React.FC = () => {
+  const { t } = useTranslation();
   const comparison = [
     {
       topic: '1. การแสดงผลพื้นที่คลัง (Warehouse Layout)',

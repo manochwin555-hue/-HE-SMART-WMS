@@ -14,6 +14,29 @@
   --bg-input: #0B1017;
   --bg-table: #0B1016;
 
+  /* WAREHOUSE STATUS DESIGN TOKENS */
+  --status-empty-bg: #0B1017;
+  --status-empty-border: #273244;
+  --status-empty-text: #667085;
+
+  --status-occupied-bg: #EAF4FF;
+  --status-occupied-border: #60A5FA;
+  --status-occupied-text: #0F172A;
+
+  --status-aging-bg: #FFF4CC;
+  --status-aging-border: #F59E0B;
+  --status-aging-text: #7C4A03;
+
+  --status-urgent-bg: #FFF0D6;
+  --status-urgent-border: #F97316;
+  --status-urgent-text: #9A3412;
+
+  --status-critical-bg: #D9043E;
+  --status-critical-border: #FF1744;
+  --status-critical-text: #FFFFFF;
+
+  --status-selected-border: #10B981;
+
   --border-subtle: #1C2633;
   --border-default: #273244;
   --border-strong: #344156;

@@ -3,6 +3,7 @@ import { MasterDataItem, UseLineMaster, ZoneCapacityMaster, StorageZone, Invento
 import { FacilityManager } from './FacilityManager';
 import { DynamicLegendPanel } from './DynamicLegendPanel';
 import { AgingFifoPanel } from './AgingFifoPanel';
+import { useTranslation } from '../i18n/i18nContext';
 import { 
   Settings, 
   Save, 
@@ -73,6 +74,7 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
   customSlots: propCustomSlots,
   setCustomSlots: propSetCustomSlots
 }) => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'FACILITIES' | 'AGING_CONFIG' | 'GUIDE_LEGEND' | 'ITEMS' | 'LINES' | 'ZONE_CAPACITY' | 'RACK_LOCATIONS' | 'RELOCATE'>('AGING_CONFIG');
 
   // States for Master Item list

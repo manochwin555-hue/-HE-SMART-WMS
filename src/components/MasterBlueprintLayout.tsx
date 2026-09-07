@@ -3,6 +3,7 @@ import {
   InventoryItem, 
   AgingThresholdConfig 
 } from '../types';
+import { useTranslation } from '../i18n/i18nContext';
 import { 
   Maximize2, 
   Minimize2, 
@@ -47,6 +48,7 @@ export const MasterBlueprintLayout: React.FC<MasterBlueprintLayoutProps> = ({
   onOpen3D,
   isDarkMode: initialDarkMode = true,
 }) => {
+  const { t } = useTranslation();
   // Fullscreen & Compact Fit View states
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [isFitViewport, setIsFitViewport] = useState<boolean>(false);

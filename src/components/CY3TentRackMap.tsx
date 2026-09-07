@@ -2,40 +2,24 @@ import React, { useState, useMemo } from 'react';
 import { InventoryItem, MovementType, ShelfLevel, StorageZone } from '../types';
 import { UnifiedSlotModal, UnifiedSlotData } from './UnifiedSlotModal';
 import { SlotMiniStatsOverlay, MiniStatsSlotData } from './SlotMiniStatsOverlay';
-import { CY3IsometricView } from './CY3IsometricView';
 import { CY3FrontElevationView } from './CY3FrontElevationView';
 import { MiniatureRackIcon } from './MiniatureRackIcon';
-import { MultiLevelRackZoneLayout, MultiLevelRackRowConfig } from './zone-standard';
+import { WarehouseSlotFilter } from './common/WarehouseSlotFilter';
+import { useTranslation } from '../i18n/i18nContext';
 import { 
   Building2, 
   Search, 
-  Filter, 
   QrCode, 
   Layers, 
   ChevronRight, 
-  Maximize2, 
-  Minimize2, 
-  Compass, 
   RefreshCw, 
   AlertTriangle, 
   CheckCircle2, 
-  Info, 
-  Printer, 
-  ArrowRightLeft, 
   Box, 
   Grid, 
-  ZoomIn, 
-  ZoomOut,
-  Tent,
-  ArrowUpRight,
-  Flame,
   Clock,
   X,
-  Truck,
-  Eye,
-  SlidersHorizontal,
-  Sparkles,
-  LayoutGrid
+  Truck
 } from 'lucide-react';
 
 interface CY3TentRackMapProps {
@@ -105,25 +89,13 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
   onNavigateToCampus,
   onPrintLabel
 }) => {
-  const [viewMode, setViewMode] = useState<'STANDARD_DESIGN' | 'REFERENCE_2D' | 'ISOMETRIC_25D' | 'FRONT_ELEVATION' | 'HEATMAP' | 'FIFO_AGING'>('STANDARD_DESIGN');
+  const { t } = useTranslation();
+  const [viewMode, setViewMode] = useState<'FRONT' | 'TOP'>('FRONT');
   const [floorFilter, setFloorFilter] = useState<'ALL' | 1 | 2 | 3 | 4>('ALL');
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'OCCUPIED' | 'EMPTY' | 'AGING'>('ALL');
   const [localSearch, setLocalSearch] = useState<string>(searchQuery);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [lastSyncTime, setLastSyncTime] = useState<string>('ซิงค์แล้ว');
-  
-  // Standardized Rack Row Configurations
-  const standardCY3Rows: MultiLevelRackRowConfig[] = useMemo(() => {
-    return CY3_ROWS.map(r => ({
-      rowCode: `Row ${r.rowCode}`,
-      zoneId: r.zoneId as StorageZone,
-      locatorSign: r.locatorSign,
-      totalBays: r.totalBays,
-      description: r.description,
-      hasBottomDriveway: r.hasBottomRoad,
-      drivewayLabel: r.rowCode === 'A' ? 'ทางวิ่งรถยก Forklift Aisle A-B (กว้าง 4.0 ม. | จำกัดความเร็ว ≤ 10 km/h)' : 'ทางวิ่งรถยก Forklift Aisle C-D (กว้าง 4.0 ม. | จำกัดความเร็ว ≤ 10 km/h)'
-    }));
-  }, []);
   
   // UnifiedSlotModal Data
   const [selectedSlotModal, setSelectedSlotModal] = useState<UnifiedSlotData | null>(null);
@@ -265,45 +237,6 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
     setHoveredSlot(null);
   };
 
-  if (viewMode === 'STANDARD_DESIGN') {
-    return (
-      <div className="space-y-3 animate-fadeIn">
-        {/* Quick View Mode Switcher Header */}
-        <div className="flex flex-wrap items-center justify-between bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 gap-2">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
-            <span className="text-xs font-black text-white">มาตรฐาน WMS Design System: Template 2 (แร็ค 4 ชั้น L1-L4)</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-slate-400">มุมมอง:</span>
-            <button
-              onClick={() => setViewMode('REFERENCE_2D')}
-              className="px-2.5 py-1 text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 transition-colors"
-            >
-              สลับเป็นมุมมองเดิม (Legacy)
-            </button>
-          </div>
-        </div>
-
-        <MultiLevelRackZoneLayout
-          zoneTitle="โซน CY3 เต็นท์คลังสินค้า (4-Tier Selective Rack)"
-          zoneSubtitle="เต็นท์จัดเก็บภายนอก CY3 &bull; แร็ค 4 ชั้น"
-          locatorSign="DY3T-1"
-          facilityCode="FAC-CY3-TENT"
-          rows={standardCY3Rows}
-          items={items}
-          searchQuery={searchQuery}
-          onOpenScanner={onOpenScanner}
-          onRelocateItem={onRelocateItem}
-          onOpen3D={(z, b) => {}}
-          onNavigateBack={onNavigateToCampus}
-          backButtonLabel="กลับไปผังรวม Campus"
-          onPrintLabel={onPrintLabel}
-        />
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col h-full bg-slate-950 text-slate-100 overflow-hidden select-none">
       
@@ -366,108 +299,49 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
             ))}
           </div>
 
-          {/* View Mode Switcher (5 Options) */}
+          {/* View Mode Switcher (ONLY TWO: Front View & Top View) */}
           <div className="inline-flex items-center bg-slate-800/90 p-0.5 rounded-md border border-slate-700/80 h-7 shrink-0 gap-0.5">
-            {/* Standardized Design System */}
+            {/* Front View */}
             <button
-              onClick={() => setViewMode('STANDARD_DESIGN')}
-              className="h-6 px-2 rounded text-[11px] font-bold flex items-center gap-1 transition-all bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs"
-              title="สลับไปผังมาตรฐาน WMS Design System (4 ชั้น Vertical Stack)"
-            >
-              <LayoutGrid className="w-3 h-3" />
-              <span className="hidden sm:inline">ผังมาตรฐาน WMS</span>
-            </button>
-
-            {/* 1. Top View (Stacked Segmented Blocks) */}
-            <button
-              onClick={() => setViewMode('REFERENCE_2D')}
-              className={`h-6 px-2 rounded text-[11px] font-bold flex items-center gap-1 transition-all ${
-                viewMode === 'REFERENCE_2D'
+              onClick={() => setViewMode('FRONT')}
+              className={`h-6 px-2.5 rounded text-[11px] font-bold flex items-center gap-1 transition-all ${
+                viewMode === 'FRONT'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
               }`}
-              title="โซน Top View บล็อก 4 ชั้นซ้อน (Stacked Segmented)"
+              title={t('navigation.frontView')}
             >
-              <Grid className="w-3 h-3" />
-              <span className="hidden sm:inline">Top View (4 ชั้น)</span>
+              <Layers className="w-3.5 h-3.5 text-emerald-300" />
+              <span>{t('navigation.frontView')}</span>
             </button>
 
-            {/* 2. 2.5D Isometric View */}
+            {/* Top View */}
             <button
-              onClick={() => setViewMode('ISOMETRIC_25D')}
-              className={`h-6 px-2 rounded text-[11px] font-bold flex items-center gap-1 transition-all ${
-                viewMode === 'ISOMETRIC_25D'
+              onClick={() => setViewMode('TOP')}
+              className={`h-6 px-2.5 rounded text-[11px] font-bold flex items-center gap-1 transition-all ${
+                viewMode === 'TOP'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
               }`}
-              title="มุมมอง 2.5D Isometric เสา Rack ซ้อน 4 ชั้นจริง"
+              title={t('navigation.topView')}
             >
-              <Box className="w-3 h-3 text-cyan-300" />
-              <span className="hidden sm:inline">2.5D Isometric</span>
-            </button>
-
-            {/* 3. Front Elevation View */}
-            <button
-              onClick={() => setViewMode('FRONT_ELEVATION')}
-              className={`h-6 px-2 rounded text-[11px] font-bold flex items-center gap-1 transition-all ${
-                viewMode === 'FRONT_ELEVATION'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-              }`}
-              title="มุมมองด้านหน้าตู้แร็ค Front View (25 เสา x 4 ชั้น)"
-            >
-              <Layers className="w-3 h-3 text-emerald-300" />
-              <span className="hidden sm:inline">Front View</span>
-            </button>
-
-            {/* 4. Heatmap */}
-            <button
-              onClick={() => setViewMode('HEATMAP')}
-              className={`h-6 px-1.5 rounded text-[11px] font-bold flex items-center gap-1 transition-all ${
-                viewMode === 'HEATMAP'
-                  ? 'bg-purple-600 text-white shadow-xs'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-              }`}
-              title="แผนภูมิความหนาแน่นพาเลท (Occupancy Heatmap)"
-            >
-              <Flame className="w-3 h-3 text-amber-400" />
-              <span className="hidden md:inline">Heatmap</span>
-            </button>
-
-            {/* 5. FIFO Aging */}
-            <button
-              onClick={() => setViewMode('FIFO_AGING')}
-              className={`h-6 px-1.5 rounded text-[11px] font-bold flex items-center gap-1 transition-all ${
-                viewMode === 'FIFO_AGING'
-                  ? 'bg-amber-600 text-white shadow-xs'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-              }`}
-              title="แผนภูมิตรวจสอบ FIFO & อายุค้าง (Aging)"
-            >
-              <Clock className="w-3 h-3 text-amber-300" />
-              <span className="hidden md:inline">FIFO Aging</span>
+              <Grid className="w-3.5 h-3.5" />
+              <span>{t('navigation.topView')}</span>
             </button>
           </div>
 
-          {/* Status Filter Chips */}
-          <div className="hidden 2xl:inline-flex items-center bg-slate-800/90 p-0.5 rounded-md border border-slate-700/80 h-7 shrink-0">
-            {(['ALL', 'OCCUPIED', 'EMPTY', 'AGING'] as const).map((st) => (
-              <button
-                key={st}
-                onClick={() => setFilterStatus(st)}
-                className={`h-6 px-2 rounded text-[10.5px] font-bold transition-all ${
-                  filterStatus === st
-                    ? 'bg-slate-700 text-white font-black'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                {st === 'ALL' && 'ทั้งหมด'}
-                {st === 'OCCUPIED' && 'มีสินค้า'}
-                {st === 'EMPTY' && 'ว่าง'}
-                {st === 'AGING' && `ค้างนาน (${metrics.agingCount})`}
-              </button>
-            ))}
-          </div>
+          {/* Reusable Global Warehouse Slot Filter */}
+          <WarehouseSlotFilter
+            activeFilter={filterStatus}
+            onFilterChange={setFilterStatus}
+            counts={{
+              total: metrics.totalCapacity,
+              occupied: slotMap.size,
+              empty: metrics.totalCapacity - slotMap.size,
+              aging: metrics.agingCount,
+            }}
+            compact
+          />
         </div>
 
         {/* Right: Search, Scan Shortcut & Sync */}
@@ -531,9 +405,25 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
           </div>
 
           {/* ========================================================================= */}
-          {/* VIEW 1: TOP VIEW WITH TRUE STACKED SEGMENTED BLOCKS (REFERENCE_2D / HEATMAP / FIFO) */}
+          {/* VIEW 1: FRONT ELEVATION VIEW (DEFAULT)                                     */}
           {/* ========================================================================= */}
-          {(viewMode === 'REFERENCE_2D' || viewMode === 'HEATMAP' || viewMode === 'FIFO_AGING') && (
+          {viewMode === 'FRONT' && (
+            <CY3FrontElevationView
+              items={cy3Items}
+              searchQuery={activeSearch}
+              floorFilter={floorFilter}
+              filterStatus={filterStatus}
+              onSlotClick={handleSlotClick}
+              onSlotHover={handleSlotMouseEnter}
+              onSlotLeave={handleSlotMouseLeave}
+              onOpenScanner={onOpenScanner}
+            />
+          )}
+
+          {/* ========================================================================= */}
+          {/* VIEW 2: TOP VIEW WITH TRUE STACKED SEGMENTED BLOCKS                        */}
+          {/* ========================================================================= */}
+          {viewMode === 'TOP' && (
             <div className="relative border-2 border-red-600 rounded-xl bg-slate-900/90 shadow-2xl p-3 sm:p-4.5 overflow-hidden">
               
               {/* Dashed line accent along top as depicted in the reference diagram */}
@@ -624,7 +514,7 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
                                       ? 'bg-blue-600 text-white'
                                       : bayOccupiedCount > 0
                                       ? 'bg-blue-900/60 text-blue-200'
-                                      : 'bg-[#edd9af] text-slate-900'
+                                      : 'bg-[#0B1017] text-[#667085] border-b border-[#273244]'
                                   }`}
                                   title={`คลิกเพื่อตรวจสอบทั้ง 4 ชั้นของ Bay ${row.rowCode}${bayNum}`}
                                 >
@@ -653,11 +543,11 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
                                             ? 'opacity-25 grayscale'
                                             : hasLvlItem
                                             ? isLvlOverdue
-                                              ? 'bg-rose-600 border-rose-400 text-white animate-pulse'
+                                              ? 'bg-[#D9043E] border-[#FF1744] text-white animate-pulse'
                                               : isLvlAging
-                                              ? 'bg-amber-500 border-amber-300 text-white'
-                                              : 'bg-blue-600 hover:bg-blue-500 border-blue-400 text-white'
-                                            : 'bg-[#edd9af] hover:bg-[#f5e7c8] border-[#cbb07e] text-slate-800'
+                                              ? 'bg-[#FFF4CC] border-[#F59E0B] text-[#7C4A03]'
+                                              : 'bg-[#EAF4FF] border-[#60A5FA] text-[#0F172A]'
+                                            : 'bg-[#0B1017] hover:bg-[#111823] border-[#273244] text-[#667085]'
                                         }`}
                                         title={`${row.locatorSign}-${row.rowCode}${bayNum}-L${lvl}: ${hasLvlItem ? `${lvlItem.modelHE} (${lvlItem.quantity} ชิ้น)` : 'ว่าง'}`}
                                       >
@@ -743,38 +633,6 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
               </div>
 
             </div>
-          )}
-
-          {/* ========================================================================= */}
-          {/* VIEW 2: 2.5D ISOMETRIC VIEW (When selected)                                */}
-          {/* ========================================================================= */}
-          {viewMode === 'ISOMETRIC_25D' && (
-            <CY3IsometricView
-              items={cy3Items}
-              searchQuery={activeSearch}
-              floorFilter={floorFilter}
-              filterStatus={filterStatus}
-              onSlotClick={handleSlotClick}
-              onSlotHover={handleSlotMouseEnter}
-              onSlotLeave={handleSlotMouseLeave}
-              onOpenScanner={onOpenScanner}
-            />
-          )}
-
-          {/* ========================================================================= */}
-          {/* VIEW 3: FRONT ELEVATION VIEW (When selected)                              */}
-          {/* ========================================================================= */}
-          {viewMode === 'FRONT_ELEVATION' && (
-            <CY3FrontElevationView
-              items={cy3Items}
-              searchQuery={activeSearch}
-              floorFilter={floorFilter}
-              filterStatus={filterStatus}
-              onSlotClick={handleSlotClick}
-              onSlotHover={handleSlotMouseEnter}
-              onSlotLeave={handleSlotMouseLeave}
-              onOpenScanner={onOpenScanner}
-            />
           )}
 
           {/* ========================================================================= */}

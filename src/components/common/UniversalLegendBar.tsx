@@ -45,8 +45,8 @@ export const UniversalLegendBar: React.FC<UniversalLegendBarProps> = ({
           } ${activeFilter === 'EMPTY' ? 'ring-1 ring-[#58A6FF] bg-[#21262D]' : ''}`}
         >
           <span 
-            className="w-3.5 h-3.5 rounded border border-[#30363D] shrink-0" 
-            style={{ backgroundColor: COLOR_TOKENS.EMPTY.bg }}
+            className="w-3.5 h-3.5 rounded border shrink-0" 
+            style={{ backgroundColor: COLOR_TOKENS.EMPTY.bg, borderColor: COLOR_TOKENS.EMPTY.border }}
           />
           <span className="text-slate-300 font-medium">พื้นที่ว่าง</span>
           {emptyCount !== undefined && (
@@ -63,8 +63,8 @@ export const UniversalLegendBar: React.FC<UniversalLegendBarProps> = ({
           } ${activeFilter === 'OCCUPIED' ? 'ring-1 ring-[#58A6FF] bg-[#21262D]' : ''}`}
         >
           <span 
-            className="w-3.5 h-3.5 rounded border border-[#58A6FF]/50 shrink-0" 
-            style={{ backgroundColor: COLOR_TOKENS.OCCUPIED.bg }}
+            className="w-3.5 h-3.5 rounded border shrink-0" 
+            style={{ backgroundColor: COLOR_TOKENS.OCCUPIED.bg, borderColor: COLOR_TOKENS.OCCUPIED.border }}
           />
           <span className="text-slate-200 font-medium">จัดเก็บปกติ</span>
           {occupiedCount !== undefined && (
@@ -72,7 +72,7 @@ export const UniversalLegendBar: React.FC<UniversalLegendBarProps> = ({
           )}
         </button>
 
-        {/* 3. Warning FIFO / Aging (>14 วัน) */}
+        {/* 3. Warning Aging */}
         <button
           type="button"
           onClick={() => onFilterStatus && onFilterStatus('AGING')}
@@ -81,16 +81,25 @@ export const UniversalLegendBar: React.FC<UniversalLegendBarProps> = ({
           } ${activeFilter === 'AGING' ? 'ring-1 ring-amber-400 bg-[#21262D]' : ''}`}
         >
           <span 
-            className="w-3.5 h-3.5 rounded border border-amber-400/50 shrink-0" 
-            style={{ backgroundColor: COLOR_TOKENS.AGING_WARNING.bg }}
+            className="w-3.5 h-3.5 rounded border shrink-0" 
+            style={{ backgroundColor: COLOR_TOKENS.AGING_WARNING.bg, borderColor: COLOR_TOKENS.AGING_WARNING.border }}
           />
-          <span className="text-amber-300 font-medium">เตือน Aging (&gt;14 วัน)</span>
+          <span className="text-amber-300 font-medium">เตือน Aging</span>
           {warningAgingCount !== undefined && (
             <span className="font-mono text-[11px] text-amber-400 font-bold">({warningAgingCount.toLocaleString()})</span>
           )}
         </button>
 
-        {/* 4. Critical Overdue (>30 วัน) */}
+        {/* 4. Urgent */}
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-md">
+          <span 
+            className="w-3.5 h-3.5 rounded border shrink-0" 
+            style={{ backgroundColor: COLOR_TOKENS.URGENT.bg, borderColor: COLOR_TOKENS.URGENT.border }}
+          />
+          <span className="text-orange-300 font-medium">เร่งด่วน</span>
+        </div>
+
+        {/* 5. Critical Overdue */}
         <button
           type="button"
           onClick={() => onFilterStatus && onFilterStatus('OVERDUE')}
@@ -99,22 +108,22 @@ export const UniversalLegendBar: React.FC<UniversalLegendBarProps> = ({
           } ${activeFilter === 'OVERDUE' ? 'ring-1 ring-rose-500 bg-[#21262D]' : ''}`}
         >
           <span 
-            className="w-3.5 h-3.5 rounded border border-rose-500/50 shrink-0" 
-            style={{ backgroundColor: COLOR_TOKENS.OVERDUE_CRITICAL.bg }}
+            className="w-3.5 h-3.5 rounded border shrink-0" 
+            style={{ backgroundColor: COLOR_TOKENS.OVERDUE_CRITICAL.bg, borderColor: COLOR_TOKENS.OVERDUE_CRITICAL.border }}
           />
-          <span className="text-rose-300 font-medium">วิกฤต (&gt;30 วัน)</span>
+          <span className="text-rose-300 font-medium">วิกฤต / หมดอายุ</span>
           {overdueCount !== undefined && (
             <span className="font-mono text-[11px] text-rose-400 font-bold">({overdueCount.toLocaleString()})</span>
           )}
         </button>
 
-        {/* 5. Search Match Highlight */}
+        {/* 6. Search Match Highlight */}
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md">
           <span 
-            className="w-3.5 h-3.5 rounded border border-emerald-400/50 shrink-0" 
-            style={{ backgroundColor: COLOR_TOKENS.SEARCH_MATCH.bg }}
+            className="w-3.5 h-3.5 rounded border-2 shrink-0" 
+            style={{ backgroundColor: COLOR_TOKENS.OCCUPIED.bg, borderColor: COLOR_TOKENS.SEARCH_MATCH.border }}
           />
-          <span className="text-emerald-300 font-medium">ตรงผลค้นหา</span>
+          <span className="text-emerald-300 font-medium">เลือก / ค้นหา</span>
           {searchMatchCount !== undefined && searchMatchCount > 0 && (
             <span className="font-mono text-[11px] text-emerald-400 font-bold">({searchMatchCount})</span>
           )}

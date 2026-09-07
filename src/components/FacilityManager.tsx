@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { WarehouseFacility, StorageLocationType, InventoryItem } from '../types';
+import { useTranslation } from '../i18n/i18nContext';
 import { 
   Building2, 
   Plus, 
@@ -41,6 +42,7 @@ export const FacilityManager: React.FC<FacilityManagerProps> = ({
   items,
   onNavigateToLayout
 }) => {
+  const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'MAINTENANCE' | 'INACTIVE'>('ALL');
   

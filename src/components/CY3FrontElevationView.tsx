@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { InventoryItem, MovementType, ShelfLevel, StorageZone } from '../types';
+import { evaluateSlotStatus, COLOR_TOKENS } from './common/WarehouseSlotToken';
 import { 
   Building2, 
   Layers, 
@@ -257,9 +258,7 @@ export const CY3FrontElevationView: React.FC<CY3FrontElevationViewProps> = ({
                               row.locatorSign.toLowerCase().includes(activeSearch)
                             );
 
-                            if (filterStatus === 'OCCUPIED' && !hasItem) return <div key={bayNum} className="opacity-20" />;
-                            if (filterStatus === 'EMPTY' && hasItem) return <div key={bayNum} className="opacity-20" />;
-                            if (filterStatus === 'AGING' && !isAging) return <div key={bayNum} className="opacity-20" />;
+                            const statusInfo = evaluateSlotStatus(item, isSearchMatch);
 
                             return (
                               <button
@@ -268,16 +267,15 @@ export const CY3FrontElevationView: React.FC<CY3FrontElevationViewProps> = ({
                                 onClick={() => onSlotClick(row.rowCode, bayNum, row.locatorSign, lvl as ShelfLevel)}
                                 onMouseEnter={(e) => onSlotHover(e, row.rowCode, bayNum, row.locatorSign)}
                                 onMouseLeave={onSlotLeave}
+                                style={{
+                                  backgroundColor: statusInfo.bgHex,
+                                  borderColor: statusInfo.ringHex || statusInfo.borderHex,
+                                  color: statusInfo.textColorHex,
+                                }}
                                 className={`relative h-14 rounded-md border flex flex-col justify-between p-1 transition-all active:scale-95 group focus:outline-none ${
-                                  isSearchMatch
-                                    ? 'ring-2 ring-amber-400 bg-amber-400/20 border-amber-300 z-10 scale-105'
-                                    : hasItem
-                                    ? isOverdue
-                                      ? 'bg-rose-900/90 hover:bg-rose-800 border-rose-500 text-white shadow-md'
-                                      : isAging
-                                      ? 'bg-amber-900/90 hover:bg-amber-800 border-amber-500 text-amber-100 shadow-md'
-                                      : 'bg-blue-600 hover:bg-blue-500 border-blue-400 text-white shadow-md'
-                                    : 'bg-[#edd9af]/80 hover:bg-[#f5e7c8] border-[#cbb07e] text-slate-800 hover:border-blue-400'
+                                  statusInfo.ringHex
+                                    ? 'ring-2 ring-[#10B981] z-10 scale-105'
+                                    : 'shadow-md'
                                 }`}
                                 title={`${row.locatorSign}-${row.rowCode}${bayNum}-L${lvl}: ${
                                   hasItem ? `${item.modelHE} - ${item.partName} (${item.quantity} ชิ้น)` : 'ว่าง'
@@ -289,7 +287,7 @@ export const CY3FrontElevationView: React.FC<CY3FrontElevationViewProps> = ({
                                       <span className="text-[8px] font-mono font-bold truncate max-w-[28px]">
                                         {item.modelHE.substring(0, 5)}
                                       </span>
-                                      {isAging && (
+                                      {statusInfo.isAging && (
                                         <span className="w-1.5 h-1.5 rounded-full bg-rose-300 animate-ping" />
                                       )}
                                     </div>
@@ -304,7 +302,7 @@ export const CY3FrontElevationView: React.FC<CY3FrontElevationViewProps> = ({
                                     </div>
                                   </>
                                 ) : (
-                                  <div className="h-full flex flex-col items-center justify-center text-slate-600 group-hover:text-blue-600">
+                                  <div className="h-full flex flex-col items-center justify-center text-slate-500 group-hover:text-blue-400">
                                     <span className="text-[9px] font-mono font-bold">ว่าง</span>
                                     <span className="text-[7px] font-mono opacity-60">L{lvl}</span>
                                   </div>
@@ -341,20 +339,28 @@ export const CY3FrontElevationView: React.FC<CY3FrontElevationViewProps> = ({
       <div className="px-4 py-2.5 bg-slate-950 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-300">
         <div className="flex items-center gap-4 flex-wrap text-[11px]">
           <div className="flex items-center gap-1.5">
-            <div className="w-3.5 h-3.5 rounded bg-blue-600 border border-blue-400" />
-            <span>มีพาเลทจัดเก็บ (Occupied Slot)</span>
+            <div className="w-3.5 h-3.5 rounded border" style={{ backgroundColor: COLOR_TOKENS.EMPTY.bg, borderColor: COLOR_TOKENS.EMPTY.border }} />
+            <span className="text-slate-400">{COLOR_TOKENS.EMPTY.label}</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3.5 h-3.5 rounded bg-[#edd9af] border border-[#cbb07e]" />
-            <span>ช่องว่างพร้อมรับเข้า (Empty Slot)</span>
+            <div className="w-3.5 h-3.5 rounded border" style={{ backgroundColor: COLOR_TOKENS.OCCUPIED.bg, borderColor: COLOR_TOKENS.OCCUPIED.border }} />
+            <span className="text-slate-200">{COLOR_TOKENS.OCCUPIED.label}</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3.5 h-3.5 rounded bg-amber-600 border border-amber-400" />
-            <span>เตือน FIFO (&gt;14 วัน)</span>
+            <div className="w-3.5 h-3.5 rounded border" style={{ backgroundColor: COLOR_TOKENS.AGING_WARNING.bg, borderColor: COLOR_TOKENS.AGING_WARNING.border }} />
+            <span className="text-amber-300">{COLOR_TOKENS.AGING_WARNING.label}</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3.5 h-3.5 rounded bg-rose-600 border border-rose-400 animate-pulse" />
-            <span>เกินกำหนดวิกฤต (&gt;30 วัน)</span>
+            <div className="w-3.5 h-3.5 rounded border" style={{ backgroundColor: COLOR_TOKENS.URGENT.bg, borderColor: COLOR_TOKENS.URGENT.border }} />
+            <span className="text-orange-300">{COLOR_TOKENS.URGENT.label}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3.5 h-3.5 rounded border" style={{ backgroundColor: COLOR_TOKENS.OVERDUE_CRITICAL.bg, borderColor: COLOR_TOKENS.OVERDUE_CRITICAL.border }} />
+            <span className="text-rose-300">{COLOR_TOKENS.OVERDUE_CRITICAL.label}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3.5 h-3.5 rounded border-2" style={{ backgroundColor: COLOR_TOKENS.OCCUPIED.bg, borderColor: COLOR_TOKENS.SEARCH_MATCH.border }} />
+            <span className="text-emerald-300">{COLOR_TOKENS.SEARCH_MATCH.label}</span>
           </div>
         </div>
 

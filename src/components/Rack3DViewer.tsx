@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { InventoryItem, ShelfLevel, StorageZone, ZoneCapacityMaster } from '../types';
+import { useTranslation } from '../i18n/i18nContext';
 import { 
   Layers, 
   RotateCcw, 
@@ -39,6 +40,7 @@ export const Rack3DViewer: React.FC<Rack3DViewerProps> = ({
   onOpenScanForLevel,
   onBackToDashboard,
 }) => {
+  const { t } = useTranslation();
   const mountRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [selectedLevel, setSelectedLevel] = useState<ShelfLevel>(1);

@@ -2,6 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { InventoryItem, MovementType, StorageZone, ShelfLevel } from '../types';
 import { UnifiedSlotModal, UnifiedSlotData } from './UnifiedSlotModal';
 import { SlotMiniStatsOverlay, MiniStatsSlotData } from './SlotMiniStatsOverlay';
+import { WarehouseSlotFilter, WarehouseFilterType } from './common/WarehouseSlotFilter';
+import { useTranslation } from '../i18n/i18nContext';
 import { 
   GitCommit, 
   Layers, 
@@ -72,6 +74,7 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
   onRelocateItem,
   onNavigateToCampus
 }) => {
+  const { t } = useTranslation();
   const [selectedBankFilter, setSelectedBankFilter] = useState<'ALL' | 'BANK_4' | 'BANK_3' | 'BANK_2' | 'BANK_1'>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'OCCUPIED' | 'EMPTY' | 'AGING'>('ALL');
   const [localSearch, setLocalSearch] = useState<string>('');
@@ -171,9 +174,9 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
             <button
               onClick={onNavigateToCampus}
               className="h-[24px] px-2 py-0.5 rounded text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-white flex items-center gap-1 border border-slate-700 shrink-0"
-              title="กลับไปที่ผังรวม"
+              title={t('navigation.campusBlueprint')}
             >
-              <span>🏢 ผังรวม</span>
+              <span>🏢 {t('navigation.campusBlueprint')}</span>
             </button>
           )}
 
@@ -198,7 +201,7 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
                   : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
               }`}
             >
-              ทั้งหมด (R1-R20)
+              {t('common.all')} (R1-R20)
             </button>
             {RAIL_BANKS.map(bank => (
               <button
@@ -215,58 +218,27 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
             ))}
           </div>
 
-          {/* Status Selector: Single Segmented Group (H: 26px, Font: 11px, Pad: 2px 8px) */}
-          <div className="inline-flex items-center bg-slate-800 p-0.5 rounded-md border border-slate-700 h-[26px] shrink-0">
-            <button
-              onClick={() => setStatusFilter('ALL')}
-              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
-                statusFilter === 'ALL'
-                  ? 'bg-blue-600 text-white font-black shadow-xs'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-              }`}
-            >
-              ทั้งหมด
-            </button>
-            <button
-              onClick={() => setStatusFilter('OCCUPIED')}
-              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
-                statusFilter === 'OCCUPIED'
-                  ? 'bg-blue-600 text-white font-black shadow-xs'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-              }`}
-            >
-              มีของ ({stats.occupiedSlots})
-            </button>
-            <button
-              onClick={() => setStatusFilter('EMPTY')}
-              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
-                statusFilter === 'EMPTY'
-                  ? 'bg-blue-600 text-white font-black shadow-xs'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-              }`}
-            >
-              ว่าง ({stats.emptySlots})
-            </button>
-            <button
-              onClick={() => setStatusFilter('AGING')}
-              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
-                statusFilter === 'AGING'
-                  ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-              }`}
-            >
-              Aging ({stats.agingCount})
-            </button>
-          </div>
+          {/* Reusable Global Warehouse Slot Filter */}
+          <WarehouseSlotFilter
+            activeFilter={statusFilter}
+            onFilterChange={setStatusFilter}
+            counts={{
+              total: stats.totalSlots,
+              occupied: stats.occupiedSlots,
+              empty: stats.emptySlots,
+              aging: stats.agingCount,
+            }}
+            compact
+          />
 
           {/* Flow Direction Pill Indicator */}
           <div className="hidden xl:inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10.5px] font-bold bg-slate-800 border border-slate-700 text-slate-300 shrink-0">
             <span className="text-emerald-400 font-black flex items-center gap-0.5">
-              <ArrowLeft className="w-3 h-3" /> Outfeed (เบิกจ่าย)
+              <ArrowLeft className="w-3 h-3" /> Outfeed
             </span>
             <span className="text-slate-600">|</span>
             <span className="text-blue-400 font-black flex items-center gap-0.5">
-              Infeed (โหลดเข้า) <ArrowRight className="w-3 h-3" />
+              Infeed <ArrowRight className="w-3 h-3" />
             </span>
           </div>
         </div>
@@ -276,7 +248,7 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
           <Search className="w-3 h-3 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
-            placeholder="ค้นหา Model, Locator..."
+            placeholder={t('common.searchPlaceholder')}
             value={localSearch}
             onChange={(e) => setLocalSearch(e.target.value)}
             className="w-full h-[26px] bg-slate-800 border border-slate-700 text-white placeholder-slate-400 text-[11px] rounded-md pl-6.5 pr-6 focus:outline-none focus:border-blue-500 transition-colors"
@@ -285,7 +257,7 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
             <button
               onClick={() => setLocalSearch('')}
               className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-white"
-              title="ล้างการค้นหา"
+              title={t('common.filter')}
             >
               <X className="w-3 h-3" />
             </button>
@@ -295,27 +267,27 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
 
       {/* MAIN CONTAINER LAYOUT: DA2D-1 20-RAIL DETAILED GRID (1 BOX = 1 PALLET) */}
       <div className="w-full">
-        <div className="w-full bg-white rounded-xl border border-slate-200 shadow-xs p-3 sm:p-4 space-y-3">
+        <div className="w-full bg-[#080B10] rounded-xl border border-slate-800 shadow-xs p-3 sm:p-4 space-y-3">
             
             {/* Detail Section Header */}
-            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
               <div className="flex items-center space-x-2">
                 <span className="w-2 h-2 rounded-full bg-blue-500" />
-                <span className="text-xs font-black text-slate-800">
+                <span className="text-xs font-black text-slate-200">
                   DA2D-1 Rail Matrix (20 ราง x 8 ช่อง = 160P)
                 </span>
               </div>
 
               {/* Compact Infeed/Outfeed Direction Indicators */}
-              <div className="flex items-center space-x-2 text-[10.5px] text-slate-600 font-bold bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200">
-                <span className="flex items-center space-x-0.5 text-emerald-700">
-                  <ArrowLeft className="w-3 h-3 text-emerald-600" />
+              <div className="flex items-center space-x-2 text-[10.5px] text-slate-300 font-bold bg-slate-900 px-2.5 py-1 rounded-md border border-slate-800">
+                <span className="flex items-center space-x-0.5 text-emerald-400">
+                  <ArrowLeft className="w-3 h-3 text-emerald-400" />
                   <span>Outfeed</span>
                 </span>
-                <span className="text-slate-300">┈┈</span>
-                <span className="flex items-center space-x-0.5 text-blue-700">
+                <span className="text-slate-600">┈┈</span>
+                <span className="flex items-center space-x-0.5 text-blue-400">
                   <span>Infeed</span>
-                  <ArrowRight className="w-3 h-3 text-blue-600" />
+                  <ArrowRight className="w-3 h-3 text-blue-400" />
                 </span>
               </div>
             </div>
@@ -326,18 +298,18 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
                 return (
                   <div 
                     key={bank.bankId}
-                    className="bg-slate-50/70 p-3 sm:p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3"
+                    className="bg-slate-900/90 p-3 sm:p-4 rounded-2xl border border-slate-800 shadow-xs space-y-3"
                   >
                     {/* Bank Header Bar */}
                     <div className="flex items-center justify-between px-1">
                       <div className="flex items-center space-x-2">
                         <span className="w-2.5 h-2.5 rounded bg-blue-600" />
-                        <span className="text-xs font-black text-slate-800">{bank.title}</span>
-                        <span className="text-[10px] text-slate-500 font-mono font-semibold">
+                        <span className="text-xs font-black text-slate-200">{bank.title}</span>
+                        <span className="text-[10px] text-slate-400 font-mono font-semibold">
                           (5 Rails x 8 Positions = 40 Pallets)
                         </span>
                       </div>
-                      <span className="text-[10px] font-bold text-slate-500">
+                      <span className="text-[10px] font-bold text-slate-400">
                         {bank.bankId}
                       </span>
                     </div>
@@ -346,7 +318,7 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
                     <div className="flex items-center pl-10 pr-12 text-center text-[10px] font-mono font-bold text-slate-500">
                       {['01', '02', '03', '04', '05', '06', '07', '08'].map(col => (
                         <div key={col} className="flex-1">
-                          <span className="px-2 py-0.5 bg-slate-200/80 rounded text-slate-700">
+                          <span className="px-2 py-0.5 bg-slate-950 rounded text-slate-400 border border-slate-800/80">
                             {col}
                           </span>
                         </div>
@@ -361,10 +333,10 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
                         return (
                           <div 
                             key={railNum}
-                            className="flex items-center space-x-2 bg-white p-1.5 rounded-xl border border-slate-200 shadow-2xs hover:border-slate-300 transition-all"
+                            className="flex items-center space-x-2 bg-slate-950 p-1.5 rounded-xl border border-slate-800/90 shadow-2xs hover:border-slate-700 transition-all"
                           >
                             {/* Rail Number Label (Left) */}
-                            <div className="w-9 text-center font-mono font-black text-xs text-slate-800 bg-slate-100 py-2 rounded-lg border border-slate-200">
+                            <div className="w-9 text-center font-mono font-black text-xs text-slate-200 bg-slate-900 py-2 rounded-lg border border-slate-800">
                               R{railNum}
                             </div>
 
@@ -418,11 +390,11 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
                                         ? 'opacity-20 grayscale'
                                         : item
                                         ? isDiagramRedSample
-                                          ? 'bg-rose-700 text-white border-rose-900 shadow-xs ring-1 ring-rose-500/50 hover:brightness-110' // EXACT RED BOX from diagram!
+                                          ? 'bg-[#D9043E] text-white border-[#FF1744] shadow-xs'
                                           : item.agingDays > 30
-                                          ? 'bg-amber-100 text-slate-900 border-amber-500 shadow-2xs hover:border-amber-600'
-                                          : 'bg-blue-50 text-slate-900 border-blue-400 shadow-2xs hover:border-blue-600'
-                                        : 'bg-slate-50/70 border-dashed border-slate-300 hover:border-blue-400 hover:bg-blue-50/40'
+                                          ? 'bg-[#FFF4CC] text-[#7C4A03] border-[#F59E0B] shadow-2xs'
+                                          : 'bg-[#EAF4FF] text-[#0F172A] border-[#60A5FA] shadow-2xs'
+                                        : 'bg-[#0B1017] border-dashed border-[#273244] text-[#667085] hover:border-[#60A5FA] hover:bg-[#111823]'
                                     }`}
                                   >
                                     {item ? (
@@ -486,7 +458,7 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
                             </div>
 
                             {/* Rail Number Label on Right (Matches Reference Diagram) */}
-                            <div className="w-10 text-center font-mono font-black text-xs text-slate-900 bg-slate-100 py-2 rounded-lg border border-slate-300">
+                            <div className="w-10 text-center font-mono font-black text-xs text-slate-200 bg-slate-900 py-2 rounded-lg border border-slate-800">
                               R{railNum}
                             </div>
                           </div>

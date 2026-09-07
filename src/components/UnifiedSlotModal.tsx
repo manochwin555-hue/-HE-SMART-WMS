@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { InventoryItem, MovementType, ShelfLevel, StorageZone } from '../types';
+import { useTranslation } from '../i18n/i18nContext';
 import { 
   X, 
   Box, 
@@ -55,6 +56,7 @@ export const UnifiedSlotModal: React.FC<UnifiedSlotModalProps> = ({
   onOpen3D,
   onPrintLabel
 }) => {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const [selectedLevel, setSelectedLevel] = useState<ShelfLevel>(1);
 
@@ -459,7 +461,7 @@ export const UnifiedSlotModal: React.FC<UnifiedSlotModalProps> = ({
                     className="px-3.5 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-lg shadow-xs flex items-center space-x-1.5 transition-all"
                   >
                     <QrCode className="w-3.5 h-3.5" />
-                    <span>สแกนเบิกออก (PICK)</span>
+                    <span>{t('scanner.outbound')} (PICK)</span>
                   </button>
                 )}
 
@@ -472,7 +474,7 @@ export const UnifiedSlotModal: React.FC<UnifiedSlotModalProps> = ({
                     className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-lg shadow-xs flex items-center space-x-1.5 transition-all"
                   >
                     <ArrowRightLeft className="w-3.5 h-3.5" />
-                    <span>ย้ายตำแหน่ง</span>
+                    <span>{t('scanner.moveStock')}</span>
                   </button>
                 )}
 
@@ -485,7 +487,7 @@ export const UnifiedSlotModal: React.FC<UnifiedSlotModalProps> = ({
                     className="px-3 py-2 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold rounded-lg shadow-2xs flex items-center space-x-1.5 transition-all"
                   >
                     <Printer className="w-3.5 h-3.5 text-slate-500" />
-                    <span>พิมพ์ป้าย QR</span>
+                    <span>{t('nav.labelPrinting')}</span>
                   </button>
                 )}
               </div>
@@ -499,7 +501,7 @@ export const UnifiedSlotModal: React.FC<UnifiedSlotModalProps> = ({
                   className="px-3 py-2 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-800 font-bold rounded-lg flex items-center space-x-1.5 transition-all"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
-                  <span>ดูใน 3D Viewer</span>
+                  <span>3D Viewer</span>
                 </button>
               )}
             </>
@@ -509,7 +511,7 @@ export const UnifiedSlotModal: React.FC<UnifiedSlotModalProps> = ({
                 onClick={onClose}
                 className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition-colors"
               >
-                ปิดหน้าต่าง
+                {t('modals.cancelAction')}
               </button>
             </div>
           )}

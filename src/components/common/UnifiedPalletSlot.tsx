@@ -65,12 +65,14 @@ export const UnifiedPalletSlot: React.FC<UnifiedPalletSlotProps> = ({
         onMouseLeave={() => setIsHovered(false)}
         style={{
           backgroundColor: statusInfo.bgHex,
-          borderColor: isHovered ? '#58A6FF' : statusInfo.borderHex,
+          borderColor: statusInfo.ringHex || (isHovered ? '#10B981' : statusInfo.borderHex),
         }}
         className={`w-full ${aspectClass} rounded-md border flex flex-col items-center justify-center p-1 relative transition-all duration-150 select-none ${
-          isHovered
-            ? 'ring-2 ring-[#58A6FF] shadow-lg shadow-blue-500/30 scale-[1.03] z-20'
-            : 'hover:border-[#58A6FF]'
+          statusInfo.ringHex
+            ? 'ring-2 ring-[#10B981] shadow-md shadow-emerald-500/20 z-10'
+            : isHovered
+            ? 'ring-2 ring-blue-400 shadow-lg shadow-blue-500/30 scale-[1.03] z-20'
+            : 'hover:border-blue-400'
         } ${className}`}
         title={locatorCode}
       >

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useTranslation } from '../i18n/i18nContext';
 import { 
   Flame, 
   Sliders, 
@@ -31,6 +32,7 @@ export const AgingFifoPanel: React.FC<AgingFifoPanelProps> = ({
   setAgingConfig,
   items
 }) => {
+  const { t } = useTranslation();
   // Local temporary state for editing configuration freely
   const [tempAgingConfig, setTempAgingConfig] = useState<AgingThresholdConfig>(() => ({
     safeDaysMin: agingConfig.safeDaysMin ?? 0,

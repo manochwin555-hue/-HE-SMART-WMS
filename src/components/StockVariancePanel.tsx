@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { InventoryItem, CycleCountRecord } from '../types';
+import { useTranslation } from '../i18n/i18nContext';
 import { 
   Scale, 
   AlertCircle, 
@@ -18,6 +19,7 @@ interface StockVariancePanelProps {
 }
 
 export const StockVariancePanel: React.FC<StockVariancePanelProps> = ({ items, onUpdateInventoryQty }) => {
+  const { t } = useTranslation();
   const [filterType, setFilterType] = useState<'ALL' | 'DISCREPANCY' | 'SHORTAGE' | 'SURPLUS'>('DISCREPANCY');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [resolvedIds, setResolvedIds] = useState<Set<string>>(new Set());

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { MovementLog, StorageZone, AuditLog } from '../types';
+import { useTranslation } from '../i18n/i18nContext';
 import { 
   ListFilter, 
   Search, 
@@ -25,6 +26,7 @@ export const MovementLogsTable: React.FC<MovementLogsTableProps> = ({
   auditLogs = [],
   onOpen3DForLocator,
 }) => {
+  const { t } = useTranslation();
   const [activeView, setActiveView] = useState<'MOVEMENT' | 'AUDIT'>('MOVEMENT');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
