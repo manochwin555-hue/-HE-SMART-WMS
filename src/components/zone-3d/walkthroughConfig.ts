@@ -301,12 +301,12 @@ export const A5_WALKWAYS: WalkwayAisle[] = [
 ];
 
 // ----------------------------------------------------
-// 4. A2 FLOW RAIL WALKWAYS (14 Rails x 8 Positions)
+// 4. A2 FLOW RAIL WALKWAYS (16 Rails x 8 Positions)
 // ----------------------------------------------------
 const createA2RailTrackPoints = (xPos: number, aisleName: string): WalkwayPoint[] => {
   const pts: WalkwayPoint[] = [];
-  for (let r = 1; r <= 14; r++) {
-    const z = (r - 7.5) * 1.85;
+  for (let r = 1; r <= 16; r++) {
+    const z = (r - 8.5) * 1.85;
     pts.push({
       x: xPos,
       z,
@@ -339,7 +339,7 @@ export const A2_WALKWAYS: WalkwayAisle[] = [
   },
   {
     id: 'A2_CENTER_CROSS',
-    name: 'ทางเดินเชื่อมต่อหัวราง R01-R14',
+    name: 'ทางเดินเชื่อมต่อหัวราง R01-R16',
     shortName: 'ทางเชื่อมหัวราง',
     category: 'MAIN_ROAD',
     zone: 'A2',

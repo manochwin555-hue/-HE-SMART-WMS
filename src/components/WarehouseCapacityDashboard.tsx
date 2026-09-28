@@ -59,12 +59,12 @@ export const WarehouseCapacityDashboard: React.FC<WarehouseCapacityDashboardProp
     // --- A2 BUILDING ---
     {
       id: 'ZONE_A2_FLOW_RAIL',
-      name: 'DA2D-1 (รางเลื่อน 14 ราง R1-R14)',
+      name: 'DA2D-1 (รางเลื่อน 16 ราง R1-R16)',
       building: 'A2',
       buildingName: 'อาคาร A2 (Flow Rail)',
       type: 'FLOW_RAIL',
       typeLabel: 'รางเลื่อน (Flow Rail)',
-      capacityPallets: 112,
+      capacityPallets: 128,
       occupiedPallets: items.filter(it => 
         it.zone.startsWith('R') || 
         it.zone.startsWith('FR') || 

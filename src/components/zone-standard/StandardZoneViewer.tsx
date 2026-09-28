@@ -179,11 +179,11 @@ export const StandardZoneViewer: React.FC<StandardZoneViewerProps> = ({
   const a2RailSections: SingleLevelSectionConfig[] = [
     {
       id: 'A2_FLOW_ALL',
-      title: 'ผังรวมรางเลื่อน R1 - R14 (14 ราง x 8 ช่อง = 112 พาเลท)',
+      title: 'ผังรวมรางเลื่อน R1 - R16 (16 ราง x 8 ช่อง = 128 พาเลท)',
       subtitle: 'ระบบลูกกลิ้งไหลต่อเนื่อง FIFO (Single Compact Grid)',
-      locatorPrefix: 'DA2D-1-R1-14',
+      locatorPrefix: 'DA2D-1-R1-16',
       columns: 8,
-      slots: [14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1].flatMap((railNum) =>
+      slots: [16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1].flatMap((railNum) =>
         Array.from({ length: 8 }, (_, idx) => ({
           id: `R${railNum}-${idx + 1}`,
           locatorCode: `DA2D-1-R${railNum}-${String(idx + 1).padStart(2, '0')}`,

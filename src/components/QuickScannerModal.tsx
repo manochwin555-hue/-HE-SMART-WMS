@@ -329,8 +329,8 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
       return;
     }
 
-    // 2. A2 Flow Rail (DA2D-1, R1-R14, FR1-FR14): e.g. "DA2D-1.01-R12", "DA2D-1-R14-01", "R12-03", "FR5-02", "R3"
-    const railMatch = clean.match(/(?:DA2D-1(?:\.01)?[-_])?(?:FR|R)(1[0-4]|[1-9])[-_\s]*0?([1-8])?/i);
+    // 2. A2 Flow Rail (DA2D-1, R1-R16, FR1-FR16): e.g. "DA2D-1.01-R12", "DA2D-1-R16-01", "R12-03", "FR5-02", "R3"
+    const railMatch = clean.match(/(?:DA2D-1(?:\.01)?[-_])?(?:FR|R)(1[0-6]|[1-9])[-_\s]*0?([1-8])?/i);
     if (railMatch && (clean.includes('DA2D-1') || clean.startsWith('R') || clean.startsWith('FR'))) {
       const railNum = parseInt(railMatch[1], 10);
       const posNum = railMatch[2] ? parseInt(railMatch[2], 10) : 1;
@@ -894,8 +894,8 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
                         <option key={x} value={x}>{x} Floor</option>
                       ))}
                     </optgroup>
-                    <optgroup label="A2 Flow Rail (R1-R14)">
-                      {Array.from({ length: 14 }, (_, idx) => `R${idx + 1}`).map(r => (
+                    <optgroup label="A2 Flow Rail (R1-R16)">
+                      {Array.from({ length: 16 }, (_, idx) => `R${idx + 1}`).map(r => (
                         <option key={r} value={r}>Rail {r}</option>
                       ))}
                     </optgroup>

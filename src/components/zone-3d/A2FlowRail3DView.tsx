@@ -77,18 +77,18 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
     if (!cameraRef.current || !controlsRef.current) return;
 
     if (view === 'OVERVIEW') {
-      // 45° Elevated isometric overview of all 14 rails - calibrated to fill the canvas
-      flyCameraTo(new THREE.Vector3(0, 36, 42), new THREE.Vector3(0, 0, 0));
+      // 45° Elevated isometric overview of all 16 rails - calibrated to fill the canvas
+      flyCameraTo(new THREE.Vector3(0, 39, 47), new THREE.Vector3(0, 0, 0));
     } else if (view === 'TOP') {
-      // Top 85° Blueprint view looking straight down at the 14 rails layout - spans full layout
-      flyCameraTo(new THREE.Vector3(0, 44, 0.05), new THREE.Vector3(0, 0, 0));
+      // Top 85° Blueprint view looking straight down at the 16 rails layout - spans full layout
+      flyCameraTo(new THREE.Vector3(0, 49, 0.05), new THREE.Vector3(0, 0, 0));
     } else if (view === 'OUTFEED') {
-      // Stand at outfeed (First-Out) - elevated and widened so all 14 rails R01-R14 fit full-width across frame without clipping
-      flyCameraTo(new THREE.Vector3(-34, 18, 0), new THREE.Vector3(1.5, 0, 0));
+      // Stand at outfeed (First-Out) - elevated and widened so all 16 rails R01-R16 fit full-width across frame without clipping
+      flyCameraTo(new THREE.Vector3(-38, 19, 0), new THREE.Vector3(1.5, 0, 0));
     }
   };
 
-  // Filter items matching DA2D-1 (14 rails x 8 positions = 112 pallets)
+  // Filter items matching DA2D-1 (16 rails x 8 positions = 128 pallets)
   const slotItemMap = useMemo(() => {
     const map = new Map<string, InventoryItem>();
     items.forEach(it => {
@@ -102,13 +102,13 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
         pos = parseInt(match[2], 10);
       } else if (it.zone && (it.zone.startsWith('R') || it.zone.startsWith('FR'))) {
         const num = parseInt(it.zone.replace(/\D/g, ''), 10);
-        if (num >= 1 && num <= 14) {
+        if (num >= 1 && num <= 16) {
           rail = num;
           pos = it.bayNumber || 1;
         }
       }
 
-      if (rail >= 1 && rail <= 14 && pos >= 1 && pos <= 8) {
+      if (rail >= 1 && rail <= 16 && pos >= 1 && pos <= 8) {
         map.set(`${rail}-${pos}`, it);
       }
     });
@@ -398,7 +398,7 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
     scene.add(floorDecoGroup);
 
     // Infeed Zone (+X = +12.5)
-    const infeedZoneGeo = new THREE.BoxGeometry(2.8, 0.02, 38.5);
+    const infeedZoneGeo = new THREE.BoxGeometry(2.8, 0.02, 44.0);
     const infeedZoneMat = new THREE.MeshStandardMaterial({ 
       color: '#10b981', 
       roughness: 0.7 
@@ -408,7 +408,7 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
     floorDecoGroup.add(infeedZone);
 
     // Outfeed Zone (-X = -12.5)
-    const outfeedZoneGeo = new THREE.BoxGeometry(2.8, 0.02, 38.5);
+    const outfeedZoneGeo = new THREE.BoxGeometry(2.8, 0.02, 44.0);
     const outfeedZoneMat = new THREE.MeshStandardMaterial({ 
       color: '#f59e0b', 
       roughness: 0.7 
@@ -417,9 +417,9 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
     outfeedZone.position.set(-12.4, 0.01, 0);
     floorDecoGroup.add(outfeedZone);
 
-    for (let r = 1; r <= 14; r++) {
-      // ORDERING: R1 is in FRONT (+Z = +16.9) -> R14 is in BACK (-Z = -16.9)
-      const zPos = (7.5 - r) * RAIL_SPACING_Z;
+    for (let r = 1; r <= 16; r++) {
+      // ORDERING: R1 is in FRONT (+Z = +19.5) -> R16 is in BACK (-Z = -19.5)
+      const zPos = (8.5 - r) * RAIL_SPACING_Z;
       const rLabel = `R${String(r).padStart(2, '0')}`;
 
       // 1. Large Engraved Floor Decal at Outfeed (Left side - Front of Line / First-Out)
@@ -807,7 +807,7 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
   }, [slotItemMap, searchQuery]);
 
   const stats = useMemo(() => {
-    const total = 14 * 8; // 112
+    const total = 16 * 8; // 128
     const occupied = slotItemMap.size;
     const rate = Math.round((occupied / total) * 100);
     return { total, occupied, rate };
@@ -830,7 +830,7 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
                 DA2D-1 Flow Rail 3D Digital Twin
               </h2>
               <span className="px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-300 text-[10px] font-mono font-bold shrink-0">
-                112 PL
+                128 PL
               </span>
             </div>
             <p className="text-[11px] font-medium text-slate-600 truncate mt-0.5">

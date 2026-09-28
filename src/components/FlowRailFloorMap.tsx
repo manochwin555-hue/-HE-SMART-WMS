@@ -47,8 +47,8 @@ interface FlowRailFloorMapProps {
   onNavigateToCampus?: () => void;
 }
 
-// 14 Rails in DA2D-1 Flow Rail (Top to Bottom: R14 down to R1)
-const ALL_RAILS = [14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
+// 16 Rails in DA2D-1 Flow Rail (Top to Bottom: R16 down to R1)
+const ALL_RAILS = [16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
 
 export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
   items,
@@ -121,19 +121,19 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
 
   // Filtered displayed rails
   const displayedRails = useMemo(() => {
-    if (selectedRailFilter === 'TOP') return [14, 13, 12, 11, 10, 9, 8];
-    if (selectedRailFilter === 'BOTTOM') return [7, 6, 5, 4, 3, 2, 1];
+    if (selectedRailFilter === 'TOP') return [16, 15, 14, 13, 12, 11, 10, 9];
+    if (selectedRailFilter === 'BOTTOM') return [8, 7, 6, 5, 4, 3, 2, 1];
     return ALL_RAILS;
   }, [selectedRailFilter]);
 
-  // Calculate statistics for DA2D-1 (14 Rails x 8 Positions = 112 Pallets)
+  // Calculate statistics for DA2D-1 (16 Rails x 8 Positions = 128 Pallets)
   const stats = useMemo(() => {
-    let totalSlots = 14 * 8; // 112 Pallets
+    let totalSlots = 16 * 8; // 128 Pallets
     let occupiedSlots = 0;
     let agingCount = 0;
     let totalQty = 0;
 
-    for (let r = 1; r <= 14; r++) {
+    for (let r = 1; r <= 16; r++) {
       for (let p = 1; p <= 8; p++) {
         const it = getItemAtSlot(r, p);
         if (it) {
@@ -173,14 +173,14 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
             </button>
           )}
 
-          {/* Zone Title & Badge */}
+            {/* Zone Title & Badge */}
           <div className="flex items-center gap-1 shrink-0 mr-0.5">
             <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
             <span className="text-[12px] font-black tracking-tight text-white whitespace-nowrap">
               DA2D-1 Flow Rail
             </span>
             <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded hidden sm:inline">
-              112P
+              128P
             </span>
           </div>
 
@@ -194,7 +194,7 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
                   : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
               }`}
             >
-              {t('common.all')} (R1-R14)
+              {t('common.all')} (R1-R16)
             </button>
             <button
               onClick={() => setSelectedRailFilter('TOP')}
@@ -204,7 +204,7 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
                   : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
               }`}
             >
-              R8-R14 (56P)
+              R9-R16 (64P)
             </button>
             <button
               onClick={() => setSelectedRailFilter('BOTTOM')}
@@ -214,7 +214,7 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
                   : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
               }`}
             >
-              R1-R7 (56P)
+              R1-R8 (64P)
             </button>
           </div>
 
@@ -344,7 +344,7 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
               </div>
             </div>
 
-            {/* Single Continuous Grid Container (Idea 3: Unified R1-R14, No divider line between R7 and R8) */}
+            {/* Single Continuous Grid Container (Unified R1-R16) */}
             <div className="bg-slate-900/90 p-3 sm:p-4 rounded-2xl border border-slate-800 shadow-xs space-y-2.5">
               {/* Card Header Bar */}
               <div className="flex items-center justify-between px-1">
@@ -352,17 +352,17 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
                   <span className="w-2.5 h-2.5 rounded bg-blue-600" />
                   <span className="text-xs font-black text-slate-200">
                     {selectedRailFilter === 'ALL' 
-                      ? 'ผังรวมรางเลื่อน R1 - R14 (Continuous Single Grid)' 
+                      ? 'ผังรวมรางเลื่อน R1 - R16 (Continuous Single Grid)' 
                       : selectedRailFilter === 'TOP' 
-                      ? 'รางเลื่อน R8 - R14' 
-                      : 'รางเลื่อน R1 - R7'}
+                      ? 'รางเลื่อน R9 - R16' 
+                      : 'รางเลื่อน R1 - R8'}
                   </span>
                   <span className="text-[10px] text-slate-400 font-mono font-semibold">
                     ({displayedRails.length} Rails x 8 Positions = {displayedRails.length * 8} Pallets)
                   </span>
                 </div>
                 <span className="text-[10px] font-mono font-bold text-blue-400 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
-                  {selectedRailFilter === 'ALL' ? 'R1-R14 (112P)' : selectedRailFilter === 'TOP' ? 'R8-R14 (56P)' : 'R1-R7 (56P)'}
+                  {selectedRailFilter === 'ALL' ? 'R1-R16 (128P)' : selectedRailFilter === 'TOP' ? 'R9-R16 (64P)' : 'R1-R8 (64P)'}
                 </span>
               </div>
 

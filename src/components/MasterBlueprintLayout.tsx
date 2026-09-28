@@ -380,11 +380,11 @@ export const MasterBlueprintLayout: React.FC<MasterBlueprintLayoutProps> = ({
             <div 
               id="zone-da2d-1"
               onClick={() => handleZoneClick(
-                'DA2D-1 Flow Rail R1-R14',
+                'DA2D-1 Flow Rail R1-R16',
                 'DA2D-1',
                 'A2 Building',
-                'ระบบจัดเก็บรางเลื่อน Flow Rail 14 ราง x 8 ช่อง = 112 พาเลท ต่อเนื่องเข้าสายการผลิต',
-                112,
+                'ระบบจัดเก็บรางเลื่อน Flow Rail 16 ราง x 8 ช่อง = 128 พาเลท ต่อเนื่องเข้าสายการผลิต',
+                128,
                 liveStats.a2.pl,
                 'A2_RAIL',
                 undefined,
@@ -399,15 +399,15 @@ export const MasterBlueprintLayout: React.FC<MasterBlueprintLayoutProps> = ({
                     DA2D-1
                   </span>
                   <span className="text-[9px] font-bold text-slate-400 font-mono">
-                    FLOW RAIL (R1 - R14)
+                    FLOW RAIL (R1 - R16)
                   </span>
                 </div>
                 <div className="flex items-center space-x-1.5">
                   <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-blue-950/80 text-blue-300 border border-blue-800/60">
-                    จัดเก็บ {liveStats.a2.pl} / 112 PL
+                    จัดเก็บ {liveStats.a2.pl} / 128 PL
                   </span>
                   <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                    R1-R14 (112P)
+                    R1-R16 (128P)
                   </span>
                 </div>
               </div>
@@ -423,14 +423,14 @@ export const MasterBlueprintLayout: React.FC<MasterBlueprintLayoutProps> = ({
                 </span>
               </div>
 
-              {/* 14 Continuous Rails Expanding to fill height */}
+              {/* 16 Continuous Rails Expanding to fill height */}
               <div className="flex-1 flex flex-col justify-between space-y-0.5 bg-slate-900/90 rounded-md p-1.5 border border-slate-800 shadow-inner">
                 <div className="text-[7px] font-mono text-slate-300 mb-0.5 flex justify-between px-0.5">
-                  <span className="text-cyan-300 font-bold">Continuous Flow Rails (R1 - R14)</span>
-                  <span className="text-slate-400">14 เลน &bull; 112 พาเลท</span>
+                  <span className="text-cyan-300 font-bold">Continuous Flow Rails (R1 - R16)</span>
+                  <span className="text-slate-400">16 เลน &bull; 128 พาเลท</span>
                 </div>
                 <div className="space-y-0.5">
-                  {[14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map(railNum => (
+                  {[16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map(railNum => (
                     <div key={railNum} className="flex items-center space-x-1">
                       <span className="w-3.5 text-[6.5px] font-mono font-black text-slate-300 text-right">R{railNum}</span>
                       <div className="grid grid-cols-8 gap-0.5 flex-1">
