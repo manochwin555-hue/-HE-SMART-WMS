@@ -25,6 +25,7 @@ interface MasterBlueprintLayoutProps {
   onNavigateToZone?: (target: 'A4_FLOOR' | 'A4_RACK' | 'A2_RAIL' | 'A5_TENT' | 'CY3_TENT', tentNum?: number) => void;
   onOpenScanner?: (zone?: string, bay?: number, level?: number, model?: string) => void;
   onOpen3D?: (zone?: string, bay?: number) => void;
+  onOpen3DView?: () => void;
   isDarkMode?: boolean;
 }
 
@@ -46,6 +47,7 @@ export const MasterBlueprintLayout: React.FC<MasterBlueprintLayoutProps> = ({
   onNavigateToZone,
   onOpenScanner,
   onOpen3D,
+  onOpen3DView,
   isDarkMode: initialDarkMode = true,
 }) => {
   const { t } = useTranslation();
@@ -129,7 +131,7 @@ export const MasterBlueprintLayout: React.FC<MasterBlueprintLayoutProps> = ({
     const cy3EA = cy3Items.reduce((sum, it) => sum + (it.quantity || 0), 0);
 
     return {
-      a2: { pl: a2PL || 94, ea: a2EA || 9309, cap: 160 },
+      a2: { pl: a2PL || 94, ea: a2EA || 9309, cap: 112 },
       a4: { pl: a4PL || 70, ea: a4EA || 7370, cap: 1112 }, // 680 (Rack) + 432 (Floor)
       a5: { pl: a5PL || 121, ea: a5EA || 15427, cap: 784 },
       cy3: { pl: cy3PL || 671, ea: cy3EA || 33767, cap: 400 },
@@ -142,7 +144,7 @@ export const MasterBlueprintLayout: React.FC<MasterBlueprintLayoutProps> = ({
 
   // Reference blueprint table data matching exactly 2D CAD specification
   const planSpecRows: ItemInfoRow[] = [
-    { depotArea: 'A2 Building', code: 'DA2D-1 (Flow Rail)', team: '(Component Team)', capacityPL: 160, inventoryPL: 94, inventoryEA: 9309, ratePercent: 59, badge: 'A2', navigateTarget: 'A2_RAIL' },
+    { depotArea: 'A2 Building', code: 'DA2D-1 (Flow Rail)', team: '(Component Team)', capacityPL: 112, inventoryPL: 94, inventoryEA: 9309, ratePercent: 84, badge: 'A2', navigateTarget: 'A2_RAIL' },
     { depotArea: 'A4 Building', code: 'DA4D-1/2/3 (Rack + Floor)', team: '(Component Team)', capacityPL: 1112, inventoryPL: 70, inventoryEA: 7370, ratePercent: 6, badge: 'A4', navigateTarget: 'A4_RACK' },
     { depotArea: 'A5 Tent Yard', code: 'DAST 1-4 (Tents 1-4)', team: '(Material (A/C) Team)', capacityPL: 784, inventoryPL: 121, inventoryEA: 15427, ratePercent: 15, badge: 'A5', navigateTarget: 'A5_TENT' },
     { depotArea: 'CY3 Tent Yard', code: 'DY3T 1.01-1.04 (4-Tier Rack)', team: '(Material (A/C) Team)', capacityPL: 400, inventoryPL: 671, inventoryEA: 33767, ratePercent: 168, badge: 'CY3', navigateTarget: 'CY3_TENT' },
@@ -304,6 +306,18 @@ export const MasterBlueprintLayout: React.FC<MasterBlueprintLayoutProps> = ({
             <span className="hidden md:inline">{isFitViewport ? 'มุมมองพอดีจอ (Fit)' : 'มุมมองกระชับ'}</span>
           </button>
 
+          {/* 3D Digital Twin Button */}
+          {onOpen3DView && (
+            <button
+              onClick={onOpen3DView}
+              className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white transition-all flex items-center gap-1.5 active:scale-95 shadow-md shadow-blue-600/30"
+              title="เปิดมุมมอง 3D Digital Twin Cockpit จำลองอาคาร 3 มิติ"
+            >
+              <Warehouse className="w-3.5 h-3.5 text-cyan-200" />
+              <span>3D Digital Twin</span>
+            </button>
+          )}
+
           {/* Fullscreen Toggle */}
           <button
             onClick={toggleFullscreen}
@@ -341,17 +355,17 @@ export const MasterBlueprintLayout: React.FC<MasterBlueprintLayoutProps> = ({
           <div className="text-center pb-1.5 border-b border-slate-800">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-mono font-bold px-2 py-0.5 bg-slate-800 text-blue-300 rounded border border-slate-700">
-                DA2D-1 &bull; 160 PL
+                DA2D-1 &bull; 112 PL
               </span>
               <h2 className="text-base sm:text-lg font-black tracking-wide text-white">
                 A2 Building
               </h2>
               <span className="text-[10px] font-mono font-bold px-2 py-0.5 bg-slate-800 text-emerald-300 rounded border border-slate-700">
-                20 Rails
+                14 Rails
               </span>
             </div>
             <p className="text-[10px] font-medium text-slate-400 mt-0.5">
-              คลังรางเลื่อน Flow Rail เต็มพื้นที่ (ขยายความสูงเต็มอาคาร &bull; ไม่มี HE LINE)
+              คลังรางเลื่อน A2 (14 ราง 112 พาเลท)
             </p>
           </div>
 
@@ -366,11 +380,11 @@ export const MasterBlueprintLayout: React.FC<MasterBlueprintLayoutProps> = ({
             <div 
               id="zone-da2d-1"
               onClick={() => handleZoneClick(
-                'DA2D-1 Flow Rail R1-R20',
+                'DA2D-1 Flow Rail R1-R14',
                 'DA2D-1',
                 'A2 Building',
-                'ระบบจัดเก็บรางเลื่อน Flow Rail 20 ราง x 8 ช่อง = 160 พาเลท ต่อเนื่องเข้าสายการผลิต',
-                160,
+                'ระบบจัดเก็บรางเลื่อน Flow Rail 14 ราง x 8 ช่อง = 112 พาเลท ต่อเนื่องเข้าสายการผลิต',
+                112,
                 liveStats.a2.pl,
                 'A2_RAIL',
                 undefined,
@@ -385,15 +399,15 @@ export const MasterBlueprintLayout: React.FC<MasterBlueprintLayoutProps> = ({
                     DA2D-1
                   </span>
                   <span className="text-[9px] font-bold text-slate-400 font-mono">
-                    FLOW RAIL (R1 - R20)
+                    FLOW RAIL (R1 - R14)
                   </span>
                 </div>
                 <div className="flex items-center space-x-1.5">
                   <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-blue-950/80 text-blue-300 border border-blue-800/60">
-                    จัดเก็บ {liveStats.a2.pl} / 160 PL
+                    จัดเก็บ {liveStats.a2.pl} / 112 PL
                   </span>
                   <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                    4 BLOCKS
+                    R1-R14 (112P)
                   </span>
                 </div>
               </div>
@@ -409,64 +423,54 @@ export const MasterBlueprintLayout: React.FC<MasterBlueprintLayoutProps> = ({
                 </span>
               </div>
 
-              {/* 4 Full Banks (20 Rails) Expanding to fill height */}
-              <div className="flex-1 flex flex-col justify-between space-y-1 bg-slate-900/90 rounded-md p-1.5 border border-slate-800 shadow-inner">
-                {[
-                  { label: 'Block 4 (ราง R16 - R20)', rails: [20, 19, 18, 17, 16] },
-                  { label: 'Block 3 (ราง R11 - R15)', rails: [15, 14, 13, 12, 11] },
-                  { label: 'Block 2 (ราง R06 - R10)', rails: [10, 9, 8, 7, 6] },
-                  { label: 'Block 1 (ราง R01 - R05)', rails: [5, 4, 3, 2, 1] },
-                ].map(bank => (
-                  <div key={bank.label} className="bg-slate-850/90 p-1 rounded border border-slate-700/60 flex-1 flex flex-col justify-center">
-                    <div className="text-[7px] font-mono text-slate-300 mb-0.5 flex justify-between px-0.5">
-                      <span className="text-cyan-300 font-bold">{bank.label}</span>
-                      <span className="text-slate-400">5 เลน &bull; 40 พาเลท</span>
+              {/* 14 Continuous Rails Expanding to fill height */}
+              <div className="flex-1 flex flex-col justify-between space-y-0.5 bg-slate-900/90 rounded-md p-1.5 border border-slate-800 shadow-inner">
+                <div className="text-[7px] font-mono text-slate-300 mb-0.5 flex justify-between px-0.5">
+                  <span className="text-cyan-300 font-bold">Continuous Flow Rails (R1 - R14)</span>
+                  <span className="text-slate-400">14 เลน &bull; 112 พาเลท</span>
+                </div>
+                <div className="space-y-0.5">
+                  {[14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map(railNum => (
+                    <div key={railNum} className="flex items-center space-x-1">
+                      <span className="w-3.5 text-[6.5px] font-mono font-black text-slate-300 text-right">R{railNum}</span>
+                      <div className="grid grid-cols-8 gap-0.5 flex-1">
+                        {Array.from({ length: 8 }).map((_, pIdx) => {
+                          const pos = pIdx + 1;
+                          const isRed = (railNum === 3 && pos === 2);
+                          const isSampleOcc = isRed || (
+                            (railNum === 13 && pos === 1) || 
+                            (railNum === 12 && pos === 5) || 
+                            (railNum === 14 && pos === 3) || 
+                            (railNum === 11 && pos === 2) || 
+                            (railNum === 9 && pos === 6) || 
+                            (railNum === 6 && pos === 8) || 
+                            (railNum === 2 && pos === 3) || 
+                            (railNum === 1 && pos === 7)
+                          );
+                          return (
+                            <div
+                              key={pos}
+                              className={`h-2 rounded-3xs border text-[5px] transition-all flex items-center justify-center font-mono ${
+                                isRed 
+                                  ? 'bg-rose-600 border-rose-400 text-white font-black animate-pulse' 
+                                  : isSampleOcc 
+                                  ? 'bg-blue-600/80 border-blue-400 text-white font-bold' 
+                                  : 'bg-slate-800/80 border-slate-700/60 text-slate-500'
+                              }`}
+                              title={`DA2D-1-R${railNum}-0${pos}`}
+                            />
+                          );
+                        })}
+                      </div>
+                      <span className="w-3 text-[6px] font-mono text-slate-500 text-left">R{railNum}</span>
                     </div>
-                    <div className="space-y-0.5">
-                      {bank.rails.map(railNum => (
-                        <div key={railNum} className="flex items-center space-x-1">
-                          <span className="w-3.5 text-[6.5px] font-mono font-black text-slate-300 text-right">R{railNum}</span>
-                          <div className="grid grid-cols-8 gap-0.5 flex-1">
-                            {Array.from({ length: 8 }).map((_, pIdx) => {
-                              const pos = pIdx + 1;
-                              const isRed = (railNum === 3 && pos === 2);
-                              const isSampleOcc = isRed || (
-                                (railNum === 20 && pos === 1) || 
-                                (railNum === 20 && pos === 5) || 
-                                (railNum === 18 && pos === 4) || 
-                                (railNum === 14 && pos === 3) || 
-                                (railNum === 11 && pos === 2) || 
-                                (railNum === 9 && pos === 6) || 
-                                (railNum === 6 && pos === 8) || 
-                                (railNum === 2 && pos === 3) || 
-                                (railNum === 1 && pos === 7)
-                              );
-                              return (
-                                <div
-                                  key={pos}
-                                  className={`h-2 rounded-3xs border text-[5px] transition-all flex items-center justify-center font-mono ${
-                                    isRed 
-                                      ? 'bg-rose-600 border-rose-400 text-white font-black animate-pulse' 
-                                      : isSampleOcc 
-                                      ? 'bg-blue-600/80 border-blue-400 text-white font-bold' 
-                                      : 'bg-slate-800/80 border-slate-700/60 text-slate-500'
-                                  }`}
-                                  title={`DA2D-1-R${railNum}-0${pos}`}
-                                />
-                              );
-                            })}
-                          </div>
-                          <span className="w-3 text-[6px] font-mono text-slate-500 text-left">R{railNum}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
 
                 {/* Micro Metric Banner */}
                 <div className="flex items-center justify-between text-[7.5px] text-slate-400 font-mono pt-1 border-t border-slate-800">
-                  <span className="text-blue-300 font-bold">จัดเก็บ {liveStats.a2.pl} / 160 PL ({Math.round((liveStats.a2.pl / 160) * 100)}%)</span>
-                  <span className="text-amber-400 font-bold">1 ช่อง = 1 พาเลท &bull; 20 ราง x 8 ช่อง</span>
+                  <span className="text-blue-300 font-bold">จัดเก็บ {liveStats.a2.pl} / 112 PL ({Math.round((liveStats.a2.pl / 112) * 100)}%)</span>
+                  <span className="text-amber-400 font-bold">1 ช่อง = 1 พาเลท &bull; 14 ราง x 8 ช่อง</span>
                 </div>
               </div>
 
@@ -515,7 +519,7 @@ export const MasterBlueprintLayout: React.FC<MasterBlueprintLayoutProps> = ({
               </span>
             </div>
             <p className="text-[10px] font-medium text-slate-400 mt-0.5">
-              คลังหลักจัดเก็บชิ้นส่วน (แร็ค Selective 10 แถว x 12 ช่อง + ลานวางพื้นเต็มพื้นที่)
+              คลังหลัก A4 (แร็ค 680 พาเลท + วางพื้น 432 พาเลท)
             </p>
           </div>
 
@@ -778,7 +782,7 @@ export const MasterBlueprintLayout: React.FC<MasterBlueprintLayoutProps> = ({
                       <span className="w-4 text-[6.5px] font-mono font-black text-amber-300 text-left">
                         {zoneCode}
                       </span>
-                      <div className="grid grid-cols-7 gap-0.5 flex-1">
+                      <div className="grid grid-cols-12 gap-0.5 flex-1">
                         {Array.from({ length: 7 }).map((_, i) => (
                           <div 
                             key={i} 
@@ -786,6 +790,7 @@ export const MasterBlueprintLayout: React.FC<MasterBlueprintLayoutProps> = ({
                             title={`${zoneCode} ช่อง ${i + 1}`}
                           />
                         ))}
+                        <div className="col-span-5 h-2 rounded-3xs border border-dashed border-slate-700/50 bg-slate-900/40" title="พื้นที่สัญจร AGV / โล่ง" />
                       </div>
                     </div>
                   ))}
@@ -838,7 +843,7 @@ export const MasterBlueprintLayout: React.FC<MasterBlueprintLayoutProps> = ({
                 </span>
               </div>
               <p className="text-[10px] font-medium text-slate-400 mt-0.5">
-                ลานเต็นท์ 4 หลัง (ความจุ 784 พาเลท) &bull; จัดเก็บชิ้นส่วนภายนอก
+                ลานเต็นท์ A5 (4 หลัง 784 พาเลท)
               </p>
             </div>
 
@@ -1067,7 +1072,7 @@ export const MasterBlueprintLayout: React.FC<MasterBlueprintLayoutProps> = ({
                 </span>
               </div>
               <p className="text-[10px] font-medium text-slate-400 mt-0.5">
-                พื้นที่จำลอง Rack 4 แถว (A, B, C, D) &bull; แต่ละแถวมี 4 ชั้น x 25 ช่อง (แถวยาว 400P)
+                เต็นท์ CY3 แร็ค 4 ชั้น (4 แถว 400 พาเลท)
               </p>
             </div>
 

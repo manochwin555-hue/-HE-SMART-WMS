@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { MovementLog, StorageZone, AuditLog } from '../types';
 import { useTranslation } from '../i18n/i18nContext';
 import { 
@@ -12,7 +12,10 @@ import {
   ArrowDownRight, 
   ArrowUpRight,
   Filter,
-  ShieldAlert
+  ShieldAlert,
+  Boxes,
+  X,
+  RefreshCw
 } from 'lucide-react';
 
 interface MovementLogsTableProps {
@@ -34,6 +37,88 @@ export const MovementLogsTable: React.FC<MovementLogsTableProps> = ({
   const [zoneFilter, setZoneFilter] = useState<string>('ALL');
   const [lineFilter, setLineFilter] = useState<string>('ALL');
   const [gapFilter, setGapFilter] = useState<string>('ALL');
+
+  // Compute status & movement metrics
+  const logStats = useMemo(() => {
+    let inCount = 0;
+    let inQty = 0;
+    let outCount = 0;
+    let outQty = 0;
+    let doneCount = 0;
+    let waitQrCount = 0;
+    let discrepancyCount = 0;
+
+    logs.forEach((l) => {
+      const q = l.actualQty ?? l.quantityCheck ?? 0;
+      if (l.type === 'IN') {
+        inCount++;
+        inQty += q;
+      } else if (l.type === 'OUT') {
+        outCount++;
+        outQty += q;
+      }
+
+      if (l.scanStatus === 'DONE') doneCount++;
+      else if (l.scanStatus === 'WAIT_QR') waitQrCount++;
+
+      if (l.qtyGap && l.qtyGap !== 0) discrepancyCount++;
+    });
+
+    const total = logs.length || 1;
+    return {
+      total: logs.length,
+      inCount,
+      inQty,
+      inPct: Math.round((inCount / total) * 100),
+      outCount,
+      outQty,
+      outPct: Math.round((outCount / total) * 100),
+      doneCount,
+      donePct: Math.round((doneCount / total) * 100),
+      waitQrCount,
+      waitQrPct: Math.round((waitQrCount / total) * 100),
+      discrepancyCount,
+      discrepancyPct: Math.round((discrepancyCount / total) * 100),
+    };
+  }, [logs]);
+
+  const activeStatusKey = useMemo(() => {
+    if (typeFilter === 'IN' && statusFilter === 'ALL' && gapFilter === 'ALL') return 'IN';
+    if (typeFilter === 'OUT' && statusFilter === 'ALL' && gapFilter === 'ALL') return 'OUT';
+    if (statusFilter === 'DONE' && typeFilter === 'ALL' && gapFilter === 'ALL') return 'DONE';
+    if (statusFilter === 'WAIT_QR' && typeFilter === 'ALL' && gapFilter === 'ALL') return 'WAIT_QR';
+    if (gapFilter === 'DISCREPANCY' && typeFilter === 'ALL' && statusFilter === 'ALL') return 'DISCREPANCY';
+    if (typeFilter === 'ALL' && statusFilter === 'ALL' && gapFilter === 'ALL') return 'ALL';
+    return 'CUSTOM';
+  }, [typeFilter, statusFilter, gapFilter]);
+
+  const handleSelectStatusTab = (key: 'ALL' | 'IN' | 'OUT' | 'DONE' | 'WAIT_QR' | 'DISCREPANCY') => {
+    if (key === 'ALL') {
+      setTypeFilter('ALL');
+      setStatusFilter('ALL');
+      setGapFilter('ALL');
+    } else if (key === 'IN') {
+      setTypeFilter(prev => prev === 'IN' ? 'ALL' : 'IN');
+      setStatusFilter('ALL');
+      setGapFilter('ALL');
+    } else if (key === 'OUT') {
+      setTypeFilter(prev => prev === 'OUT' ? 'ALL' : 'OUT');
+      setStatusFilter('ALL');
+      setGapFilter('ALL');
+    } else if (key === 'DONE') {
+      setStatusFilter(prev => prev === 'DONE' ? 'ALL' : 'DONE');
+      setTypeFilter('ALL');
+      setGapFilter('ALL');
+    } else if (key === 'WAIT_QR') {
+      setStatusFilter(prev => prev === 'WAIT_QR' ? 'ALL' : 'WAIT_QR');
+      setTypeFilter('ALL');
+      setGapFilter('ALL');
+    } else if (key === 'DISCREPANCY') {
+      setGapFilter(prev => prev === 'DISCREPANCY' ? 'ALL' : 'DISCREPANCY');
+      setTypeFilter('ALL');
+      setStatusFilter('ALL');
+    }
+  };
 
   // Filter logs logic
   const filteredLogs = logs.filter((log) => {
@@ -181,7 +266,179 @@ export const MovementLogsTable: React.FC<MovementLogsTableProps> = ({
         </div>
       </div>
 
-      {/* Compact Search & Filter Toolbar */}
+      {/* 📊 UNIFIED COMPACT STATUS TABS BAR (Movement Status & Summary Tabs) */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-2 sm:p-2.5 shadow-sm space-y-2">
+        <div className="flex items-center justify-between px-1">
+          <div className="flex items-center space-x-2 text-xs font-bold text-slate-300">
+            <Clock className="w-3.5 h-3.5 text-blue-400" />
+            <span>สรุปสถานะการรับ-เบิก &amp; ยอดสแกน (Movement Status Summary)</span>
+            <span className="text-[10px] text-slate-400 hidden sm:inline">(คลิกแท็บเพื่อกรองทันที)</span>
+          </div>
+          {activeStatusKey !== 'ALL' && (
+            <button
+              onClick={() => handleSelectStatusTab('ALL')}
+              className="text-[11px] font-bold text-blue-400 hover:text-blue-300 inline-flex items-center space-x-1"
+            >
+              <span>รีเซ็ตตัวกรองสถานะ</span>
+              <X className="w-3 h-3 ml-0.5" />
+            </button>
+          )}
+        </div>
+
+        {/* Compact Horizontal Status Pill Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5">
+          {/* 1. All Logs */}
+          <button
+            type="button"
+            onClick={() => handleSelectStatusTab('ALL')}
+            className={`p-1.5 sm:p-2 rounded-lg border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
+              activeStatusKey === 'ALL'
+                ? 'bg-blue-600/20 border-blue-500 text-white ring-1 ring-blue-500'
+                : 'bg-slate-800/80 border-slate-700/80 text-slate-300 hover:bg-slate-800 hover:border-slate-600'
+            }`}
+          >
+            <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
+              <span className="truncate">ทั้งหมด (ALL)</span>
+              <Boxes className="w-3 h-3 text-slate-400" />
+            </div>
+            <div className="mt-1 flex items-baseline justify-between">
+              <span className="text-base sm:text-lg font-black font-mono text-white leading-none">
+                {logStats.total}
+              </span>
+              <span className="text-[10px] text-slate-400 font-mono">100%</span>
+            </div>
+          </button>
+
+          {/* 2. IN (รับเข้า) */}
+          <button
+            type="button"
+            onClick={() => handleSelectStatusTab('IN')}
+            className={`p-1.5 sm:p-2 rounded-lg border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
+              activeStatusKey === 'IN'
+                ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 ring-1 ring-emerald-500'
+                : 'bg-slate-800/80 border-slate-700/80 text-slate-300 hover:bg-emerald-950/30 hover:border-emerald-700/60'
+            }`}
+          >
+            <div className="flex items-center justify-between text-[10px] font-bold">
+              <span className="flex items-center gap-1 text-emerald-400 truncate">
+                <ArrowDownRight className="w-3 h-3 text-emerald-400 shrink-0" />
+                รับเข้า (IN)
+              </span>
+              <span className="text-[9px] text-slate-400 font-mono">{logStats.inQty.toLocaleString()} ชิ้น</span>
+            </div>
+            <div className="mt-1 flex items-baseline justify-between">
+              <span className="text-base sm:text-lg font-black font-mono text-emerald-400 leading-none">
+                {logStats.inCount}
+              </span>
+              <span className="text-[10px] text-emerald-400/80 font-mono">{logStats.inPct}%</span>
+            </div>
+          </button>
+
+          {/* 3. OUT (เบิกออก) */}
+          <button
+            type="button"
+            onClick={() => handleSelectStatusTab('OUT')}
+            className={`p-1.5 sm:p-2 rounded-lg border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
+              activeStatusKey === 'OUT'
+                ? 'bg-sky-500/20 border-sky-500 text-sky-300 ring-1 ring-sky-500'
+                : 'bg-slate-800/80 border-slate-700/80 text-slate-300 hover:bg-sky-950/30 hover:border-sky-700/60'
+            }`}
+          >
+            <div className="flex items-center justify-between text-[10px] font-bold">
+              <span className="flex items-center gap-1 text-sky-400 truncate">
+                <ArrowUpRight className="w-3 h-3 text-sky-400 shrink-0" />
+                เบิกออก (OUT)
+              </span>
+              <span className="text-[9px] text-slate-400 font-mono">{logStats.outQty.toLocaleString()} ชิ้น</span>
+            </div>
+            <div className="mt-1 flex items-baseline justify-between">
+              <span className="text-base sm:text-lg font-black font-mono text-sky-400 leading-none">
+                {logStats.outCount}
+              </span>
+              <span className="text-[10px] text-sky-400/80 font-mono">{logStats.outPct}%</span>
+            </div>
+          </button>
+
+          {/* 4. DONE (เสร็จสิ้น) */}
+          <button
+            type="button"
+            onClick={() => handleSelectStatusTab('DONE')}
+            className={`p-1.5 sm:p-2 rounded-lg border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
+              activeStatusKey === 'DONE'
+                ? 'bg-green-500/20 border-green-500 text-green-300 ring-1 ring-green-500'
+                : 'bg-slate-800/80 border-slate-700/80 text-slate-300 hover:bg-green-950/30 hover:border-green-700/60'
+            }`}
+          >
+            <div className="flex items-center justify-between text-[10px] font-bold">
+              <span className="flex items-center gap-1 text-green-400 truncate">
+                <CheckCircle2 className="w-3 h-3 text-green-400 shrink-0" />
+                เสร็จสิ้น (DONE)
+              </span>
+              <span className="text-[9px] text-slate-400 font-mono">{logStats.donePct}%</span>
+            </div>
+            <div className="mt-1 flex items-baseline justify-between">
+              <span className="text-base sm:text-lg font-black font-mono text-green-400 leading-none">
+                {logStats.doneCount}
+              </span>
+              <span className="text-[10px] text-green-400/80 font-mono">สำเร็จ</span>
+            </div>
+          </button>
+
+          {/* 5. DISCREPANCY (ยอดต่าง) */}
+          <button
+            type="button"
+            onClick={() => handleSelectStatusTab('DISCREPANCY')}
+            className={`p-1.5 sm:p-2 rounded-lg border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
+              activeStatusKey === 'DISCREPANCY'
+                ? 'bg-amber-500/20 border-amber-500 text-amber-300 ring-1 ring-amber-500'
+                : 'bg-slate-800/80 border-slate-700/80 text-slate-300 hover:bg-amber-950/30 hover:border-amber-700/60'
+            }`}
+          >
+            <div className="flex items-center justify-between text-[10px] font-bold">
+              <span className="flex items-center gap-1 text-amber-400 truncate">
+                <AlertTriangle className="w-3 h-3 text-amber-400 shrink-0" />
+                ยอดต่าง (Gap ≠ 0)
+              </span>
+              <span className="text-[9px] text-slate-400 font-mono">Discrepancy</span>
+            </div>
+            <div className="mt-1 flex items-baseline justify-between">
+              <span className="text-base sm:text-lg font-black font-mono text-amber-400 leading-none">
+                {logStats.discrepancyCount}
+              </span>
+              <span className="text-[10px] text-amber-400/80 font-mono">
+                {logStats.discrepancyCount > 0 ? '⚠️ พบยอดต่าง' : 'ปกติ'}
+              </span>
+            </div>
+          </button>
+
+          {/* 6. WAIT_QR (รอ QR) */}
+          <button
+            type="button"
+            onClick={() => handleSelectStatusTab('WAIT_QR')}
+            className={`p-1.5 sm:p-2 rounded-lg border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
+              activeStatusKey === 'WAIT_QR'
+                ? 'bg-yellow-500/20 border-yellow-500 text-yellow-300 ring-1 ring-yellow-500'
+                : 'bg-slate-800/80 border-slate-700/80 text-slate-300 hover:bg-yellow-950/30 hover:border-yellow-700/60'
+            }`}
+          >
+            <div className="flex items-center justify-between text-[10px] font-bold">
+              <span className="flex items-center gap-1 text-yellow-400 truncate">
+                <Clock className="w-3 h-3 text-yellow-400 shrink-0" />
+                รอ QR (WAIT)
+              </span>
+              <span className="text-[9px] text-slate-400 font-mono">{logStats.waitQrPct}%</span>
+            </div>
+            <div className="mt-1 flex items-baseline justify-between">
+              <span className="text-base sm:text-lg font-black font-mono text-yellow-400 leading-none">
+                {logStats.waitQrCount}
+              </span>
+              <span className="text-[10px] text-yellow-400/80 font-mono">รอดำเนินการ</span>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* 🔍 Compact Search & Filter Toolbar */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 sm:p-3 text-white shadow-xs space-y-2.5">
         <div className="flex flex-wrap items-center gap-2 text-xs">
           {/* Search Bar */}
@@ -260,28 +517,15 @@ export const MovementLogsTable: React.FC<MovementLogsTableProps> = ({
           </select>
         </div>
 
-        {/* Row 2: Status Filter Chips */}
+        {/* Row 2: Status Summary Counter & Reset */}
         <div className="pt-2 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
-          <div className="flex items-center flex-wrap gap-1 font-bold">
-            {['ALL', 'DONE', 'WAIT_QR'].map((st) => (
-              <button
-                key={st}
-                onClick={() => setStatusFilter(st)}
-                className={`px-2.5 py-1 rounded-lg border text-xs transition-all ${
-                  statusFilter === st
-                    ? 'bg-blue-600 text-white border-blue-500 font-black shadow-xs'
-                    : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
-                }`}
-              >
-                {st === 'ALL' ? 'ทุกสถานะ' : st === 'DONE' ? 'เสร็จสิ้น (DONE)' : 'รอ QR'}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-mono text-slate-400">
+              แสดง <strong className="text-white font-bold">{filteredLogs.length}</strong> จาก {logs.length} รายการ
+            </span>
           </div>
 
           <div className="flex items-center gap-1.5 ml-auto">
-            <span className="text-[11px] text-slate-400">
-              แสดง {filteredLogs.length} รายการ
-            </span>
             {(searchTerm || statusFilter !== 'ALL' || typeFilter !== 'ALL' || zoneFilter !== 'ALL' || lineFilter !== 'ALL' || gapFilter !== 'ALL') && (
               <button
                 onClick={() => {
@@ -292,9 +536,10 @@ export const MovementLogsTable: React.FC<MovementLogsTableProps> = ({
                   setLineFilter('ALL');
                   setGapFilter('ALL');
                 }}
-                className="px-2 py-1 bg-red-900/40 hover:bg-red-900/60 text-red-300 rounded-lg text-[11px] font-bold transition-all border border-red-800"
+                className="px-2 py-1 bg-red-900/40 hover:bg-red-900/60 text-red-300 rounded-lg text-[11px] font-bold transition-all border border-red-800 flex items-center gap-1"
               >
-                ล้างตัวกรอง
+                <X className="w-3 h-3" />
+                <span>ล้างตัวกรองทั้งหมด</span>
               </button>
             )}
           </div>

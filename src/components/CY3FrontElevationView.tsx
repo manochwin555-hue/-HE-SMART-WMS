@@ -114,35 +114,32 @@ export const CY3FrontElevationView: React.FC<CY3FrontElevationViewProps> = ({
   }, [activeRow]);
 
   return (
-    <div className="w-full bg-slate-900 border border-slate-800 rounded-xl overflow-hidden flex flex-col shadow-2xl animate-fadeIn">
+    <div className="w-full h-full min-h-0 bg-slate-900 border border-slate-800 rounded-xl overflow-hidden flex flex-col shadow-2xl animate-fadeIn">
       {/* 1. Top Controls & Row Selectors */}
-      <div className="px-4 py-3 bg-slate-950/90 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className="p-2 rounded-lg bg-blue-600/20 text-blue-400 border border-blue-500/30">
-            <Building2 className="w-5 h-5" />
+      <div className="px-3 sm:px-4 py-2 bg-slate-950/90 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2 shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-lg bg-blue-600/20 text-blue-400 border border-blue-500/30">
+            <Building2 className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="font-black text-sm text-white flex items-center gap-2">
-              <span>มุมมองด้านหน้าโครงสร้างแร็ค (Front Elevation View)</span>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 font-bold">
-                25 เสา x 4 ชั้นแนวตั้ง
+            <h3 className="font-black text-xs sm:text-sm text-white flex items-center gap-2">
+              <span>มุมมองหน้าตรง L1-L4 (Front Elevation)</span>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 font-bold">
+                25 เสา x 4 ชั้น
               </span>
             </h3>
-            <p className="text-[11px] text-slate-400">
-              เสมือนการยืนตรวจนับสินค้าหน้ารางแร็คจริง มองเห็นสินค้าทุกช่องความสูง L1 - L4
-            </p>
           </div>
         </div>
 
         {/* Row Switcher Tabs */}
-        <div className="flex items-center bg-slate-900 p-1 rounded-xl border border-slate-800 gap-1">
+        <div className="flex items-center bg-slate-900 p-0.5 rounded-lg border border-slate-800 gap-1">
           {(['A', 'B', 'C', 'D', 'ALL'] as const).map((r) => {
             const config = ELEVATION_ROWS.find(row => row.rowCode === r);
             return (
               <button
                 key={r}
                 onClick={() => setActiveRow(r)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                className={`px-2 py-1 rounded text-xs font-bold transition-all flex items-center gap-1 ${
                   activeRow === r
                     ? 'bg-blue-600 text-white shadow-md'
                     : 'text-slate-400 hover:text-white hover:bg-slate-800'
@@ -152,11 +149,10 @@ export const CY3FrontElevationView: React.FC<CY3FrontElevationViewProps> = ({
                   <span>ดูครบ 4 แถว</span>
                 ) : (
                   <>
-                    <span className="w-4 h-4 rounded bg-[#002060] text-white font-mono text-[10px] flex items-center justify-center font-black">
+                    <span className="w-3.5 h-3.5 rounded bg-[#002060] text-white font-mono text-[9px] flex items-center justify-center font-black">
                       {r}
                     </span>
                     <span>แถว {r}</span>
-                    <span className="text-[10px] opacity-70 font-mono">({config?.locatorSign})</span>
                   </>
                 )}
               </button>
@@ -166,7 +162,7 @@ export const CY3FrontElevationView: React.FC<CY3FrontElevationViewProps> = ({
       </div>
 
       {/* 2. Elevation Diagrams Canvas */}
-      <div className="flex-1 overflow-x-auto p-4 sm:p-6 bg-slate-950/70 space-y-8">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto p-2 sm:p-3 bg-slate-950/70 space-y-3">
         {rowsToRender.map((row) => {
           // Count occupied in this row
           let rowOccupied = 0;
@@ -308,8 +304,12 @@ export const CY3FrontElevationView: React.FC<CY3FrontElevationViewProps> = ({
                                   </div>
                                 )}
 
-                                {/* Rack Beam Bottom Support Bar */}
-                                <div className="absolute -bottom-[2px] left-0 right-0 h-[2px] bg-orange-500/80 rounded-full" />
+                                {/* Rack Beam Bottom Support Bar (L2, L3, L4 only - L1 is ground floor) */}
+                                {lvl > 1 ? (
+                                  <div className="absolute -bottom-[2px] left-0 right-0 h-[3px] bg-orange-500 rounded-full shadow-xs" />
+                                ) : (
+                                  <div className="absolute -bottom-[2px] left-0 right-0 h-[1px] bg-slate-700 rounded-full" />
+                                )}
                               </button>
                             );
                           })}

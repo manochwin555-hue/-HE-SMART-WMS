@@ -103,7 +103,7 @@ export const Warehouse3DMap: React.FC<Warehouse3DMapProps> = ({
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
 
     const resizeObserver = new ResizeObserver((entries) => {
       if (entries.length > 0) {
@@ -178,24 +178,24 @@ export const Warehouse3DMap: React.FC<Warehouse3DMapProps> = ({
     scene.add(gridHelper);
 
     // 7. Warehouse Rack Dimensions
-    const bayWidth = 1.2;
+    const bayWidth = 2.4; // 2.4m width (fits 2 pallets side-by-side)
     const bayDepth = 1.2;
-    const bayHeight = 4.2;
-    const baySpacingZ = 1.35; 
-    const rackSpacingX = 4.0;
+    const bayHeight = 5.2;
+    const baySpacingZ = 2.6; 
+    const rackSpacingX = 4.2;
 
     const racksData = [
-      { id: 'B', bays: 12, startX: 0, startZ: -7 },
-      { id: 'C', bays: 12, startX: rackSpacingX * 1, startZ: -7 },
-      { id: 'D', bays: 12, startX: rackSpacingX * 2, startZ: -7 },
-      { id: 'E', bays: 12, startX: rackSpacingX * 3, startZ: -7 },
-      { id: 'F', bays: 12, startX: rackSpacingX * 4, startZ: -7 },
+      { id: 'B', bays: 12, startX: 0, startZ: -14 },
+      { id: 'C', bays: 12, startX: rackSpacingX * 1, startZ: -14 },
+      { id: 'D', bays: 12, startX: rackSpacingX * 2, startZ: -14 },
+      { id: 'E', bays: 12, startX: rackSpacingX * 3, startZ: -14 },
+      { id: 'F', bays: 12, startX: rackSpacingX * 4, startZ: -14 },
       
-      { id: 'G', bays: 5, startX: rackSpacingX * 5.5, startZ: -7 },
-      { id: 'H', bays: 5, startX: rackSpacingX * 6.5, startZ: -7 },
-      { id: 'I', bays: 5, startX: rackSpacingX * 7.5, startZ: -7 },
-      { id: 'J', bays: 5, startX: rackSpacingX * 8.5, startZ: -7 },
-      { id: 'K', bays: 5, startX: rackSpacingX * 9.5, startZ: -7 },
+      { id: 'G', bays: 5, startX: rackSpacingX * 5.5, startZ: -5 },
+      { id: 'H', bays: 5, startX: rackSpacingX * 6.5, startZ: -5 },
+      { id: 'I', bays: 5, startX: rackSpacingX * 7.5, startZ: -5 },
+      { id: 'J', bays: 5, startX: rackSpacingX * 8.5, startZ: -5 },
+      { id: 'K', bays: 5, startX: rackSpacingX * 9.5, startZ: -5 },
     ];
 
     const raycaster = new THREE.Raycaster();
@@ -203,12 +203,14 @@ export const Warehouse3DMap: React.FC<Warehouse3DMapProps> = ({
     const interactableObjects: THREE.Mesh[] = [];
 
     // Realistic Materials
-    const frameMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8, roughness: 0.2 }); // Metallic Steel Uprights
-    const beamMat = new THREE.MeshStandardMaterial({ color: 0xf97316, metalness: 0.6, roughness: 0.3 }); // Vibrant Orange beams
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x1d4ed8, metalness: 0.85, roughness: 0.25 }); // Safety Blue Uprights & Columns
+    const bracingMat = new THREE.MeshStandardMaterial({ color: 0x60a5fa, metalness: 0.8, roughness: 0.3 }); // Steel Blue Diagonal Bracing
+    const beamMat = new THREE.MeshStandardMaterial({ color: 0xea580c, metalness: 0.65, roughness: 0.3 }); // Vibrant Safety Orange Beams
+    const guardMat = new THREE.MeshStandardMaterial({ color: 0xeab308, roughness: 0.3 }); // Yellow Base Guards
     const beaconMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 1.0 }); // Top LED Beacons
     
     // Wooden Pallet Material
-    const palletWoodMat = new THREE.MeshStandardMaterial({ color: 0xc2410c, roughness: 0.8, metalness: 0.1 }); // Realistic Wood
+    const palletWoodMat = new THREE.MeshStandardMaterial({ color: 0xbfa079, roughness: 0.85 }); // Realistic Pine Wood
 
     const bayGeo = new THREE.BoxGeometry(bayWidth, bayHeight, bayDepth);
     const invisibleMat = new THREE.MeshBasicMaterial({ visible: false });
@@ -259,154 +261,146 @@ export const Warehouse3DMap: React.FC<Warehouse3DMapProps> = ({
           post.receiveShadow = true;
           bayGroup.add(post);
 
-          // Glowing LED status beacon on top of post
-          const beaconGeo = new THREE.SphereGeometry(0.05, 8, 8);
-          const beacon = new THREE.Mesh(beaconGeo, beaconMat);
-          beacon.position.set(pos[0], bayHeight + 0.05, pos[1]);
-          bayGroup.add(beacon);
+          // Footplates at base
+          const footGeo = new THREE.BoxGeometry(0.16, 0.02, 0.16);
+          const foot = new THREE.Mesh(footGeo, frameMat);
+          foot.position.set(pos[0], 0.01, pos[1]);
+          bayGroup.add(foot);
+
+          // Yellow Base Guards on front and end posts
+          if (bayNum === 1 || bayNum === rack.bays) {
+            const guard = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.5, 0.18), guardMat);
+            guard.position.set(pos[0], 0.25, pos[1]);
+            bayGroup.add(guard);
+          }
+
+          // Top post cap
+          const cap = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.04, 0.09), frameMat);
+          cap.position.set(pos[0], bayHeight + 0.02, pos[1]);
+          bayGroup.add(cap);
         });
 
-        // Horizontal beams & cross support (4 levels)
-        const beamGeo = new THREE.BoxGeometry(bayWidth, 0.07, 0.04);
-        const sideBeamGeo = new THREE.BoxGeometry(0.04, 0.07, bayDepth);
-        for(let l=1; l<=4; l++) {
-          const levelY = (l * (bayHeight / 4)) - 0.2;
+        // Side diagonal steel bracing on left and right rack frame
+        const braceLen = Math.sqrt(bayDepth * bayDepth + 1.2 * 1.2);
+        const braceGeo = new THREE.BoxGeometry(0.03, 0.03, braceLen);
+        const braceAngle = Math.atan2(1.2, bayDepth);
+        for (let bLvl = 0; bLvl < 4; bLvl++) {
+          const yCenter = 0.6 + bLvl * 1.25;
+          const leftDiag = new THREE.Mesh(braceGeo, bracingMat);
+          leftDiag.position.set(-bayWidth / 2, yCenter, 0);
+          leftDiag.rotation.x = bLvl % 2 === 0 ? braceAngle : -braceAngle;
+          
+          const rightDiag = new THREE.Mesh(braceGeo, bracingMat);
+          rightDiag.position.set(bayWidth / 2, yCenter, 0);
+          rightDiag.rotation.x = bLvl % 2 === 0 ? braceAngle : -braceAngle;
+          bayGroup.add(leftDiag, rightDiag);
+        }
+
+        // Horizontal beams & cross support (4 levels: L1 Ground floor has NO bottom beam, L2-L4 have orange beams)
+        const beamGeo = new THREE.BoxGeometry(bayWidth, 0.09, 0.05);
+        const levelYMap: { [key: number]: number } = {
+          1: 0.0,
+          2: 1.35,
+          3: 2.65,
+          4: 3.95
+        };
+
+        for(let l=2; l<=4; l++) {
+          const levelY = levelYMap[l];
           
           const beamFront = new THREE.Mesh(beamGeo, beamMat);
           beamFront.position.set(0, levelY, bayDepth/2);
           const beamBack = new THREE.Mesh(beamGeo, beamMat);
           beamBack.position.set(0, levelY, -bayDepth/2);
           
-          const sideLeft = new THREE.Mesh(sideBeamGeo, frameMat);
-          sideLeft.position.set(-bayWidth/2, levelY, 0);
-          const sideRight = new THREE.Mesh(sideBeamGeo, frameMat);
-          sideRight.position.set(bayWidth/2, levelY, 0);
+          bayGroup.add(beamFront, beamBack);
 
-          bayGroup.add(beamFront, beamBack, sideLeft, sideRight);
+          // Wire decking cross bars
+          for (let w = -2; w <= 2; w++) {
+            const wire = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.02, bayDepth - 0.05), bracingMat);
+            wire.position.set(w * 0.45, levelY + 0.02, 0);
+            bayGroup.add(wire);
+          }
         }
 
-        // 2. Add Realistic Wooden Pallets + Stacked Boxes with Neon Glowing Base
+        // 2. Add Realistic Wooden Pallets (2 Pallets per Bay Side-by-Side)
         const bayItems = items.filter(it => it.zone === rack.id && it.bayNumber === bayNum);
         
-        bayItems.forEach(item => {
-           const levelY = (item.level * (bayHeight / 4)) - 0.2 + 0.08;
-           const palletBoxGroup = new THREE.Group();
-           palletBoxGroup.position.set(0, levelY, 0);
+        // Render 4 levels
+        for (let l = 1; l <= 4; l++) {
+          const matchingItem = bayItems.find(it => it.level === l);
+          const levelY = levelYMap[l] + (l === 1 ? 0.0 : 0.05);
 
-           let isSearchMatch = false;
-           if (searchQuery && searchQuery.trim() !== '') {
-             const q = searchQuery.trim().toLowerCase();
-             isSearchMatch =
-               item.modelHE.toLowerCase().includes(q) ||
-               item.partName.toLowerCase().includes(q) ||
-               item.locatorCode.toLowerCase().includes(q) ||
-               item.qrCode.toLowerCase().includes(q);
-           }
+          const hasCargo = !!matchingItem || ((bayNum + l) % 3 === 0);
+          if (!hasCargo) continue;
 
-           // Determine Status Colors & Neon Light Colors
-           let boxColor = 0x2563eb; // Royal Blue
-           let neonColor = 0x00f0ff; // Neon Cyan
-           let neonIntensity = 1.0;
+          // 2 Pallets side-by-side (Left Pallet at -0.55, Right Pallet at +0.55)
+          [-0.55, 0.55].forEach((pxOffset, pIdx) => {
+            const palletBoxGroup = new THREE.Group();
+            palletBoxGroup.position.set(pxOffset, levelY, 0);
 
-           if (item.agingDays > 30) {
-             boxColor = 0xf59e0b; // Amber Aging
-             neonColor = 0xffaa00; // Neon Amber
-             neonIntensity = 1.2;
-           }
-           if (item.quantity <= (item.safetyStock ?? 300)) {
-             boxColor = 0xef4444; // Low Stock Red
-             neonColor = 0xff0055; // Neon Red/Pink
-             neonIntensity = 1.5;
-           }
+            let isSearchMatch = false;
+            if (searchQuery && searchQuery.trim() !== '' && matchingItem) {
+              const q = searchQuery.trim().toLowerCase();
+              isSearchMatch =
+                matchingItem.modelHE.toLowerCase().includes(q) ||
+                matchingItem.partName.toLowerCase().includes(q) ||
+                matchingItem.locatorCode.toLowerCase().includes(q) ||
+                matchingItem.qrCode.toLowerCase().includes(q);
+            }
 
-           if (searchQuery && searchQuery.trim() !== '') {
-             if (isSearchMatch) {
-               boxColor = 0x06b6d4;
-               neonColor = 0x00ffff;
-               neonIntensity = 2.0;
-             } else {
-               boxColor = 0x475569;
-               neonColor = 0x334155;
-               neonIntensity = 0.2;
-             }
-           }
+            let boxColor = 0x2563eb; // Royal Blue
+            if (matchingItem) {
+              if (matchingItem.agingDays > 30) boxColor = 0xf59e0b; // Amber
+              if (matchingItem.quantity <= (matchingItem.safetyStock ?? 300)) boxColor = 0xef4444; // Red
+            }
 
-           // A. REALISTIC WOODEN PALLET STRUCTURE
-           // 1. Top Slatted Wooden Planks
-           const plankGeo = new THREE.BoxGeometry(0.92, 0.03, 0.18);
-           [-0.32, -0.11, 0.11, 0.32].forEach(pz => {
-             const plank = new THREE.Mesh(plankGeo, palletWoodMat);
-             plank.position.set(0, 0.08, pz);
-             plank.castShadow = true;
-             palletBoxGroup.add(plank);
-           });
+            // Pallet wood top boards
+            const topBoard = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.05, bayDepth - 0.1), palletWoodMat);
+            topBoard.position.y = 0.06;
+            topBoard.castShadow = true;
+            palletBoxGroup.add(topBoard);
 
-           // 2. Bottom Wooden Runners/Skids
-           const runnerGeo = new THREE.BoxGeometry(0.08, 0.08, 0.90);
-           [-0.40, 0, 0.40].forEach(rx => {
-             const runner = new THREE.Mesh(runnerGeo, palletWoodMat);
-             runner.position.set(rx, 0.04, 0);
-             runner.castShadow = true;
-             palletBoxGroup.add(runner);
-           });
+            // Pallet wood bottom runners
+            [-0.38, 0, 0.38].forEach(rx => {
+              const runner = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, bayDepth - 0.1), palletWoodMat);
+              runner.position.set(rx, 0.03, 0);
+              palletBoxGroup.add(runner);
+            });
 
-           // B. CARGO RECTANGULAR BOX STACKED ON PALLET
-           const boxMat = new THREE.MeshStandardMaterial({ 
-             color: boxColor, 
-             roughness: 0.4,
-             metalness: 0.2,
-             transparent: searchQuery && searchQuery.trim() !== '' && !isSearchMatch ? true : false,
-             opacity: searchQuery && searchQuery.trim() !== '' && !isSearchMatch ? 0.3 : 1.0
-           });
+            // Cargo Box
+            const boxMat = new THREE.MeshStandardMaterial({ 
+              color: boxColor, 
+              roughness: 0.4,
+              metalness: 0.2,
+              transparent: searchQuery && searchQuery.trim() !== '' && !isSearchMatch ? true : false,
+              opacity: searchQuery && searchQuery.trim() !== '' && !isSearchMatch ? 0.3 : 1.0
+            });
 
-           const boxGeo = new THREE.BoxGeometry(0.82, 0.46, 0.82);
-           const cargoBox = new THREE.Mesh(boxGeo, boxMat);
-           cargoBox.position.set(0, 0.32, 0);
-           cargoBox.castShadow = true;
-           cargoBox.receiveShadow = true;
-           palletBoxGroup.add(cargoBox);
+            const cargoBox = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.75, bayDepth - 0.15), boxMat);
+            cargoBox.position.y = 0.48;
+            cargoBox.castShadow = true;
+            palletBoxGroup.add(cargoBox);
 
-           // Shipping Barcode Label on front of cargo box
-           const labelGeo = new THREE.PlaneGeometry(0.32, 0.20);
-           const labelMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-           const label = new THREE.Mesh(labelGeo, labelMat);
-           label.position.set(0, 0.32, 0.415);
-           palletBoxGroup.add(label);
+            bayGroup.add(palletBoxGroup);
 
-           // C. NEON GLOWING LED LIGHT STRIP ON PALLET BASE (ดูง่าย เข้าใจง่าย)
-           const neonRimGeo = new THREE.BoxGeometry(0.96, 0.04, 0.96);
-           const neonRimMat = new THREE.MeshStandardMaterial({
-             color: neonColor,
-             emissive: neonColor,
-             emissiveIntensity: neonIntensity,
-             roughness: 0.1
-           });
-           const neonRim = new THREE.Mesh(neonRimGeo, neonRimMat);
-           neonRim.position.set(0, 0.01, 0);
-           palletBoxGroup.add(neonRim);
+            // Laser Target Beam for matching search query
+            if (searchQuery && searchQuery.trim() !== '' && isSearchMatch) {
+              const laserGeo = new THREE.CylinderGeometry(0.02, 0.02, 10, 8);
+              const laserMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.8 });
+              const laser = new THREE.Mesh(laserGeo, laserMat);
+              laser.position.set(pxOffset, levelY + 5, 0);
+              bayGroup.add(laser);
 
-           const palletPointLight = new THREE.PointLight(neonColor, neonIntensity, 1.8);
-           palletPointLight.position.set(0, 0.15, 0);
-           palletBoxGroup.add(palletPointLight);
-
-           bayGroup.add(palletBoxGroup);
-
-           // Laser Target Beam for matching search query
-           if (searchQuery && searchQuery.trim() !== '' && isSearchMatch) {
-             const laserGeo = new THREE.CylinderGeometry(0.02, 0.02, 10, 8);
-             const laserMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.8 });
-             const laser = new THREE.Mesh(laserGeo, laserMat);
-             laser.position.set(0, levelY + 5, 0);
-             bayGroup.add(laser);
-
-             const targetRingGeo = new THREE.RingGeometry(0.5, 0.65, 32);
-             const targetRingMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff, side: THREE.DoubleSide });
-             const targetRing = new THREE.Mesh(targetRingGeo, targetRingMat);
-             targetRing.rotation.x = -Math.PI / 2;
-             targetRing.position.set(0, 0.02, 0);
-             bayGroup.add(targetRing);
-           }
-        });
+              const targetRingGeo = new THREE.RingGeometry(0.5, 0.65, 32);
+              const targetRingMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff, side: THREE.DoubleSide });
+              const targetRing = new THREE.Mesh(targetRingGeo, targetRingMat);
+              targetRing.rotation.x = -Math.PI / 2;
+              targetRing.position.set(pxOffset, 0.02, 0);
+              bayGroup.add(targetRing);
+            }
+          });
+        }
 
         // 3. Invisible Interaction Mesh
         const interactMesh = new THREE.Mesh(bayGeo, invisibleMat);

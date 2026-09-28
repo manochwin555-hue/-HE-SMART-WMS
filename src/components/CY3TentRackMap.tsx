@@ -1,10 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { InventoryItem, MovementType, ShelfLevel, StorageZone } from '../types';
+import { InventoryItem, MovementType, ShelfLevel, StorageZone, MovementLog } from '../types';
 import { UnifiedSlotModal, UnifiedSlotData } from './UnifiedSlotModal';
 import { SlotMiniStatsOverlay, MiniStatsSlotData } from './SlotMiniStatsOverlay';
 import { CY3FrontElevationView } from './CY3FrontElevationView';
 import { MiniatureRackIcon } from './MiniatureRackIcon';
 import { WarehouseSlotFilter } from './common/WarehouseSlotFilter';
+import { CY3OutdoorRack3DView } from './zone-3d/CY3OutdoorRack3DView';
+import { ZoneKpiFormalDashboard } from './ZoneKpiFormalDashboard';
 import { useTranslation } from '../i18n/i18nContext';
 import { 
   Building2, 
@@ -19,11 +21,14 @@ import {
   Grid, 
   Clock,
   X,
-  Truck
+  Truck,
+  LayoutGrid,
+  Info
 } from 'lucide-react';
 
 interface CY3TentRackMapProps {
   items: InventoryItem[];
+  logs?: MovementLog[];
   searchQuery?: string;
   onOpenScanner: (zone: StorageZone, bay: number, level: ShelfLevel, mode: MovementType) => void;
   onRelocateItem?: (item: InventoryItem) => void;
@@ -83,6 +88,7 @@ const CY3_ROWS: CY3RowConfig[] = [
 
 export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
   items,
+  logs,
   searchQuery = '',
   onOpenScanner,
   onRelocateItem,
@@ -90,7 +96,7 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
   onPrintLabel
 }) => {
   const { t } = useTranslation();
-  const [viewMode, setViewMode] = useState<'FRONT' | 'TOP'>('FRONT');
+  const [viewMode, setViewMode] = useState<'3D_RACK' | 'FRONT' | 'TOP'>('3D_RACK');
   const [floorFilter, setFloorFilter] = useState<'ALL' | 1 | 2 | 3 | 4>('ALL');
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'OCCUPIED' | 'EMPTY' | 'AGING'>('ALL');
   const [localSearch, setLocalSearch] = useState<string>(searchQuery);
@@ -299,34 +305,48 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
             ))}
           </div>
 
-          {/* View Mode Switcher (ONLY TWO: Front View & Top View) */}
+          {/* View Mode Switcher: 3D / Front / Top */}
           <div className="inline-flex items-center bg-slate-800/90 p-0.5 rounded-md border border-slate-700/80 h-7 shrink-0 gap-0.5">
+            {/* 3D Outdoor Racks View */}
+            <button
+              onClick={() => setViewMode('3D_RACK')}
+              className={`h-6 px-2 rounded text-[10.5px] font-bold flex items-center gap-1 transition-all ${
+                viewMode === '3D_RACK'
+                  ? 'bg-rose-600 text-white shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+              }`}
+              title="3D Digital Twin แร็ค 4 ชั้นกลางแจ้ง (400P)"
+            >
+              <Box className="w-3.5 h-3.5 text-rose-300" />
+              <span>3D ผัง 3 มิติ</span>
+            </button>
+
             {/* Front View */}
             <button
               onClick={() => setViewMode('FRONT')}
-              className={`h-6 px-2.5 rounded text-[11px] font-bold flex items-center gap-1 transition-all ${
+              className={`h-6 px-2 rounded text-[10.5px] font-bold flex items-center gap-1 transition-all ${
                 viewMode === 'FRONT'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
               }`}
-              title={t('navigation.frontView')}
+              title="มุมมองหน้าตรง แร็ค 4 ชั้น (L1-L4)"
             >
               <Layers className="w-3.5 h-3.5 text-emerald-300" />
-              <span>{t('navigation.frontView')}</span>
+              <span>หน้าตรง L1-L4</span>
             </button>
 
             {/* Top View */}
             <button
               onClick={() => setViewMode('TOP')}
-              className={`h-6 px-2.5 rounded text-[11px] font-bold flex items-center gap-1 transition-all ${
+              className={`h-6 px-2 rounded text-[10.5px] font-bold flex items-center gap-1 transition-all ${
                 viewMode === 'TOP'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
               }`}
-              title={t('navigation.topView')}
+              title="มุมมองแปลนบน (Top 2D Matrix)"
             >
               <Grid className="w-3.5 h-3.5" />
-              <span>{t('navigation.topView')}</span>
+              <span>แปลนบน 2D</span>
             </button>
           </div>
 
@@ -385,24 +405,26 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
       </div>
 
       {/* ========================================================================= */}
-      {/* 2. MAIN WAREHOUSE BLUEPRINT VIEWPORT                                       */}
+      {/* 2. MAIN WAREHOUSE BLUEPRINT VIEWPORT (FULL SIZE MATCHING OTHER ZONES)      */}
       {/* ========================================================================= */}
-      <div className="flex-1 overflow-auto p-2.5 sm:p-4 bg-slate-950 flex flex-col items-center justify-start">
+      <div className="flex-1 min-h-0 flex flex-col gap-1.5 overflow-hidden p-1 sm:p-1.5">
         
-        {/* Maximum Width Blueprint Board matching Reference Image Aspect Ratio */}
-        <div className="w-full max-w-[1440px] flex flex-col space-y-3 animate-fadeIn">
-          
-          {/* REFERENCE DIAGRAM TITLE PILL: "CY3 Tent" */}
-          <div className="flex items-center justify-center">
-            <div className="bg-[#002060] border border-blue-400/50 shadow-xl rounded-lg px-6 py-1.5 flex items-center gap-2">
-              <span className="text-base sm:text-lg font-black text-white tracking-wide">
-                CY3 Tent
-              </span>
-              <span className="ml-2 text-[10px] font-mono bg-blue-900/80 text-blue-200 px-2 py-0.5 rounded border border-blue-400/30">
-                แร็ค 4 ชั้น &bull; 4 แถว x 25 ช่องเสา = 400 พาเลท
-              </span>
+        {/* TOP: 3D Twin or 2D Front / Top Plan */}
+        <div className="flex-1 min-h-0 overflow-hidden bg-slate-950 rounded-xl border border-slate-800 flex flex-col">
+          {/* VIEW 1: 3D OUTDOOR 4-TIER RACK DIGITAL TWIN (DY3T 1.01-1.04: 400 PALLETS) */}
+          {viewMode === '3D_RACK' && (
+            <div className="w-full h-full min-h-0 flex flex-col overflow-hidden bg-slate-950">
+              <CY3OutdoorRack3DView
+                items={items}
+                searchQuery={activeSearch}
+                onSelectSlot={(row, bay, locator, level, item) => {
+                  const locatorSign = row === 'A' ? 'DY3T-1.01' : row === 'B' ? 'DY3T-1.02' : row === 'C' ? 'DY3T-1.03' : 'DY3T-1.04';
+                  handleSlotClick(row as any, bay, locator || locatorSign, level as any);
+                }}
+                onOpenScanner={onOpenScanner}
+              />
             </div>
-          </div>
+          )}
 
           {/* ========================================================================= */}
           {/* VIEW 1: FRONT ELEVATION VIEW (DEFAULT)                                     */}
@@ -421,15 +443,15 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
           )}
 
           {/* ========================================================================= */}
-          {/* VIEW 2: TOP VIEW WITH TRUE STACKED SEGMENTED BLOCKS                        */}
-          {/* ========================================================================= */}
+          {/* VIEW 2: TOP VIEW WITH TRUE STACKED SEGMENTED BLOCKS */}
           {viewMode === 'TOP' && (
-            <div className="relative border-2 border-red-600 rounded-xl bg-slate-900/90 shadow-2xl p-3 sm:p-4.5 overflow-hidden">
+            <div className="w-full h-full min-h-0 overflow-auto p-2 sm:p-3 bg-slate-900/90">
+              <div className="relative border-2 border-red-600 rounded-xl bg-slate-900/95 shadow-2xl p-3 sm:p-4 min-w-[860px]">
               
               {/* Dashed line accent along top as depicted in the reference diagram */}
               <div className="absolute top-2 left-4 right-4 border-t-2 border-dashed border-red-500/80 pointer-events-none" />
 
-              <div className="space-y-3 pt-2">
+              <div className="space-y-2.5 pt-2">
                 
                 {/* LOOP THROUGH ROWS A, B, C, D */}
                 {CY3_ROWS.map((row) => {
@@ -633,65 +655,18 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
               </div>
 
             </div>
+          </div>
           )}
 
-          {/* ========================================================================= */}
-          {/* 4. SUMMARY STATISTICS CARDS                                               */}
-          {/* ========================================================================= */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center shrink-0">
-                <Box className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-[11px] text-slate-400 font-bold">ความจุทั้งหมด CY3</div>
-                <div className="text-lg font-black text-white font-mono">400 พาเลท</div>
-                <div className="text-[10px] text-slate-500">4 แถว x 25 ช่อง x 4 ชั้น</div>
-              </div>
-            </div>
+        </div>
 
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
-                <CheckCircle2 className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-[11px] text-slate-400 font-bold">จัดเก็บปัจจุบัน</div>
-                <div className="text-lg font-black text-emerald-400 font-mono">
-                  {metrics.totalOccupied} พาเลท
-                </div>
-                <div className="text-[10px] text-emerald-500 font-bold">
-                  อัตราใช้พื้นที่ {metrics.utilizationRate}%
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
-                <Clock className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-[11px] text-slate-400 font-bold">สินค้าใกล้กำหนด (FIFO)</div>
-                <div className="text-lg font-black text-amber-400 font-mono">
-                  {metrics.agingCount} รายการ
-                </div>
-                <div className="text-[10px] text-slate-400">ค้างระหว่าง 15-30 วัน</div>
-              </div>
-            </div>
-
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-[11px] text-slate-400 font-bold">สินค้าค้างนานผิดปกติ</div>
-                <div className="text-lg font-black text-rose-400 font-mono">
-                  {metrics.overdueCount} รายการ
-                </div>
-                <div className="text-[10px] text-rose-400 font-bold">เกินกำหนด (&gt;30 วัน)</div>
-              </div>
-            </div>
-          </div>
-
+        {/* BOTTOM: Ultra-compact KPI Cards (ความจุ, รับเข้า-รับออก, Aging) */}
+        <div className="shrink-0">
+          <ZoneKpiFormalDashboard
+            zoneKey="CY3"
+            items={items}
+            logs={logs}
+          />
         </div>
 
       </div>

@@ -178,66 +178,12 @@ export const StandardZoneViewer: React.FC<StandardZoneViewerProps> = ({
   // =========================================================================
   const a2RailSections: SingleLevelSectionConfig[] = [
     {
-      id: 'BANK_4',
-      title: 'Block 4: ราง R16 - R20 (5 ราง x 8 ช่อง = 40 พาเลท)',
-      subtitle: 'ระบบลูกกลิ้งไหล FIFO ทิศทาง In -> Out',
-      locatorPrefix: 'DA2D-1-R16-20',
+      id: 'A2_FLOW_ALL',
+      title: 'ผังรวมรางเลื่อน R1 - R14 (14 ราง x 8 ช่อง = 112 พาเลท)',
+      subtitle: 'ระบบลูกกลิ้งไหลต่อเนื่อง FIFO (Single Compact Grid)',
+      locatorPrefix: 'DA2D-1-R1-14',
       columns: 8,
-      slots: [20, 19, 18, 17, 16].flatMap((railNum) =>
-        Array.from({ length: 8 }, (_, idx) => ({
-          id: `R${railNum}-${idx + 1}`,
-          locatorCode: `DA2D-1-R${railNum}-${String(idx + 1).padStart(2, '0')}`,
-          displayCode: `R${railNum}-${String(idx + 1).padStart(2, '0')}`,
-          zone: `R${railNum}`,
-          bayNumber: idx + 1,
-          groupOrRow: railNum,
-          columnNumber: idx + 1
-        }))
-      )
-    },
-    {
-      id: 'BANK_3',
-      title: 'Block 3: ราง R11 - R15 (5 ราง x 8 ช่อง = 40 พาเลท)',
-      subtitle: 'ระบบลูกกลิ้งไหล FIFO ทิศทาง In -> Out',
-      locatorPrefix: 'DA2D-1-R11-15',
-      columns: 8,
-      slots: [15, 14, 13, 12, 11].flatMap((railNum) =>
-        Array.from({ length: 8 }, (_, idx) => ({
-          id: `R${railNum}-${idx + 1}`,
-          locatorCode: `DA2D-1-R${railNum}-${String(idx + 1).padStart(2, '0')}`,
-          displayCode: `R${railNum}-${String(idx + 1).padStart(2, '0')}`,
-          zone: `R${railNum}`,
-          bayNumber: idx + 1,
-          groupOrRow: railNum,
-          columnNumber: idx + 1
-        }))
-      )
-    },
-    {
-      id: 'BANK_2',
-      title: 'Block 2: ราง R6 - R10 (5 ราง x 8 ช่อง = 40 พาเลท)',
-      subtitle: 'ระบบลูกกลิ้งไหล FIFO ทิศทาง In -> Out',
-      locatorPrefix: 'DA2D-1-R6-10',
-      columns: 8,
-      slots: [10, 9, 8, 7, 6].flatMap((railNum) =>
-        Array.from({ length: 8 }, (_, idx) => ({
-          id: `R${railNum}-${idx + 1}`,
-          locatorCode: `DA2D-1-R${railNum}-${String(idx + 1).padStart(2, '0')}`,
-          displayCode: `R${railNum}-${String(idx + 1).padStart(2, '0')}`,
-          zone: `R${railNum}`,
-          bayNumber: idx + 1,
-          groupOrRow: railNum,
-          columnNumber: idx + 1
-        }))
-      )
-    },
-    {
-      id: 'BANK_1',
-      title: 'Block 1: ราง R1 - R5 (5 ราง x 8 ช่อง = 40 พาเลท)',
-      subtitle: 'ระบบลูกกลิ้งไหล FIFO ทิศทาง In -> Out',
-      locatorPrefix: 'DA2D-1-R1-5',
-      columns: 8,
-      slots: [5, 4, 3, 2, 1].flatMap((railNum) =>
+      slots: [14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1].flatMap((railNum) =>
         Array.from({ length: 8 }, (_, idx) => ({
           id: `R${railNum}-${idx + 1}`,
           locatorCode: `DA2D-1-R${railNum}-${String(idx + 1).padStart(2, '0')}`,

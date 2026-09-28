@@ -8,21 +8,19 @@ import { RackLayout2D } from './components/RackLayout2D';
 import { Rack3DViewer } from './components/Rack3DViewer';
 import { QuickScannerModal } from './components/QuickScannerModal';
 import { VinylWrappingActionModal } from './components/VinylWrappingActionModal';
-import { NotificationCenter } from './components/NotificationCenter';
 import { MovementLogsTable } from './components/MovementLogsTable';
 import { AgingFifoPanel } from './components/AgingFifoPanel';
 import { InventoryListPanel } from './components/InventoryListPanel';
 import { LabelPrinterPanel } from './components/LabelPrinterPanel';
 import { MasterListPanel } from './components/MasterListPanel';
 import { FlowRailFloorMap } from './components/FlowRailFloorMap';
-import { CampusMasterOverview } from './components/CampusMasterOverview';
 import { A5TentFloorStagingMap } from './components/A5TentFloorStagingMap';
 import { CY3TentRackMap } from './components/CY3TentRackMap';
 import { DA4D1FloorStagingMap } from './components/DA4D1FloorStagingMap';
-import { MasterBlueprintLayout } from './components/MasterBlueprintLayout';
-import { TopKpiSummaryBar } from './components/TopKpiSummaryBar';
+import { Campus3DCockpitView } from './components/Campus3DCockpitView';
 import { GlobalSearchZoneLookup } from './components/GlobalSearchZoneLookup';
 import { calculateVinylWrappingStatus, getBangkokDateString } from './utils/vinylWrappingRule';
+import { Search, X } from 'lucide-react';
 
 // Extract initial master data from INITIAL_ITEMS
 const initialMasterData: MasterDataItem[] = Array.from(new Set(INITIAL_ITEMS.map(i => i.modelHE))).map(modelHE => {
@@ -51,6 +49,13 @@ const initialZoneCapacities: ZoneCapacityMaster[] = [
 export default function App() {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<string>('blueprint');
+  const [showZoneTopSearch, setShowZoneTopSearch] = useState<boolean>(false);
+  const isZoneTab = ['blueprint', 'dashboard', 'campus_overview', 'a4_floor', 'a4_rack', 'layout', 'flow_floor', 'tent_layout', 'cy3_layout'].includes(activeTab);
+
+  // Auto-close zone top search dropdown when switching tabs
+  useEffect(() => {
+    setShowZoneTopSearch(false);
+  }, [activeTab]);
   const [activeStation, setActiveStation] = useState<string>('ALL');
   const [language, setLanguage] = useState<string>('th');
   const [themeMode, setThemeMode] = useState<'light' | 'dark'>(() => {
@@ -79,8 +84,8 @@ export default function App() {
   const [logs, setLogs] = useState<MovementLog[]>(INITIAL_LOGS);
   const [stats, setStats] = useState<WmsStats>(INITIAL_STATS);
   const [globalSearchQuery, setGlobalSearchQuery] = useState<string>('');
-  const [a4InitialTab, setA4InitialTab] = useState<'FLOOR_DA4D1' | 'RACK_ZONES' | 'FULL3D'>('FLOOR_DA4D1');
-  const [a5InitialTent, setA5InitialTent] = useState<number>(1);
+  const [a4InitialTab, setA4InitialTab] = useState<'FLOOR_DA4D1' | 'RACK_ZONES' | 'FULL3D'>('FULL3D');
+  const [a5InitialTent, setA5InitialTent] = useState<number | undefined>(undefined);
 
   // Dynamic Aging Threshold Config State (New 5-Level 28-day standard)
   const [agingConfig, setAgingConfig] = useState<AgingThresholdConfig>(() => {
@@ -155,19 +160,16 @@ export default function App() {
 
   // Handle drill-down navigation from Master Campus overview to specific building/zone
   const handleCampusZoneNavigation = (target: 'A4_MACRO' | 'A4_RACK' | 'A4_FLOOR' | 'A4_3D' | 'A2_RAIL' | 'A2_MACRO' | 'A2_SPLIT' | 'A5_TENT' | 'A5_MACRO' | 'CY3_TENT', tentNum?: number) => {
-    if (target === 'A4_RACK') {
-      setA4InitialTab('RACK_ZONES');
+    if (target === 'A4_RACK' || target === 'A4_3D') {
+      setA4InitialTab('FULL3D');
       setActiveTab('a4_rack');
     } else if (target === 'A4_FLOOR' || target === 'A4_MACRO') {
       setA4InitialTab('FLOOR_DA4D1');
       setActiveTab('a4_floor');
-    } else if (target === 'A4_3D') {
-      setA4InitialTab('FULL3D');
-      setActiveTab('a4_rack');
     } else if (target === 'A2_RAIL' || target === 'A2_MACRO' || target === 'A2_SPLIT') {
       setActiveTab('flow_floor');
     } else if (target === 'A5_TENT' || target === 'A5_MACRO') {
-      if (tentNum) setA5InitialTent(tentNum);
+      setA5InitialTent(tentNum);
       setActiveTab('tent_layout');
     } else if (target === 'CY3_TENT') {
       setActiveTab('cy3_layout');
@@ -550,10 +552,24 @@ export default function App() {
       />
 
       {/* Flexible Right Main Content Wrapper */}
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden w-full">
-        {/* Sticky & Locked Top Bar (Locked on Scroll) */}
-        {!isFullscreen && (
-          <div className="shrink-0 sticky top-0 z-30 bg-slate-900 border-b border-slate-800 shadow-md">
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden w-full relative">
+        {/* Floating Quick Search & Tools Pill for Zone Views (When top bar is hidden) */}
+        {isZoneTab && !showZoneTopSearch && !isFullscreen && (
+          <div className="absolute top-2.5 right-4 z-30 animate-fadeIn pointer-events-auto">
+            <button
+              onClick={() => setShowZoneTopSearch(true)}
+              className="px-2.5 py-1 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-xs font-bold text-slate-300 hover:text-white shadow-lg backdrop-blur-xs flex items-center gap-1.5 transition-all active:scale-95 group"
+              title="เปิดแถบค้นหาและส่งออก Excel"
+            >
+              <Search className="w-3.5 h-3.5 text-blue-400 group-hover:scale-110 transition-transform" />
+              <span className="hidden sm:inline">ค้นหา / Export</span>
+            </button>
+          </div>
+        )}
+
+        {/* Sticky Top Bar: Hidden on Zone Pages by Default (matching Full Screen), Shown on Data Tables (Inventory, Logs, Master, Printer) or when toggled */}
+        {!isFullscreen && (!isZoneTab || showZoneTopSearch) && (
+          <div className="shrink-0 sticky top-0 z-30 bg-slate-900 border-b border-slate-800 shadow-md animate-fadeIn">
             <header className="px-2.5 sm:px-4 py-1 sm:py-1.5 flex items-center justify-between gap-2 sm:gap-3 w-full">
               <div className="flex items-center space-x-1.5 sm:space-x-2 min-w-0 shrink-0">
                 <span className="sm:hidden text-xs font-black text-slate-100 truncate">
@@ -581,7 +597,7 @@ export default function App() {
                 />
               </div>
 
-              <div className="flex items-center space-x-2 shrink-0">
+              <div className="flex items-center space-x-1.5 shrink-0">
                 <button
                   onClick={() => {
                     // Global export inventory to Excel
@@ -612,58 +628,47 @@ export default function App() {
                   <span className="sm:hidden">📊 CSV</span>
                   <span className="hidden sm:inline">📊 {t('common.exportExcel')}</span>
                 </button>
+
+                {/* Close Search Bar Button when opened on Zone Views */}
+                {isZoneTab && showZoneTopSearch && (
+                  <button
+                    onClick={() => setShowZoneTopSearch(false)}
+                    className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 transition-colors"
+                    title="ซ่อนแถบค้นหา (กลับสู่โหมดเต็มผัง)"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </header>
-
-            {/* Unified Global Top KPI Summary Bar (Locked at Top, Hidden on printer and master tabs) */}
-            {activeTab !== 'printer' && activeTab !== 'master' && (
-              <div className="px-2 sm:px-3 lg:px-4 py-1 sm:py-1.5 bg-slate-950/95 border-t border-slate-800/80">
-                <TopKpiSummaryBar
-                  items={items}
-                  logs={logs}
-                  stats={stats}
-                  activeTab={activeTab}
-                  activeFacilityId={activeFacilityId}
-                  agingConfig={agingConfig}
-                  onSelectFilter={(tab) => setActiveTab(tab === 'aging' ? 'inventory' : tab)}
-                  onNavigateToLayout={(target) => handleCampusZoneNavigation(target as any)}
-                />
-              </div>
-            )}
           </div>
         )}
 
-        {/* Scrollable Main Content Container */}
-        <main className="w-full flex-1 overflow-y-auto overflow-x-hidden px-2 sm:px-3 lg:px-4 py-2 sm:py-2.5 space-y-3 transition-all">
+        {/* Main Content Container (No window scroll on Zone Views, fits screen perfectly) */}
+        <main className={`w-full flex-1 ${isZoneTab ? 'overflow-hidden p-1 sm:p-1.5' : 'overflow-y-auto px-2 sm:px-3 lg:px-4 py-2 sm:py-2.5 space-y-3'} transition-all flex flex-col min-h-0`}>
 
-          {/* Dynamic Tab Views: Unified Master Map ("ผังรวม") */}
+          {/* Dynamic Tab Views: Unified Master Map ("ผังรวม") - Pure 3D Digital Twin Layout */}
           {(activeTab === 'blueprint' || activeTab === 'dashboard' || activeTab === 'campus_overview') && (
-            <div className="space-y-6 animate-fadeIn">
-              <CampusMasterOverview
+            <div className="w-full h-full flex-1 min-h-0 flex flex-col overflow-hidden animate-fadeIn">
+              <Campus3DCockpitView
                 items={displayedItems}
                 facilities={facilities}
                 stats={stats}
                 lowStockCount={lowStockCount}
                 logs={logs}
                 agingConfig={agingConfig}
-                customSlots={customSlots}
                 onNavigateToZone={handleCampusZoneNavigation}
-                onOpenScanner={(z, b, l, m) => handleOpenScanner(z, b, l, m)}
-                onOpen3D={(z, b) => handleOpen3DForBay(z, b)}
-                onRelocateItem={(item) => {
-                  setActiveTab('master');
-                }}
-                onSelectFilter={(tab) => setActiveTab(tab === 'aging' ? 'inventory' : tab)}
-                onOpenPrinter={() => setActiveTab('printer')}
+                onOpenScanner={(z, b, l, m) => handleOpenScanner(z as any, b, l as any, m || 'IN')}
               />
             </div>
           )}
 
           {/* 🟨 SEPARATE VIEW 1: A4 FLOOR STAGING (DA4D-1 432 Pallets) */}
           {activeTab === 'a4_floor' && (
-            <div className="space-y-4 animate-fadeIn">
+            <div className="w-full h-full flex-1 min-h-0 flex flex-col overflow-hidden animate-fadeIn">
               <DA4D1FloorStagingMap
                 items={displayedItems}
+                logs={logs}
                 searchQuery={globalSearchQuery}
                 onOpenScanner={(z, b, l, m) => handleOpenScanner(z, b, l, m)}
                 onRelocateItem={(item) => {
@@ -679,9 +684,10 @@ export default function App() {
 
           {/* 🏗️ SEPARATE VIEW 2: A4 SELECTIVE RACKS (DA4D-2 & DA4D-3 680 Pallets) */}
           {(activeTab === 'a4_rack' || activeTab === 'layout') && (
-            <div className="space-y-6 animate-fadeIn">
+            <div className="w-full h-full flex-1 min-h-0 flex flex-col overflow-hidden animate-fadeIn">
               <RackLayout2D
                 items={displayedItems}
+                logs={logs}
                 searchQuery={globalSearchQuery}
                 initialSectionTab={a4InitialTab}
                 onSelectBay={(z, b) => handleOpen3DForBay(z, b)}
@@ -698,9 +704,10 @@ export default function App() {
           )}
 
           {activeTab === 'flow_floor' && (
-            <div className="space-y-6 animate-fadeIn">
+            <div className="w-full h-full flex-1 min-h-0 flex flex-col overflow-hidden animate-fadeIn">
               <FlowRailFloorMap
                 items={displayedItems}
+                logs={logs}
                 searchQuery={globalSearchQuery}
                 onSelectSlot={(st, z, b, l) => {
                   setScannerZone(z as StorageZone);
@@ -717,9 +724,10 @@ export default function App() {
           )}
 
           {activeTab === 'tent_layout' && (
-            <div className="space-y-6 animate-fadeIn">
+            <div className="w-full h-full flex-1 min-h-0 flex flex-col overflow-hidden animate-fadeIn">
               <A5TentFloorStagingMap
                 items={displayedItems}
+                logs={logs}
                 searchQuery={globalSearchQuery}
                 initialTentNumber={a5InitialTent}
                 onSelectSlot={(tentId, groupNumber, rowCode, columnNumber) => {
@@ -738,9 +746,10 @@ export default function App() {
           )}
 
           {activeTab === 'cy3_layout' && (
-            <div className="space-y-6 animate-fadeIn">
+            <div className="w-full h-full flex-1 min-h-0 flex flex-col overflow-hidden animate-fadeIn">
               <CY3TentRackMap
                 items={displayedItems}
+                logs={logs}
                 searchQuery={globalSearchQuery}
                 onOpenScanner={(z, b, l, m) => handleOpenScanner(z, b, l, m)}
                 onRelocateItem={(item) => {
@@ -876,9 +885,6 @@ export default function App() {
         onClose={() => setActiveVinylItem(null)}
         onSave={handleVinylActionSave}
       />
-      
-      {/* Floating Notification Center */}
-      <NotificationCenter items={items} />
     </div>
   );
 }

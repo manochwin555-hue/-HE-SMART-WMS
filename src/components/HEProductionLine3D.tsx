@@ -257,7 +257,7 @@ export const HEProductionLine3DModal: React.FC<HEProductionLine3DModalProps> = (
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
 
     mountRef.current.innerHTML = '';
     mountRef.current.appendChild(renderer.domElement);

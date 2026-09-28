@@ -635,229 +635,253 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
         </div>
       </div>
 
-      {/* 📊 AGING 5-LEVEL SUMMARY CARDS DASHBOARD (Interactive Filter) */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2 text-xs font-bold text-slate-700">
-            <ClockAlert className="w-4 h-4 text-amber-600" />
-            <span>สรุปสถานะอายุสต็อก 5 ระดับ (ตามเกณฑ์ Vinyl Wrapping &amp; กฎ 28 วัน)</span>
-            <span className="text-[10px] text-slate-400 font-normal">
-              (คลิกการ์ดเพื่อกรองตารางทันที)
-            </span>
+      {/* 📊 UNIFIED COMPACT STATUS TABS BAR (Stock & Aging Status Tabs) */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-2 sm:p-2.5 shadow-sm space-y-2">
+        <div className="flex items-center justify-between px-1">
+          <div className="flex items-center space-x-2 text-xs font-bold text-slate-300">
+            <ClockAlert className="w-3.5 h-3.5 text-amber-400" />
+            <span>สถานะสต็อก &amp; อายุจัดเก็บ (Aging 5 ระดับ + Safety Stock)</span>
+            <span className="text-[10px] text-slate-400 hidden sm:inline">(คลิกแท็บเพื่อกรองทันที)</span>
           </div>
-          {agingFilter !== 'ALL' && (
+          {(agingFilter !== 'ALL' || filterMode !== 'ALL') && (
             <button
-              onClick={() => setAgingFilter('ALL')}
-              className="text-[11px] font-bold text-blue-600 hover:text-blue-800 inline-flex items-center space-x-1"
+              onClick={() => {
+                setAgingFilter('ALL');
+                setFilterMode('ALL');
+              }}
+              className="text-[11px] font-bold text-blue-400 hover:text-blue-300 inline-flex items-center space-x-1"
             >
-              <span>กำลังกรอง: {agingFilter}</span>
+              <span>รีเซ็ตตัวกรองสถานะ</span>
               <X className="w-3 h-3 ml-0.5" />
             </button>
           )}
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-          {/* Card 1: NORMAL (0-21 วัน) */}
-          <div
-            onClick={() => setAgingFilter(prev => prev === 'NORMAL' ? 'ALL' : 'NORMAL')}
-            className={`rounded-xl p-2.5 border transition-all cursor-pointer select-none relative overflow-hidden ${
-              agingFilter === 'NORMAL'
-                ? 'ring-2 ring-emerald-500 bg-emerald-100/70 border-emerald-500 shadow-sm'
-                : 'bg-emerald-50/50 hover:bg-emerald-50 border-emerald-200'
+        {/* Compact Horizontal Status Pill Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-1.5">
+          {/* 1. All Items */}
+          <button
+            type="button"
+            onClick={() => {
+              setFilterMode('ALL');
+              setAgingFilter('ALL');
+            }}
+            className={`p-1.5 sm:p-2 rounded-lg border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
+              filterMode === 'ALL' && agingFilter === 'ALL'
+                ? 'bg-blue-600/20 border-blue-500 text-white ring-1 ring-blue-500'
+                : 'bg-slate-800/80 border-slate-700/80 text-slate-300 hover:bg-slate-800 hover:border-slate-600'
             }`}
           >
-            <div className="flex items-center justify-between">
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-600 text-white">
+            <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
+              <span className="truncate">ทั้งหมด (ALL)</span>
+              <Boxes className="w-3 h-3 text-slate-400" />
+            </div>
+            <div className="mt-1 flex items-baseline justify-between">
+              <span className="text-base sm:text-lg font-black font-mono text-white leading-none">
+                {items.length}
+              </span>
+              <span className="text-[10px] text-slate-400 font-mono">100%</span>
+            </div>
+          </button>
+
+          {/* 2. Normal (0-21 Days) */}
+          <button
+            type="button"
+            onClick={() => {
+              setFilterMode('ALL');
+              setAgingFilter(prev => prev === 'NORMAL' ? 'ALL' : 'NORMAL');
+            }}
+            className={`p-1.5 sm:p-2 rounded-lg border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
+              agingFilter === 'NORMAL'
+                ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 ring-1 ring-emerald-500'
+                : 'bg-slate-800/80 border-slate-700/80 text-slate-300 hover:bg-emerald-950/30 hover:border-emerald-700/60'
+            }`}
+          >
+            <div className="flex items-center justify-between text-[10px] font-bold">
+              <span className="flex items-center gap-1 text-emerald-400 truncate">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
                 1. NORMAL
               </span>
-              <span className="text-[10px] font-bold text-emerald-700">0 - {agingConfig?.safeDaysMax ?? 21} วัน</span>
+              <span className="text-[9px] text-slate-400 font-mono">0-{agingConfig?.safeDaysMax ?? 21}d</span>
             </div>
-            <div className="mt-2 flex items-baseline justify-between">
-              <div className="text-xl font-black font-mono text-emerald-900">
+            <div className="mt-1 flex items-baseline justify-between">
+              <span className="text-base sm:text-lg font-black font-mono text-emerald-400 leading-none">
                 {agingSummaryStats.normal}
-              </div>
-              <div className="text-[11px] font-bold text-emerald-700">
-                {agingSummaryStats.normalPct}%
-              </div>
+              </span>
+              <span className="text-[10px] text-emerald-400/80 font-mono">{agingSummaryStats.normalPct}%</span>
             </div>
-            <div className="text-[10px] text-emerald-700 mt-1 truncate">
-              ปลอดภัย หมุนเวียนปกติ
-            </div>
-            {agingFilter === 'NORMAL' && (
-              <div className="absolute right-1 bottom-1">
-                <Check className="w-3.5 h-3.5 text-emerald-700" />
-              </div>
-            )}
-          </div>
+          </button>
 
-          {/* Card 2: WARNING */}
-          <div
-            onClick={() => setAgingFilter(prev => prev === 'WARNING' ? 'ALL' : 'WARNING')}
-            className={`rounded-xl p-2.5 border transition-all cursor-pointer select-none relative overflow-hidden ${
+          {/* 3. Warning (22-24 Days) */}
+          <button
+            type="button"
+            onClick={() => {
+              setFilterMode('ALL');
+              setAgingFilter(prev => prev === 'WARNING' ? 'ALL' : 'WARNING');
+            }}
+            className={`p-1.5 sm:p-2 rounded-lg border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
               agingFilter === 'WARNING'
-                ? 'ring-2 ring-yellow-500 bg-yellow-100/80 border-yellow-500 shadow-sm'
-                : 'bg-yellow-50/60 hover:bg-yellow-50 border-yellow-200'
+                ? 'bg-yellow-500/20 border-yellow-500 text-yellow-300 ring-1 ring-yellow-500'
+                : 'bg-slate-800/80 border-slate-700/80 text-slate-300 hover:bg-yellow-950/30 hover:border-yellow-700/60'
             }`}
           >
-            <div className="flex items-center justify-between">
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-yellow-600 text-white">
+            <div className="flex items-center justify-between text-[10px] font-bold">
+              <span className="flex items-center gap-1 text-yellow-400 truncate">
+                <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 shrink-0"></span>
                 2. WARNING
               </span>
-              <span className="text-[10px] font-bold text-yellow-800">{agingConfig?.warningDaysMin ?? 22} - {agingConfig?.warningDaysMax ?? 24} วัน</span>
+              <span className="text-[9px] text-slate-400 font-mono">{agingConfig?.warningDaysMin ?? 22}-{agingConfig?.warningDaysMax ?? 24}d</span>
             </div>
-            <div className="mt-2 flex items-baseline justify-between">
-              <div className="text-xl font-black font-mono text-yellow-900">
+            <div className="mt-1 flex items-baseline justify-between">
+              <span className="text-base sm:text-lg font-black font-mono text-yellow-400 leading-none">
                 {agingSummaryStats.warning}
-              </div>
-              <div className="text-[11px] font-bold text-yellow-800">
-                {agingSummaryStats.warningPct}%
-              </div>
+              </span>
+              <span className="text-[10px] text-yellow-400/80 font-mono">{agingSummaryStats.warningPct}%</span>
             </div>
-            <div className="text-[10px] text-yellow-800 mt-1 truncate">
-              เริ่มมีอายุ เตรียมแผนเบิก
-            </div>
-            {agingFilter === 'WARNING' && (
-              <div className="absolute right-1 bottom-1">
-                <Check className="w-3.5 h-3.5 text-yellow-800" />
-              </div>
-            )}
-          </div>
+          </button>
 
-          {/* Card 3: URGENT */}
-          <div
-            onClick={() => setAgingFilter(prev => prev === 'URGENT' ? 'ALL' : 'URGENT')}
-            className={`rounded-xl p-2.5 border transition-all cursor-pointer select-none relative overflow-hidden ${
+          {/* 4. Urgent (25-27 Days) */}
+          <button
+            type="button"
+            onClick={() => {
+              setFilterMode('ALL');
+              setAgingFilter(prev => prev === 'URGENT' ? 'ALL' : 'URGENT');
+            }}
+            className={`p-1.5 sm:p-2 rounded-lg border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
               agingFilter === 'URGENT'
-                ? 'ring-2 ring-amber-500 bg-amber-100/80 border-amber-500 shadow-sm'
-                : 'bg-amber-50/60 hover:bg-amber-50 border-amber-200'
+                ? 'bg-amber-500/20 border-amber-500 text-amber-300 ring-1 ring-amber-500'
+                : 'bg-slate-800/80 border-slate-700/80 text-slate-300 hover:bg-amber-950/30 hover:border-amber-700/60'
             }`}
           >
-            <div className="flex items-center justify-between">
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-600 text-white">
+            <div className="flex items-center justify-between text-[10px] font-bold">
+              <span className="flex items-center gap-1 text-amber-400 truncate">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0"></span>
                 3. URGENT
               </span>
-              <span className="text-[10px] font-bold text-amber-800">{agingConfig?.urgentDaysMin ?? 25} - {agingConfig?.urgentDaysMax ?? 27} วัน</span>
+              <span className="text-[9px] text-slate-400 font-mono">{agingConfig?.urgentDaysMin ?? 25}-{agingConfig?.urgentDaysMax ?? 27}d</span>
             </div>
-            <div className="mt-2 flex items-baseline justify-between">
-              <div className="text-xl font-black font-mono text-amber-900">
+            <div className="mt-1 flex items-baseline justify-between">
+              <span className="text-base sm:text-lg font-black font-mono text-amber-400 leading-none">
                 {agingSummaryStats.urgent}
-              </div>
-              <div className="text-[11px] font-bold text-amber-800">
-                {agingSummaryStats.urgentPct}%
-              </div>
+              </span>
+              <span className="text-[10px] text-amber-400/80 font-mono">{agingSummaryStats.urgentPct}%</span>
             </div>
-            <div className="text-[10px] text-amber-800 mt-1 truncate">
-              เร่งด่วน ระบายเข้าไลน์
-            </div>
-            {agingFilter === 'URGENT' && (
-              <div className="absolute right-1 bottom-1">
-                <Check className="w-3.5 h-3.5 text-amber-800" />
-              </div>
-            )}
-          </div>
+          </button>
 
-          {/* Card 4: DUE TODAY */}
-          <div
-            onClick={() => setAgingFilter(prev => prev === 'DUE_TODAY' ? 'ALL' : 'DUE_TODAY')}
-            className={`rounded-xl p-2.5 border transition-all cursor-pointer select-none relative overflow-hidden ${
+          {/* 5. Due Today (28 Days) */}
+          <button
+            type="button"
+            onClick={() => {
+              setFilterMode('ALL');
+              setAgingFilter(prev => prev === 'DUE_TODAY' ? 'ALL' : 'DUE_TODAY');
+            }}
+            className={`p-1.5 sm:p-2 rounded-lg border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
               agingFilter === 'DUE_TODAY'
-                ? 'ring-2 ring-red-500 bg-red-100/80 border-red-500 shadow-sm'
-                : 'bg-red-50/60 hover:bg-red-50 border-red-200'
+                ? 'bg-red-500/20 border-red-500 text-red-300 ring-1 ring-red-500'
+                : 'bg-slate-800/80 border-slate-700/80 text-slate-300 hover:bg-red-950/30 hover:border-red-700/60'
             }`}
           >
-            <div className="flex items-center justify-between">
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-red-600 text-white">
+            <div className="flex items-center justify-between text-[10px] font-bold">
+              <span className="flex items-center gap-1 text-red-400 truncate">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0"></span>
                 4. DUE TODAY
               </span>
-              <span className="text-[10px] font-bold text-red-800">{agingConfig?.dueDay ?? 28} วัน</span>
+              <span className="text-[9px] text-slate-400 font-mono">{agingConfig?.dueDay ?? 28}d</span>
             </div>
-            <div className="mt-2 flex items-baseline justify-between">
-              <div className="text-xl font-black font-mono text-red-900">
+            <div className="mt-1 flex items-baseline justify-between">
+              <span className="text-base sm:text-lg font-black font-mono text-red-400 leading-none">
                 {agingSummaryStats.dueToday}
-              </div>
-              <div className="text-[11px] font-bold text-red-800">
-                {agingSummaryStats.dueTodayPct}%
-              </div>
+              </span>
+              <span className="text-[10px] text-red-400/80 font-mono">{agingSummaryStats.dueTodayPct}%</span>
             </div>
-            <div className="text-[10px] text-red-800 mt-1 truncate">
-              ครบกำหนด เบิกจ่ายวันนี้
-            </div>
-            {agingFilter === 'DUE_TODAY' && (
-              <div className="absolute right-1 bottom-1">
-                <Check className="w-3.5 h-3.5 text-red-800" />
-              </div>
-            )}
-          </div>
+          </button>
 
-          {/* Card 5: EXPIRED */}
-          <div
-            onClick={() => setAgingFilter(prev => prev === 'EXPIRED' ? 'ALL' : 'EXPIRED')}
-            className={`rounded-xl p-2.5 border transition-all cursor-pointer select-none relative overflow-hidden ${
+          {/* 6. Expired (>28 Days) */}
+          <button
+            type="button"
+            onClick={() => {
+              setFilterMode('ALL');
+              setAgingFilter(prev => prev === 'EXPIRED' ? 'ALL' : 'EXPIRED');
+            }}
+            className={`p-1.5 sm:p-2 rounded-lg border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
               agingFilter === 'EXPIRED'
-                ? 'ring-2 ring-rose-500 bg-rose-100/90 border-rose-500 shadow-sm'
-                : 'bg-rose-50/70 hover:bg-rose-50 border-rose-300'
+                ? 'bg-rose-500/20 border-rose-500 text-rose-300 ring-1 ring-rose-500'
+                : 'bg-slate-800/80 border-slate-700/80 text-slate-300 hover:bg-rose-950/30 hover:border-rose-700/60'
             }`}
           >
-            <div className="flex items-center justify-between">
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-rose-600 text-white">
+            <div className="flex items-center justify-between text-[10px] font-bold">
+              <span className="flex items-center gap-1 text-rose-400 truncate">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-400 shrink-0 animate-pulse"></span>
                 5. EXPIRED
               </span>
-              <span className="text-[10px] font-bold text-rose-800">&gt; {agingConfig?.criticalDays ?? 28} วัน</span>
+              <span className="text-[9px] text-slate-400 font-mono">&gt;{agingConfig?.criticalDays ?? 28}d</span>
             </div>
-            <div className="mt-2 flex items-baseline justify-between">
-              <div className="text-xl font-black font-mono text-rose-900 flex items-center space-x-1">
-                <span>{agingSummaryStats.expired}</span>
-                {agingSummaryStats.expired > 0 && (
-                  <Flame className="w-4 h-4 text-rose-600 animate-pulse" />
-                )}
-              </div>
-              <div className="text-[11px] font-bold text-rose-800">
-                {agingSummaryStats.expiredPct}%
-              </div>
+            <div className="mt-1 flex items-baseline justify-between">
+              <span className="text-base sm:text-lg font-black font-mono text-rose-400 leading-none flex items-center gap-1">
+                {agingSummaryStats.expired}
+                {agingSummaryStats.expired > 0 && <Flame className="w-3 h-3 text-rose-400 animate-pulse" />}
+              </span>
+              <span className="text-[10px] text-rose-400/80 font-mono">{agingSummaryStats.expiredPct}%</span>
             </div>
-            <div className="text-[10px] text-rose-800 mt-1 truncate">
-              เกินเกณฑ์ ตรวจสภาพ/Wrap
-            </div>
-            {agingFilter === 'EXPIRED' && (
-              <div className="absolute right-1 bottom-1">
-                <Check className="w-3.5 h-3.5 text-rose-800" />
-              </div>
-            )}
-          </div>
+          </button>
 
-          {/* Card 6: Rubber Cap Rule Summary */}
-          <div
-            onClick={() => setAgingFilter(prev => prev === 'RUBBER_CAP' ? 'ALL' : 'RUBBER_CAP')}
-            className={`rounded-xl p-2.5 border transition-all cursor-pointer select-none relative overflow-hidden ${
-              agingFilter === 'RUBBER_CAP'
-                ? 'ring-2 ring-indigo-500 bg-indigo-100/90 border-indigo-500 shadow-sm'
-                : 'bg-indigo-50/50 hover:bg-indigo-50 border-indigo-200'
+          {/* 7. Low Stock / Deficit Alert */}
+          <button
+            type="button"
+            onClick={() => {
+              setAgingFilter('ALL');
+              setFilterMode(prev => prev === 'LOW_STOCK' ? 'ALL' : 'LOW_STOCK');
+            }}
+            className={`p-1.5 sm:p-2 rounded-lg border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
+              filterMode === 'LOW_STOCK'
+                ? 'bg-red-500/20 border-red-500 text-red-300 ring-1 ring-red-500'
+                : 'bg-slate-800/80 border-slate-700/80 text-slate-300 hover:bg-red-950/30 hover:border-red-700/60'
             }`}
           >
-            <div className="flex items-center justify-between">
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-indigo-600 text-white flex items-center space-x-1">
-                <Wrench className="w-2.5 h-2.5 mr-0.5" />
-                <span>RUBBER CAP</span>
+            <div className="flex items-center justify-between text-[10px] font-bold">
+              <span className="flex items-center gap-1 text-red-400 truncate">
+                <AlertTriangle className="w-3 h-3 text-red-400 shrink-0" />
+                ขาด Safety
               </span>
-              <span className="text-[10px] font-bold text-indigo-700">จุกยาง</span>
+              <span className="text-[9px] text-slate-400 font-mono">&lt;Deficit</span>
             </div>
-            <div className="mt-2 flex items-baseline justify-between">
-              <div className="text-xl font-black font-mono text-indigo-900">
+            <div className="mt-1 flex items-baseline justify-between">
+              <span className="text-base sm:text-lg font-black font-mono text-red-400 leading-none">
+                {lowStockItems.length}
+              </span>
+              <span className="text-[10px] text-red-400/80 font-mono">
+                {Math.round((lowStockItems.length / (items.length || 1)) * 100)}%
+              </span>
+            </div>
+          </button>
+
+          {/* 8. Rubber Cap */}
+          <button
+            type="button"
+            onClick={() => {
+              setFilterMode('ALL');
+              setAgingFilter(prev => prev === 'RUBBER_CAP' ? 'ALL' : 'RUBBER_CAP');
+            }}
+            className={`p-1.5 sm:p-2 rounded-lg border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
+              agingFilter === 'RUBBER_CAP'
+                ? 'bg-indigo-500/20 border-indigo-500 text-indigo-300 ring-1 ring-indigo-500'
+                : 'bg-slate-800/80 border-slate-700/80 text-slate-300 hover:bg-indigo-950/30 hover:border-indigo-700/60'
+            }`}
+          >
+            <div className="flex items-center justify-between text-[10px] font-bold">
+              <span className="flex items-center gap-1 text-indigo-400 truncate">
+                <Wrench className="w-2.5 h-2.5 text-indigo-400 shrink-0" />
+                จุกยาง
+              </span>
+              <span className="text-[9px] text-slate-400 font-mono">&gt;{agingConfig?.indoorRubberCapDays ?? 28}d</span>
+            </div>
+            <div className="mt-1 flex items-baseline justify-between">
+              <span className="text-base sm:text-lg font-black font-mono text-indigo-400 leading-none">
                 {agingSummaryStats.rubberCapCount}
-              </div>
-              <div className="text-[11px] font-bold text-indigo-700">
-                {agingSummaryStats.rubberCapPct}%
-              </div>
+              </span>
+              <span className="text-[10px] text-indigo-400/80 font-mono">{agingSummaryStats.rubberCapPct}%</span>
             </div>
-            <div className="text-[10px] text-indigo-700 mt-1 truncate">
-              CY3/A5 หรือ &gt;{agingConfig?.indoorRubberCapDays ?? 28} วัน
-            </div>
-            {agingFilter === 'RUBBER_CAP' && (
-              <div className="absolute right-1 bottom-1">
-                <Check className="w-3.5 h-3.5 text-indigo-700" />
-              </div>
-            )}
-          </div>
+          </button>
         </div>
       </div>
 
@@ -1035,64 +1059,35 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
           </div>
         </div>
 
-        {/* Row 2: Status Filter Tabs & Quick Priority Sorters */}
+        {/* Row 2: Quick Priority Sorters & Result Count */}
         <div className="pt-2 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
-          {/* Status Filter Chips */}
+          {/* Quick Sorters */}
           <div className="flex items-center flex-wrap gap-1.5 font-bold">
-            <button
-              onClick={() => setFilterMode('ALL')}
-              className={`px-2.5 py-1 rounded-lg border text-xs transition-all ${
-                filterMode === 'ALL'
-                  ? 'bg-blue-600 text-white border-blue-500 font-black shadow-xs'
-                  : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
-              }`}
-            >
-              ทั้งหมด ({items.length})
-            </button>
-            <button
-              onClick={() => setFilterMode('LOW_STOCK')}
-              className={`px-2.5 py-1 rounded-lg border text-xs transition-all flex items-center space-x-1 ${
-                filterMode === 'LOW_STOCK'
-                  ? 'bg-red-600 text-white border-red-500 font-black shadow-xs'
-                  : 'bg-slate-800 text-red-400 border-slate-700 hover:bg-slate-700'
-              }`}
-            >
-              <AlertTriangle className="w-3.5 h-3.5" />
-              <span>ขาด Safety ({lowStockItems.length})</span>
-            </button>
-            <button
-              onClick={() => setFilterMode('SAFE_STOCK')}
-              className={`px-2.5 py-1 rounded-lg border text-xs transition-all ${
-                filterMode === 'SAFE_STOCK'
-                  ? 'bg-emerald-600 text-white border-emerald-500 font-black shadow-xs'
-                  : 'bg-slate-800 text-emerald-400 border-slate-700 hover:bg-slate-700'
-              }`}
-            >
-              สต็อกปกติ ({items.length - lowStockItems.length})
-            </button>
-
-            <div className="h-4 w-px bg-slate-700 mx-1 hidden sm:block"></div>
+            <span className="text-slate-400 text-[11px] font-semibold flex items-center gap-1 mr-0.5">
+              <ArrowUpDown className="w-3 h-3 text-slate-400" />
+              เรียงด่วน:
+            </span>
 
             {/* Quick Sorters: Featured FIFO Button */}
             <button
               onClick={() => applyPresetSort('AGING_DAYS', 'DESC')}
               className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold transition-all flex items-center space-x-1 ${
                 sortField === 'AGING_DAYS' && sortDirection === 'DESC'
-                  ? 'bg-amber-400 text-slate-950 border-amber-300 font-black shadow-md ring-2 ring-amber-300/60 scale-105'
-                  : 'bg-slate-800/80 text-amber-300 border-amber-600/40 hover:bg-amber-950/40'
+                  ? 'bg-amber-400 text-slate-950 border-amber-300 font-black shadow-xs ring-1 ring-amber-300'
+                  : 'bg-slate-800/90 text-amber-300 border-amber-600/40 hover:bg-amber-950/40'
               }`}
               title="จัดเรียงสินค้าตามหลัก FIFO (ค้างนานสุด/เข้าก่อน อยู่บนสุดเพื่อเบิกจ่ายก่อน)"
             >
               <Clock className="w-3.5 h-3.5" />
-              <span>⏰ เรียง FIFO (เก่าสุดก่อน)</span>
+              <span>⏰ FIFO (เก่าสุดก่อน)</span>
             </button>
 
             <button
               onClick={() => applyPresetSort('AGING_DAYS', 'ASC')}
               className={`px-2 py-1 rounded-lg border text-[11px] font-bold transition-all ${
                 sortField === 'AGING_DAYS' && sortDirection === 'ASC'
-                  ? 'bg-slate-100 text-slate-900 border-white font-black'
-                  : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:bg-slate-700'
+                  ? 'bg-slate-100 text-slate-900 border-white font-black shadow-xs'
+                  : 'bg-slate-800/90 text-slate-300 border-slate-700 hover:bg-slate-700'
               }`}
               title="จัดเรียงสินค้าใหม่สุดก่อน"
             >
@@ -1100,77 +1095,64 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
             </button>
 
             <button
+              onClick={() => applyPresetSort('STATUS', 'ASC')}
+              className={`px-2 py-1 rounded-lg border text-[11px] font-bold transition-all ${
+                sortField === 'STATUS'
+                  ? 'bg-rose-600 text-white border-rose-500 font-black shadow-xs'
+                  : 'bg-slate-800/90 text-slate-300 border-slate-700 hover:bg-slate-700'
+              }`}
+              title="ขาด Safety Stock มากสุด"
+            >
+              ⚠️ ขาด Safety มากสุด
+            </button>
+
+            <button
               onClick={() => applyPresetSort('QTY', 'ASC')}
               className={`px-2 py-1 rounded-lg border text-[11px] font-bold transition-all ${
                 sortField === 'QTY' && sortDirection === 'ASC'
-                  ? 'bg-rose-600 text-white border-rose-500 font-black'
-                  : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:bg-slate-700'
+                  ? 'bg-rose-600 text-white border-rose-500 font-black shadow-xs'
+                  : 'bg-slate-800/90 text-slate-300 border-slate-700 hover:bg-slate-700'
               }`}
             >
-              📉 เหลือน้อย
+              📉 ยอดน้อยสุด
             </button>
+
             <button
               onClick={() => applyPresetSort('LOCATOR', 'ASC')}
               className={`px-2 py-1 rounded-lg border text-[11px] font-bold transition-all ${
                 sortField === 'LOCATOR'
-                  ? 'bg-blue-600 text-white border-blue-500 font-black'
-                  : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:bg-slate-700'
+                  ? 'bg-blue-600 text-white border-blue-500 font-black shadow-xs'
+                  : 'bg-slate-800/90 text-slate-300 border-slate-700 hover:bg-slate-700'
               }`}
             >
-              🏢 ตามพิกัด
-            </button>
-            <button
-              onClick={() => applyPresetSort('MODEL', 'ASC')}
-              className={`px-2 py-1 rounded-lg border text-[11px] font-bold transition-all ${
-                sortField === 'MODEL' && sortDirection === 'ASC'
-                  ? 'bg-indigo-600 text-white border-indigo-500 font-black'
-                  : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:bg-slate-700'
-              }`}
-            >
-              🔤 Model A-Z
+              🏢 พิกัดจัดเก็บ
             </button>
           </div>
 
-          {/* Reset Filters / Sort Button */}
-          <div className="flex items-center gap-1.5 ml-auto">
-            {(zoneFilter !== 'ALL' || lineFilter !== 'ALL' || levelFilter !== 'ALL' || agingFilter !== 'ALL' || facilityFilter !== 'ALL' || searchTerm) && (
+          {/* Reset Filters / Showing stats */}
+          <div className="flex items-center gap-2 ml-auto">
+            <span className="text-[11px] font-mono text-slate-400">
+              แสดง <strong className="text-white font-bold">{filteredAndSortedItems.length}</strong> จาก {items.length} รายการ
+            </span>
+
+            {(zoneFilter !== 'ALL' || lineFilter !== 'ALL' || levelFilter !== 'ALL' || agingFilter !== 'ALL' || filterMode !== 'ALL' || facilityFilter !== 'ALL' || searchTerm) && (
               <button
                 onClick={() => {
                   setZoneFilter('ALL');
                   setLineFilter('ALL');
                   setLevelFilter('ALL');
                   setAgingFilter('ALL');
+                  setFilterMode('ALL');
                   setFacilityFilter('ALL');
                   if (setActiveFacilityId) setActiveFacilityId('ALL');
                   handleSearchChange('');
                 }}
-                className="px-2 py-1 bg-red-900/40 hover:bg-red-900/60 text-red-300 rounded-lg text-[11px] font-bold transition-all border border-red-800"
+                className="px-2 py-1 bg-red-900/40 hover:bg-red-900/60 text-red-300 rounded-lg text-[11px] font-bold transition-all border border-red-800 flex items-center gap-1"
               >
-                ล้างตัวกรอง
+                <X className="w-3 h-3" />
+                <span>ล้างตัวกรองทั้งหมด</span>
               </button>
             )}
-            <button
-              onClick={() => {
-                setSortField('AGING_DAYS');
-                setSortDirection('DESC');
-              }}
-              className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-[11px] font-bold transition-all flex items-center space-x-1 border border-slate-700"
-              title="สลับเป็นเรียง FIFO ด่วน"
-            >
-              <Clock className="w-3 h-3 text-amber-400" />
-              <span>โหมด FIFO</span>
-            </button>
-            <button
-              onClick={() => {
-                setSortField('STATUS');
-                setSortDirection('ASC');
-              }}
-              className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-[11px] font-bold transition-all flex items-center space-x-1 border border-slate-700"
-              title="รีเซ็ตการจัดเรียงเป็นค่าเริ่มต้น"
-            >
-              <RefreshCw className="w-3 h-3" />
-              <span>รีเซ็ต</span>
-            </button>
           </div>
         </div>
       </div>

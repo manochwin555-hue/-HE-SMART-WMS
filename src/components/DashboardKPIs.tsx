@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { WmsStats, MovementLog, InventoryItem } from '../types';
 import { StockVariancePanel } from './StockVariancePanel';
+import { StockSummaryReport } from './StockSummaryReport';
 import { 
   Package, 
   ArrowDownRight, 
@@ -50,6 +51,7 @@ interface DashboardKPIsProps {
 
 const DEFAULT_WIDGET_ORDER = [
   'kpi_cards',
+  'stock_summary_report',
   'stockout_predictor',
   'stock_variance',
   'capacity_status',
@@ -97,8 +99,14 @@ export const DashboardKPIs: React.FC<DashboardKPIsProps> = ({ stats, lowStockCou
       const saved = localStorage.getItem('wms_dashboard_widget_order');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length >= DEFAULT_WIDGET_ORDER.length) {
-          return parsed;
+        if (Array.isArray(parsed)) {
+          const merged = [...parsed];
+          DEFAULT_WIDGET_ORDER.forEach(id => {
+            if (!merged.includes(id)) {
+              merged.splice(1, 0, id);
+            }
+          });
+          return merged;
         }
       }
     } catch (e) {
@@ -549,6 +557,13 @@ export const DashboardKPIs: React.FC<DashboardKPIsProps> = ({ stats, lowStockCou
             </div>
           </div>
         );
+        break;
+
+      case 'stock_summary_report':
+        content = (
+          <StockSummaryReport items={items} onSelectFilter={onSelectFilter} />
+        );
+        gridSpanClass = 'col-span-1 sm:col-span-2 lg:col-span-6';
         break;
 
       case 'stockout_predictor':

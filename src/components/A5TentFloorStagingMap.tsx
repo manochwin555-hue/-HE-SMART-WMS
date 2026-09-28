@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { InventoryItem, MovementType, ShelfLevel, StorageZone } from '../types';
+import { InventoryItem, MovementType, ShelfLevel, StorageZone, MovementLog } from '../types';
 import { UnifiedSlotModal, UnifiedSlotData } from './UnifiedSlotModal';
 import { SlotMiniStatsOverlay, MiniStatsSlotData } from './SlotMiniStatsOverlay';
 import { WarehouseSlotFilter } from './common/WarehouseSlotFilter';
+import { A5CanopyTents3DView } from './zone-3d/A5CanopyTents3DView';
+import { ZoneKpiFormalDashboard } from './ZoneKpiFormalDashboard';
 import { useTranslation } from '../i18n/i18nContext';
 import { 
   Building2, 
@@ -28,11 +30,13 @@ import {
   ArrowUpRight,
   Flame,
   Clock,
-  X
+  X,
+  LayoutGrid
 } from 'lucide-react';
 
 interface A5TentFloorStagingMapProps {
   items: InventoryItem[];
+  logs?: MovementLog[];
   searchQuery?: string;
   onSelectSlot?: (tentId: string, groupNumber: number, rowCode: string, columnNumber: number) => void;
   onOpenScanner: (zone: StorageZone, bay: number, level: ShelfLevel, mode: MovementType) => void;
@@ -89,15 +93,16 @@ const GROUP_NUMBERS = [1, 2, 3, 4, 5, 6, 7]; // 7 groups per tent
 
 export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
   items,
+  logs,
   searchQuery = '',
   onSelectSlot,
   onOpenScanner,
   onRelocateItem,
   onNavigateToCampus,
-  initialTentNumber = 1
+  initialTentNumber
 }) => {
   const { t } = useTranslation();
-  const [selectedTent, setSelectedTent] = useState<number>(initialTentNumber);
+  const [selectedTent, setSelectedTent] = useState<number>(initialTentNumber || 1);
 
   React.useEffect(() => {
     if (initialTentNumber) {
@@ -105,7 +110,7 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
       setViewMode('TENT_DETAIL');
     }
   }, [initialTentNumber]);
-  const [viewMode, setViewMode] = useState<'OVERVIEW_4_TENTS' | 'TENT_DETAIL'>('TENT_DETAIL');
+  const [viewMode, setViewMode] = useState<'3D_CANOPY_TENTS' | 'OVERVIEW_4_TENTS' | 'TENT_DETAIL'>('3D_CANOPY_TENTS');
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'OCCUPIED' | 'EMPTY' | 'AGING'>('ALL');
   const [localSearch, setLocalSearch] = useState<string>(searchQuery);
   const [selectedSlotData, setSelectedSlotData] = useState<{
@@ -257,9 +262,9 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
   const currentTentConfig = TENTS.find(t => t.number === selectedTent) || TENTS[0];
 
   return (
-    <div className="space-y-2">
+    <div className="w-full h-full flex flex-col min-h-0 space-y-1.5 overflow-hidden animate-fadeIn">
       {/* ULTRA-COMPACT ENTERPRISE TOOLBAR: HEIGHT <= 36px */}
-      <div className="h-9 px-2 sm:px-2.5 bg-slate-900 border border-slate-800 rounded-lg text-white shadow-xs flex items-center justify-between gap-1.5 overflow-x-auto">
+      <div className="h-9 px-2 sm:px-2.5 bg-slate-900 border border-slate-800 rounded-lg text-white shadow-xs flex items-center justify-between gap-1.5 overflow-x-auto shrink-0">
         
         {/* Left Group: Back + Title + Segmented Tent Switcher & Status Controls */}
         <div className="flex items-center gap-1.5 shrink-0">
@@ -287,12 +292,25 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
           {/* View & Tent Selector: Single Segmented Group (H: 26px, Font: 11px, Pad: 2px 8px) */}
           <div className="inline-flex items-center bg-slate-800 p-0.5 rounded-md border border-slate-700 h-[26px] shrink-0">
             <button
+              onClick={() => setViewMode('3D_CANOPY_TENTS')}
+              className={`h-[22px] px-2 py-0.5 rounded text-[10.5px] font-bold transition-colors flex items-center gap-1 ${
+                viewMode === '3D_CANOPY_TENTS'
+                  ? 'bg-indigo-600 text-white font-black shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+              }`}
+              title="แสดงโมเดล 3D เต็นท์ผ้าใบ (784P)"
+            >
+              <Box className="w-3 h-3" />
+              <span>3D เต็นท์ผ้าใบ (784P)</span>
+            </button>
+            <button
               onClick={() => setViewMode('OVERVIEW_4_TENTS')}
-              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex items-center gap-1 ${
+              className={`h-[22px] px-2 py-0.5 rounded text-[10.5px] font-bold transition-colors flex items-center gap-1 ${
                 viewMode === 'OVERVIEW_4_TENTS'
                   ? 'bg-blue-600 text-white font-black shadow-xs'
                   : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
               }`}
+              title="ภาพรวม 4 เต็นท์ (Site Layout 2D)"
             >
               <Grid className="w-3 h-3" />
               <span>{t('warehouse.campusOverview')}</span>
@@ -304,7 +322,7 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
                   setSelectedTent(t.number);
                   setViewMode('TENT_DETAIL');
                 }}
-                className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
+                className={`h-[22px] px-2 py-0.5 rounded text-[10.5px] font-bold transition-colors ${
                   viewMode === 'TENT_DETAIL' && selectedTent === t.number
                     ? 'bg-emerald-600 text-white font-black shadow-xs'
                     : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
@@ -360,11 +378,28 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
         </div>
       </div>
 
+      {/* MAIN CONTAINER: Layout on Top (flex-1) + Ultra-compact KPI Cards at Bottom (shrink-0) */}
+      <div className="flex-1 min-h-0 flex flex-col gap-1.5 overflow-hidden">
+        {/* TOP: 3D Twin or 2D Site / Tent Detail Plan */}
+        <div className="flex-1 min-h-0 overflow-hidden bg-slate-950 rounded-xl border border-slate-800">
+          {/* VIEW 1: 3D CANOPY TENTS FULL VIEWPORT */}
+          {viewMode === '3D_CANOPY_TENTS' && (
+            <A5CanopyTents3DView
+              items={items}
+              searchQuery={activeSearch}
+              onSelectSlot={(tent, grp, row, col) => {
+                handleCellClick(tent, grp, `R${row}`, col);
+              }}
+              onOpenScanner={onOpenScanner}
+            />
+          )}
+
       {/* ========================================================================= */}
       {/* VIEW 1: OVERVIEW OF ALL 4 TENTS (SITE LAYOUT MATCHING IMAGE 1)             */}
       {/* ========================================================================= */}
       {viewMode === 'OVERVIEW_4_TENTS' && (
-        <div className="bg-slate-900 p-6 rounded-2xl border-2 border-dashed border-blue-500/80 shadow-2xl text-center space-y-6">
+        <div className="w-full h-full min-h-0 overflow-y-auto p-3 sm:p-4">
+          <div className="bg-slate-900 p-4 sm:p-6 rounded-2xl border-2 border-dashed border-blue-500/80 shadow-2xl text-center space-y-4 max-w-5xl mx-auto">
           <div className="flex items-center justify-between">
             <div className="text-left">
               <span className="px-2.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-mono text-[10px] font-black border border-blue-500/30">
@@ -409,19 +444,21 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
                 }}
                 className="bg-amber-50/10 hover:bg-amber-50/20 border-4 border-red-600 rounded-md p-4 transition-all cursor-pointer group shadow-lg hover:border-red-400 text-left relative overflow-hidden"
               >
-                {/* Black square structural pillars around border */}
-                <div className="absolute top-0 left-0 w-3 h-3 bg-slate-800 border border-white" />
-                <div className="absolute top-0 right-0 w-3 h-3 bg-slate-800 border border-white" />
-                <div className="absolute bottom-0 left-0 w-3 h-3 bg-slate-800 border border-white" />
-                <div className="absolute bottom-0 right-0 w-3 h-3 bg-slate-800 border border-white" />
-                <div className="absolute top-0 left-1/4 w-2.5 h-2.5 bg-slate-800 border border-white" />
-                <div className="absolute top-0 left-2/4 w-2.5 h-2.5 bg-slate-800 border border-white" />
-                <div className="absolute top-0 left-3/4 w-2.5 h-2.5 bg-slate-800 border border-white" />
-                <div className="absolute bottom-0 left-1/4 w-2.5 h-2.5 bg-slate-800 border border-white" />
-                <div className="absolute bottom-0 left-2/4 w-2.5 h-2.5 bg-slate-800 border border-white" />
-                <div className="absolute bottom-0 left-3/4 w-2.5 h-2.5 bg-slate-800 border border-white" />
+                {/* 8 Structural Pillars on Top & 8 on Bottom (matching Blueprint Image 2) */}
+                {[0, 14.3, 28.6, 42.9, 57.1, 71.4, 85.7, 100].map((pct, idx) => (
+                  <React.Fragment key={`t2-pillar-${idx}`}>
+                    <div 
+                      className="absolute top-0 w-3 h-3 bg-slate-800 border border-slate-400 -translate-x-1/2 z-20 shadow-xs" 
+                      style={{ left: `${pct}%` }} 
+                    />
+                    <div 
+                      className="absolute bottom-0 w-3 h-3 bg-slate-800 border border-slate-400 -translate-x-1/2 z-20 shadow-xs" 
+                      style={{ left: `${pct}%` }} 
+                    />
+                  </React.Fragment>
+                ))}
 
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-3 relative z-10">
                   <div className="px-4 py-1.5 bg-purple-200 text-purple-900 border-2 border-purple-400 rounded font-black text-sm shadow-sm group-hover:scale-105 transition-transform">
                     A5 Tent No. 2
                   </div>
@@ -431,16 +468,23 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
                 </div>
 
                 {/* 7 Columns Miniature Representation */}
-                <div className="grid grid-cols-7 gap-1.5 bg-amber-200/30 p-2 rounded border border-amber-300/40">
+                <div className="relative grid grid-cols-7 gap-1.5 bg-amber-200/30 p-2 rounded border border-amber-300/40 z-10">
                   {GROUP_NUMBERS.map(grp => (
                     <div key={grp} className="bg-amber-100/80 hover:bg-amber-200 border border-amber-400/80 rounded py-3 text-center transition-colors">
                       <span className="text-[9px] font-black text-slate-800 block">0{grp}</span>
                       <span className="text-[8px] font-semibold text-slate-600">28P</span>
                     </div>
                   ))}
+                  
+                  {/* Center Blueprint Badge */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="px-3 py-0.5 bg-sky-50/90 border border-slate-700 text-slate-800 font-mono text-[10px] font-bold rounded shadow-sm">
+                      (7 x 4) x 7 = 196 Pallet
+                    </div>
+                  </div>
                 </div>
 
-                <div className="mt-3 flex items-center justify-between text-xs text-slate-300">
+                <div className="mt-3 flex items-center justify-between text-xs text-slate-300 relative z-10">
                   <span>{t('legends.occupiedSlot')}: <strong className="text-white">{stats.perTent[2].occupied} / 196</strong> Pallets</span>
                   <span className="text-blue-400 group-hover:underline flex items-center space-x-1 font-bold">
                     <span>{t('common.details')}</span>
@@ -457,41 +501,47 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
                 }}
                 className="bg-amber-50/10 hover:bg-amber-50/20 border-4 border-red-600 rounded-md p-4 transition-all cursor-pointer group shadow-lg hover:border-red-400 text-left relative overflow-hidden"
               >
-                {/* Structural pillars */}
-                <div className="absolute top-0 left-0 w-3 h-3 bg-slate-800 border border-white" />
-                <div className="absolute top-0 right-0 w-3 h-3 bg-slate-800 border border-white" />
-                <div className="absolute bottom-0 left-0 w-3 h-3 bg-slate-800 border border-white" />
-                <div className="absolute bottom-0 right-0 w-3 h-3 bg-slate-800 border border-white" />
-                <div className="absolute top-0 left-1/4 w-2.5 h-2.5 bg-slate-800 border border-white" />
-                <div className="absolute top-0 left-2/4 w-2.5 h-2.5 bg-slate-800 border border-white" />
-                <div className="absolute top-0 left-3/4 w-2.5 h-2.5 bg-slate-800 border border-white" />
-                <div className="absolute bottom-0 left-1/4 w-2.5 h-2.5 bg-slate-800 border border-white" />
-                <div className="absolute bottom-0 left-2/4 w-2.5 h-2.5 bg-slate-800 border border-white" />
-                <div className="absolute bottom-0 left-3/4 w-2.5 h-2.5 bg-slate-800 border border-white" />
+                {/* 8 Structural Pillars on Top & 8 on Bottom */}
+                {[0, 14.3, 28.6, 42.9, 57.1, 71.4, 85.7, 100].map((pct, idx) => (
+                  <React.Fragment key={`t4-pillar-${idx}`}>
+                    <div 
+                      className="absolute top-0 w-3 h-3 bg-slate-800 border border-slate-400 -translate-x-1/2 z-20 shadow-xs" 
+                      style={{ left: `${pct}%` }} 
+                    />
+                    <div 
+                      className="absolute bottom-0 w-3 h-3 bg-slate-800 border border-slate-400 -translate-x-1/2 z-20 shadow-xs" 
+                      style={{ left: `${pct}%` }} 
+                    />
+                  </React.Fragment>
+                ))}
 
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-3 relative z-10">
+                  <div className="px-3 py-1 bg-slate-900 text-blue-400 border border-blue-500 font-mono text-xs font-black rounded shadow">
+                    DA5T-4.01
+                  </div>
                   <div className="px-4 py-1.5 bg-purple-200 text-purple-900 border-2 border-purple-400 rounded font-black text-sm shadow-sm group-hover:scale-105 transition-transform">
                     A5 Tent No. 4
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-[10px] font-black text-slate-400">RACK A</span>
-                    <div className="px-3 py-1 bg-slate-900 text-blue-400 border border-blue-500 font-mono text-xs font-black rounded shadow">
-                      DA5T-4.01
-                    </div>
                   </div>
                 </div>
 
                 {/* 7 Columns Miniature */}
-                <div className="grid grid-cols-7 gap-1.5 bg-amber-200/30 p-2 rounded border border-amber-300/40">
+                <div className="relative grid grid-cols-7 gap-1.5 bg-amber-200/30 p-2 rounded border border-amber-300/40 z-10">
                   {GROUP_NUMBERS.map(grp => (
                     <div key={grp} className="bg-amber-100/80 hover:bg-amber-200 border border-amber-400/80 rounded py-3 text-center transition-colors">
                       <span className="text-[9px] font-black text-slate-800 block">0{grp}</span>
                       <span className="text-[8px] font-semibold text-slate-600">28P</span>
                     </div>
                   ))}
+
+                  {/* Center Blueprint Badge */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="px-3 py-0.5 bg-sky-50/90 border border-slate-700 text-slate-800 font-mono text-[10px] font-bold rounded shadow-sm">
+                      (7 x 4) x 7 = 196 Pallet
+                    </div>
+                  </div>
                 </div>
 
-                <div className="mt-3 flex items-center justify-between text-xs text-slate-300">
+                <div className="mt-3 flex items-center justify-between text-xs text-slate-300 relative z-10">
                   <span>จัดเก็บ: <strong className="text-white">{stats.perTent[4].occupied} / 196</strong> Pallets</span>
                   <span className="text-blue-400 group-hover:underline flex items-center space-x-1 font-bold">
                     <span>เปิดดูโซนละเอียด</span>
@@ -508,19 +558,21 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
                 }}
                 className="bg-amber-50/10 hover:bg-amber-50/20 border-4 border-red-600 rounded-md p-4 transition-all cursor-pointer group shadow-lg hover:border-red-400 text-left relative overflow-hidden"
               >
-                {/* Pillars */}
-                <div className="absolute top-0 left-0 w-3 h-3 bg-slate-800 border border-white" />
-                <div className="absolute top-0 right-0 w-3 h-3 bg-slate-800 border border-white" />
-                <div className="absolute bottom-0 left-0 w-3 h-3 bg-slate-800 border border-white" />
-                <div className="absolute bottom-0 right-0 w-3 h-3 bg-slate-800 border border-white" />
-                <div className="absolute top-0 left-1/4 w-2.5 h-2.5 bg-slate-800 border border-white" />
-                <div className="absolute top-0 left-2/4 w-2.5 h-2.5 bg-slate-800 border border-white" />
-                <div className="absolute top-0 left-3/4 w-2.5 h-2.5 bg-slate-800 border border-white" />
-                <div className="absolute bottom-0 left-1/4 w-2.5 h-2.5 bg-slate-800 border border-white" />
-                <div className="absolute bottom-0 left-2/4 w-2.5 h-2.5 bg-slate-800 border border-white" />
-                <div className="absolute bottom-0 left-3/4 w-2.5 h-2.5 bg-slate-800 border border-white" />
+                {/* 8 Structural Pillars on Top & 8 on Bottom */}
+                {[0, 14.3, 28.6, 42.9, 57.1, 71.4, 85.7, 100].map((pct, idx) => (
+                  <React.Fragment key={`t1-pillar-${idx}`}>
+                    <div 
+                      className="absolute top-0 w-3 h-3 bg-slate-800 border border-slate-400 -translate-x-1/2 z-20 shadow-xs" 
+                      style={{ left: `${pct}%` }} 
+                    />
+                    <div 
+                      className="absolute bottom-0 w-3 h-3 bg-slate-800 border border-slate-400 -translate-x-1/2 z-20 shadow-xs" 
+                      style={{ left: `${pct}%` }} 
+                    />
+                  </React.Fragment>
+                ))}
 
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-3 relative z-10">
                   <div className="px-4 py-1.5 bg-purple-200 text-purple-900 border-2 border-purple-400 rounded font-black text-sm shadow-sm group-hover:scale-105 transition-transform">
                     A5 Tent No. 1
                   </div>
@@ -530,16 +582,23 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
                 </div>
 
                 {/* 7 Columns Miniature */}
-                <div className="grid grid-cols-7 gap-1.5 bg-amber-200/30 p-2 rounded border border-amber-300/40">
+                <div className="relative grid grid-cols-7 gap-1.5 bg-amber-200/30 p-2 rounded border border-amber-300/40 z-10">
                   {GROUP_NUMBERS.map(grp => (
                     <div key={grp} className="bg-amber-100/80 hover:bg-amber-200 border border-amber-400/80 rounded py-3 text-center transition-colors">
                       <span className="text-[9px] font-black text-slate-800 block">0{grp}</span>
                       <span className="text-[8px] font-semibold text-slate-600">28P</span>
                     </div>
                   ))}
+
+                  {/* Center Blueprint Badge */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="px-3 py-0.5 bg-sky-50/90 border border-slate-700 text-slate-800 font-mono text-[10px] font-bold rounded shadow-sm">
+                      (7 x 4) x 7 = 196 Pallet
+                    </div>
+                  </div>
                 </div>
 
-                <div className="mt-3 flex items-center justify-between text-xs text-slate-300">
+                <div className="mt-3 flex items-center justify-between text-xs text-slate-300 relative z-10">
                   <span>จัดเก็บ: <strong className="text-white">{stats.perTent[1].occupied} / 196</strong> Pallets</span>
                   <span className="text-blue-400 group-hover:underline flex items-center space-x-1 font-bold">
                     <span>เปิดดูโซนละเอียด</span>
@@ -556,38 +615,47 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
                 }}
                 className="bg-amber-50/10 hover:bg-amber-50/20 border-4 border-red-600 rounded-md p-4 transition-all cursor-pointer group shadow-lg hover:border-red-400 text-left relative overflow-hidden"
               >
-                {/* Pillars */}
-                <div className="absolute top-0 left-0 w-3 h-3 bg-slate-800 border border-white" />
-                <div className="absolute top-0 right-0 w-3 h-3 bg-slate-800 border border-white" />
-                <div className="absolute bottom-0 left-0 w-3 h-3 bg-slate-800 border border-white" />
-                <div className="absolute bottom-0 right-0 w-3 h-3 bg-slate-800 border border-white" />
-                <div className="absolute top-0 left-1/4 w-2.5 h-2.5 bg-slate-800 border border-white" />
-                <div className="absolute top-0 left-2/4 w-2.5 h-2.5 bg-slate-800 border border-white" />
-                <div className="absolute top-0 left-3/4 w-2.5 h-2.5 bg-slate-800 border border-white" />
-                <div className="absolute bottom-0 left-1/4 w-2.5 h-2.5 bg-slate-800 border border-white" />
-                <div className="absolute bottom-0 left-2/4 w-2.5 h-2.5 bg-slate-800 border border-white" />
-                <div className="absolute bottom-0 left-3/4 w-2.5 h-2.5 bg-slate-800 border border-white" />
+                {/* 8 Structural Pillars on Top & 8 on Bottom */}
+                {[0, 14.3, 28.6, 42.9, 57.1, 71.4, 85.7, 100].map((pct, idx) => (
+                  <React.Fragment key={`t3-pillar-${idx}`}>
+                    <div 
+                      className="absolute top-0 w-3 h-3 bg-slate-800 border border-slate-400 -translate-x-1/2 z-20 shadow-xs" 
+                      style={{ left: `${pct}%` }} 
+                    />
+                    <div 
+                      className="absolute bottom-0 w-3 h-3 bg-slate-800 border border-slate-400 -translate-x-1/2 z-20 shadow-xs" 
+                      style={{ left: `${pct}%` }} 
+                    />
+                  </React.Fragment>
+                ))}
 
-                <div className="flex items-center justify-between mb-3">
-                  <div className="px-4 py-1.5 bg-purple-200 text-purple-900 border-2 border-purple-400 rounded font-black text-sm shadow-sm group-hover:scale-105 transition-transform">
-                    A5 Tent No. 3
-                  </div>
+                <div className="flex items-center justify-between mb-3 relative z-10">
                   <div className="px-3 py-1 bg-slate-900 text-blue-400 border border-blue-500 font-mono text-xs font-black rounded shadow">
                     DA5T-3.01
+                  </div>
+                  <div className="px-4 py-1.5 bg-purple-200 text-purple-900 border-2 border-purple-400 rounded font-black text-sm shadow-sm group-hover:scale-105 transition-transform">
+                    A5 Tent No. 3
                   </div>
                 </div>
 
                 {/* 7 Columns Miniature */}
-                <div className="grid grid-cols-7 gap-1.5 bg-amber-200/30 p-2 rounded border border-amber-300/40">
+                <div className="relative grid grid-cols-7 gap-1.5 bg-amber-200/30 p-2 rounded border border-amber-300/40 z-10">
                   {GROUP_NUMBERS.map(grp => (
                     <div key={grp} className="bg-amber-100/80 hover:bg-amber-200 border border-amber-400/80 rounded py-3 text-center transition-colors">
                       <span className="text-[9px] font-black text-slate-800 block">0{grp}</span>
                       <span className="text-[8px] font-semibold text-slate-600">28P</span>
                     </div>
                   ))}
+
+                  {/* Center Blueprint Badge */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="px-3 py-0.5 bg-sky-50/90 border border-slate-700 text-slate-800 font-mono text-[10px] font-bold rounded shadow-sm">
+                      (7 x 4) x 7 = 196 Pallet
+                    </div>
+                  </div>
                 </div>
 
-                <div className="mt-3 flex items-center justify-between text-xs text-slate-300">
+                <div className="mt-3 flex items-center justify-between text-xs text-slate-300 relative z-10">
                   <span>จัดเก็บ: <strong className="text-white">{stats.perTent[3].occupied} / 196</strong> Pallets</span>
                   <span className="text-blue-400 group-hover:underline flex items-center space-x-1 font-bold">
                     <span>เปิดดูโซนละเอียด</span>
@@ -598,13 +666,14 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
             </div>
           </div>
         </div>
+      </div>
       )}
 
       {/* ========================================================================= */}
       {/* VIEW 2: DETAILED TENT GRID VIEW (MATCHING IMAGE 2 EXACT BLUEPRINT)         */}
       {/* ========================================================================= */}
       {viewMode === 'TENT_DETAIL' && (
-        <div className="space-y-4">
+        <div className="w-full h-full min-h-0 overflow-y-auto p-3 sm:p-4 space-y-4">
           {/* Active Tent Switcher & Information Banner */}
           <div className="bg-slate-900 rounded-xl p-4 shadow-sm border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-left">
             <div>
@@ -828,6 +897,17 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
           </div>
         </div>
       )}
+    </div>
+
+        {/* BOTTOM: Ultra-compact KPI Cards (ความจุ, รับเข้า-รับออก, Aging) */}
+        <div className="shrink-0">
+          <ZoneKpiFormalDashboard
+            zoneKey="A5"
+            items={items}
+            logs={logs}
+          />
+        </div>
+      </div>
 
       {/* FLOATING HOVER MINI-STATS OVERLAY FOR TENT SLOTS */}
       {hoveredSlot && (

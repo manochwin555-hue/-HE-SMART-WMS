@@ -99,6 +99,9 @@ export const mm: TranslationDictionary = {
     darkMode: 'အမှောင်စနစ် (Dark)',
     fullScreen: 'မျက်နှာပြင်ပြည့်',
     exitFullScreen: 'မျက်နှာပြင်ပြည့်မှထွက်မည်',
+    campusBlueprint: 'ပင်မမြေပုံ',
+    a4Staging: 'A4 နေရာ',
+    labelPrinting: 'တံဆိပ်ရိုက်နှိပ်ခြင်း',
   },
   kpi: {
     totalBalance: 'စုစုပေါင်းလက်ကျန်စာရင်း',
@@ -195,6 +198,8 @@ export const mm: TranslationDictionary = {
     subtitle: 'တည်နေရာစစ်ဆေးခြင်းနှင့် အလိုအလျောက် မှတ်တမ်းတင်စနစ်',
     scanIn: 'စကင်အဝင် (IN)',
     scanOut: 'စကင်အထွက် (OUT)',
+    outbound: 'အထွက် (PICK)',
+    moveStock: 'ပစ္စည်းရွှေ့ပြောင်းခြင်း',
     scanPlaceholder: 'QR Code စကင်ဖတ်ပါ သို့မဟုတ် ပစ္စည်းကုဒ်ရိုက်ထည့်ပါ...',
     modelHE: 'ပစ္စည်းမော်ဒယ် (Model HE)',
     partName: 'ပစ္စည်းအမည်',

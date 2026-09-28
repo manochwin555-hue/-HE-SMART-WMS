@@ -113,6 +113,9 @@ export interface TranslationDictionary {
     darkMode: string;
     fullScreen: string;
     exitFullScreen: string;
+    campusBlueprint: string;
+    a4Staging: string;
+    labelPrinting: string;
   };
   kpi: {
     totalBalance: string;
@@ -209,6 +212,8 @@ export interface TranslationDictionary {
     subtitle: string;
     scanIn: string;
     scanOut: string;
+    outbound: string;
+    moveStock: string;
     scanPlaceholder: string;
     modelHE: string;
     partName: string;

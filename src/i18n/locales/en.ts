@@ -99,6 +99,9 @@ export const en: TranslationDictionary = {
     darkMode: 'Dark Mode',
     fullScreen: 'Fullscreen',
     exitFullScreen: 'Exit Fullscreen',
+    campusBlueprint: 'Campus Map',
+    a4Staging: 'A4 Floor Staging',
+    labelPrinting: 'Print Label',
   },
   kpi: {
     totalBalance: 'Total Inventory Balance',
@@ -195,6 +198,8 @@ export const en: TranslationDictionary = {
     subtitle: 'Automatic locator lookup and transaction recording',
     scanIn: 'Scan IN (Receive)',
     scanOut: 'Scan OUT (Issue)',
+    outbound: 'Outbound (PICK)',
+    moveStock: 'Relocate Stock',
     scanPlaceholder: 'Scan QR Code or type item barcode here...',
     modelHE: 'Model HE Code',
     partName: 'Part Name',

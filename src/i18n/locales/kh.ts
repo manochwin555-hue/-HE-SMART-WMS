@@ -99,6 +99,9 @@ export const kh: TranslationDictionary = {
     darkMode: 'ទម្រង់ងងឹត (Dark)',
     fullScreen: 'ពេញអេក្រង់',
     exitFullScreen: 'ចាកចេញពីពេញអេក្រង់',
+    campusBlueprint: 'ប្លង់រួម',
+    a4Staging: 'ទីតាំង A4',
+    labelPrinting: 'បោះពុម្ពស្លាក',
   },
   kpi: {
     totalBalance: 'ចំនួនស្តុកសរុប',
@@ -195,6 +198,8 @@ export const kh: TranslationDictionary = {
     subtitle: 'ប្រព័ន្ធស្វែងរកទីតាំង និងកត់ត្រាប្រវត្តិស្វ័យប្រវត្តិ',
     scanIn: 'ស្កេនចូល (IN)',
     scanOut: 'ស្កេនចេញ (OUT)',
+    outbound: 'បញ្ចេញទំនិញ (PICK)',
+    moveStock: 'ផ្លាស់ទីទំនិញ',
     scanPlaceholder: 'ស្កេន QR Code ឬវាយបញ្ចូលកូដទំនិញ...',
     modelHE: 'ម៉ូឌែលទំនិញ (Model HE)',
     partName: 'ឈ្មោះគ្រឿងបន្លាស់',

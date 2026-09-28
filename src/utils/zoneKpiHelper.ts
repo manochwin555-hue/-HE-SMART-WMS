@@ -9,16 +9,23 @@ export interface ZoneKpiData {
   badgeLabel: string;
   totalUnits: number;
   safetyStockAlertCount: number;
+  safetySafeCount: number;
   todayInScans: number;
   todayOutScans: number;
   occupiedPallets: number;
+  emptyPallets: number;
   totalCapacityPallets: number;
   occupancyRatePercent: number;
+  agingSafeCount: number;
+  agingWarningCount: number;
+  agingOverdueCount: number;
   agingAlertCount: number;
   capacityTitle: string;
   capacitySubtitle: string;
   inSubtitle: string;
   outSubtitle: string;
+  zoneItems: InventoryItem[];
+  zoneLogs: MovementLog[];
 }
 
 export interface ZoneConfigSpec {
@@ -39,7 +46,7 @@ export const ZONE_SPECS: Record<ZoneKey, ZoneConfigSpec> = {
     name: 'รวมทุกคลังแคมปัส (A2, A4, A5, CY3)',
     shortName: 'แคมปัส',
     badge: 'CAMPUS',
-    capacity: 2456, // 160 (A2) + 432 (A4 Floor) + 680 (A4 Rack) + 784 (A5) + 400 (CY3)
+    capacity: 2408, // 112 (A2) + 432 (A4 Floor) + 680 (A4 Rack) + 784 (A5) + 400 (CY3)
     capacityTitle: 'อัตราจัดเก็บรวมแคมปัส',
     capacitySubtitle: 'ความจุรวมแคมปัส',
     inSubtitle: 'รับเข้าคลัง A2 / A4 / A5 / CY3',
@@ -50,9 +57,9 @@ export const ZONE_SPECS: Record<ZoneKey, ZoneConfigSpec> = {
     name: 'โรงงาน 2 (A2 Flow Rail รางเลื่อน)',
     shortName: 'A2 (รางเลื่อน)',
     badge: 'A2',
-    capacity: 160,
+    capacity: 112,
     capacityTitle: 'อัตราจัดเก็บรางเลื่อน A2',
-    capacitySubtitle: 'ความจุรางเลื่อน DA2D-1 (20 ราง x 8 P)',
+    capacitySubtitle: 'ความจุรางเลื่อน DA2D-1 (14 ราง x 8 P)',
     inSubtitle: 'รับเข้าคลังรางเลื่อน A2',
     outSubtitle: 'เบิกจ่ายไลน์ประกอบ A2 HE',
   },
@@ -295,13 +302,26 @@ export function calculateZoneKpis(
   // 5. อัตราจัดเก็บ (Occupied Pallets / Capacity)
   const occupiedPallets = zoneItems.length;
   const totalCapacityPallets = spec.capacity;
+  const emptyPallets = Math.max(0, totalCapacityPallets - occupiedPallets);
   const occupancyRatePercent = Math.min(100, Math.round((occupiedPallets / Math.max(1, totalCapacityPallets)) * 100));
 
-  // 6. รายการเตือน Aging FIFO (Overdue / Critical aging)
-  const criticalDays = agingConfig?.criticalDays ?? 28;
+  // 6. Safety Stock Safe vs Alert
+  const safetySafeCount = zoneItems.length - safetyStockAlertCount;
+
+  // 7. รายการเตือน Aging FIFO (Normal / Warning 15-30 / Overdue >30)
+  const safeDaysMax = agingConfig?.safeDaysMax ?? 14;
+  const criticalDays = agingConfig?.criticalDays ?? 30;
+
+  const agingSafeCount = zoneItems.filter(it => it.agingDays <= safeDaysMax).length;
+  const agingWarningCount = zoneItems.filter(it => it.agingDays > safeDaysMax && it.agingDays <= criticalDays).length;
+  const agingOverdueCount = zoneItems.filter(it => 
+    it.agingDays > criticalDays || 
+    ['URGENT', 'DUE_TODAY', 'EXPIRED', 'CONDITION_NG'].includes(it.agingStatus)
+  ).length;
+
   const agingAlertCount = zoneItems.filter(it => 
     ['WARNING', 'URGENT', 'DUE_TODAY', 'EXPIRED', 'CONDITION_NG', 'DATA_INCOMPLETE'].includes(it.agingStatus) ||
-    it.agingDays > criticalDays
+    it.agingDays > safeDaysMax
   ).length;
 
   return {
@@ -311,16 +331,23 @@ export function calculateZoneKpis(
     badgeLabel: spec.badge,
     totalUnits,
     safetyStockAlertCount,
+    safetySafeCount,
     todayInScans,
     todayOutScans,
     occupiedPallets,
+    emptyPallets,
     totalCapacityPallets,
     occupancyRatePercent,
+    agingSafeCount,
+    agingWarningCount,
+    agingOverdueCount,
     agingAlertCount,
     capacityTitle: spec.capacityTitle,
     capacitySubtitle: spec.capacitySubtitle,
     inSubtitle: spec.inSubtitle,
     outSubtitle: spec.outSubtitle,
+    zoneItems,
+    zoneLogs,
   };
 }
 

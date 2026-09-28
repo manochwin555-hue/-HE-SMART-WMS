@@ -99,6 +99,9 @@ export const kr: TranslationDictionary = {
     darkMode: '다크 모드',
     fullScreen: '전체 화면',
     exitFullScreen: '전체 화면 해제',
+    campusBlueprint: '캠퍼스 맵',
+    a4Staging: 'A4 바닥 구역',
+    labelPrinting: '라벨 인쇄',
   },
   kpi: {
     totalBalance: '전체 재고 합계',
@@ -195,6 +198,8 @@ export const kr: TranslationDictionary = {
     subtitle: '위치 추적 및 자동 이력 기록 시스템',
     scanIn: '입고 스캔 (IN)',
     scanOut: '출고 스캔 (OUT)',
+    outbound: '출고 (PICK)',
+    moveStock: '재고 이동',
     scanPlaceholder: 'QR 코드를 스캔하거나 바코드를 입력하세요...',
     modelHE: '모델 코드 (Model HE)',
     partName: '품명',

@@ -40,11 +40,16 @@ import { DA4D1FloorStagingMap } from './DA4D1FloorStagingMap';
 import { UnifiedSlotModal, UnifiedSlotData } from './UnifiedSlotModal';
 import { SlotMiniStatsOverlay, MiniStatsSlotData } from './SlotMiniStatsOverlay';
 import { MultiLevelRackZoneLayout, MultiLevelRackRowConfig } from './zone-standard';
+import { A4FrontElevationView } from './A4FrontElevationView';
+import { A4UnifiedFactory3DView } from './zone-3d/A4UnifiedFactory3DView';
+import { ZoneKpiFormalDashboard } from './ZoneKpiFormalDashboard';
+import { MovementLog } from '../types';
 
 interface RackLayout2DProps {
   items: InventoryItem[];
+  logs?: MovementLog[];
   searchQuery?: string;
-  initialSectionTab?: 'FLOOR_DA4D1' | 'RACK_ZONES' | 'FULL3D' | 'STANDARD_RACK_DESIGN';
+  initialSectionTab?: 'FLOOR_DA4D1' | 'RACK_ZONES' | 'FULL3D' | 'STANDARD_RACK_DESIGN' | 'FRONT_ELEVATION';
   onSelectBay: (zone: StorageZone, bayNumber: number) => void;
   onOpen3D: (zone: StorageZone, bayNumber: number) => void;
   onOpenScanner?: (zone: StorageZone, bay: number, level: ShelfLevel, mode: MovementType) => void;
@@ -64,8 +69,9 @@ interface HoveredBayData {
 
 export const RackLayout2D: React.FC<RackLayout2DProps> = ({
   items,
+  logs,
   searchQuery = '',
-  initialSectionTab = 'RACK_ZONES',
+  initialSectionTab = 'FULL3D',
   onSelectBay,
   onOpen3D,
   onOpenScanner,
@@ -75,8 +81,8 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
   isDashboardFullscreen,
   onToggleFullscreen
 }) => {
-  // A4 Building Main Section Switcher: Rack Zones (DA4D-2 & DA4D-3), Floor Staging (DA4D-1), or Full 3D
-  const [a4SectionTab, setA4SectionTab] = useState<'FLOOR_DA4D1' | 'RACK_ZONES' | 'FULL3D' | 'STANDARD_RACK_DESIGN'>(initialSectionTab || 'STANDARD_RACK_DESIGN');
+  // A4 Building Main Section Switcher: Full 3D, Rack 2D Zones, or Front Elevation
+  const [a4SectionTab, setA4SectionTab] = useState<'FLOOR_DA4D1' | 'RACK_ZONES' | 'FULL3D' | 'STANDARD_RACK_DESIGN' | 'FRONT_ELEVATION'>('FULL3D');
   
   useEffect(() => {
     if (initialSectionTab) {
@@ -341,10 +347,10 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 shadow-xs text-slate-900 space-y-3 min-w-0 max-w-full w-full">
+    <div className="bg-white border border-slate-200 rounded-2xl p-2 sm:p-3 shadow-xs text-slate-900 flex flex-col min-w-0 max-w-full w-full h-full min-h-0 overflow-hidden space-y-1.5">
       
       {/* ULTRA-COMPACT ENTERPRISE TOOLBAR: MAX 1-2 ROWS (Height <= 36px per row) */}
-      <div className="space-y-1.5 border-b border-slate-200 pb-2">
+      <div className="space-y-1 border-b border-slate-200 pb-1.5 shrink-0">
         {/* ROW 1: PRIMARY WORKSPACE TOOLBAR (H <= 36px) */}
         <div className="h-9 px-2 sm:px-2.5 bg-slate-900 border border-slate-800 rounded-lg text-white shadow-xs flex items-center justify-between gap-1.5 sm:gap-2">
           
@@ -365,53 +371,55 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
             <div className="flex items-center gap-1 shrink-0 mr-1">
               <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
               <span className="text-[12px] font-black tracking-tight text-white whitespace-nowrap">
-                โซน A4 แร็ค (DA4D-2 & 3)
+                โซน A4 แร็ค (DA4D-2 &amp; 3)
               </span>
               <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded hidden sm:inline">
                 680P
               </span>
             </div>
 
-            {/* Segmented 2D / 3D Rack Switcher */}
+            {/* Segmented 2D / 3D Switcher */}
             <div className="inline-flex items-center bg-slate-800/90 p-0.5 rounded-md border border-slate-700/80 h-[26px] shrink-0">
               <button
-                onClick={() => setA4SectionTab('STANDARD_RACK_DESIGN')}
-                className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-all flex items-center gap-1 whitespace-nowrap ${
-                  a4SectionTab === 'STANDARD_RACK_DESIGN'
-                    ? 'bg-blue-600 text-white font-black shadow-xs'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-                }`}
-                title="มาตรฐาน WMS Design System (แร็ค 4 ชั้น L1-L4)"
-              >
-                <LayoutGrid className="w-3 h-3" />
-                <span>มาตรฐาน 4 ชั้น</span>
-              </button>
-              <button
-                onClick={() => setA4SectionTab('RACK_ZONES')}
-                className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-all flex items-center gap-1 whitespace-nowrap ${
-                  a4SectionTab === 'RACK_ZONES'
-                    ? 'bg-blue-600 text-white font-black shadow-xs'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-                }`}
-              >
-                <Layers className="w-3 h-3" />
-                <span>แร็ค 2D (B-K)</span>
-              </button>
-              <button
                 onClick={() => setA4SectionTab('FULL3D')}
-                className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-all flex items-center gap-1 whitespace-nowrap ${
+                className={`h-[22px] px-2.5 py-0.5 rounded text-[10.5px] font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
                   a4SectionTab === 'FULL3D'
                     ? 'bg-purple-600 text-white font-black shadow-xs'
                     : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
                 }`}
+                title="มุมมองสามมิติ 3D Twin"
               >
-                <Box className="w-3 h-3" />
-                <span>แร็ค 3D</span>
+                <Box className="w-3.5 h-3.5 text-purple-300" />
+                <span>แร็ค 3D ผัง 3 มิติ</span>
+              </button>
+              <button
+                onClick={() => setA4SectionTab('RACK_ZONES')}
+                className={`h-[22px] px-2.5 py-0.5 rounded text-[10.5px] font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                  a4SectionTab === 'RACK_ZONES'
+                    ? 'bg-blue-600 text-white font-black shadow-xs'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                }`}
+                title="มุมมองแปลนบน (Top 2D Matrix)"
+              >
+                <Layers className="w-3.5 h-3.5 text-cyan-300" />
+                <span>แปลนบน (Top 2D)</span>
+              </button>
+              <button
+                onClick={() => setA4SectionTab('FRONT_ELEVATION')}
+                className={`h-[22px] px-2.5 py-0.5 rounded text-[10.5px] font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                  a4SectionTab === 'FRONT_ELEVATION'
+                    ? 'bg-blue-600 text-white font-black shadow-xs'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                }`}
+                title="มุมมองหน้าตรง แร็ค 4 ชั้น (Front Elevation L1-L4)"
+              >
+                <LayoutGrid className="w-3.5 h-3.5 text-blue-300" />
+                <span>มุมมองหน้าตรง (L1-L4)</span>
               </button>
             </div>
 
-            {/* Compact Action Icon-Text Toggles (Only when on Racks) */}
-            {a4SectionTab === 'RACK_ZONES' && (
+            {/* Compact Action Icon-Text Toggles (Only when on 2D Racks) */}
+            {a4SectionTab !== 'FULL3D' && (
               <div className="hidden lg:inline-flex items-center gap-1 shrink-0">
                 {/* Fit Screen Toggle */}
                 <button
@@ -476,8 +484,8 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
           </div>
         </div>
 
-        {/* ROW 2: SECONDARY FILTER & SEGMENTED CONTROLS (H <= 34px, Only when in RACK_ZONES) */}
-        {a4SectionTab === 'RACK_ZONES' && (
+        {/* ROW 2: SECONDARY FILTER & SEGMENTED CONTROLS (H <= 34px, Only when in 2D mode) */}
+        {a4SectionTab !== 'FULL3D' && (
           <div className="h-[34px] px-2 sm:px-2.5 bg-slate-900/95 border border-slate-800 rounded-lg text-white shadow-xs flex items-center justify-between gap-1.5 overflow-x-auto">
             
             {/* Left Group: Status Segmented Group + Zone Segmented Group */}
@@ -648,7 +656,7 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
       {/* ========================================================================= */}
       {/* 🏗️ SELECTIVE RACKS DA4D-2 & DA4D-3 (ZONE B ถึง K รวม 680 พาเลท) */}
       {/* ========================================================================= */}
-      {a4SectionTab !== 'FULL3D' && (
+      {a4SectionTab === 'RACK_ZONES' && (
         <div className="space-y-2 animate-fadeIn">
 
           {/* 10-Rack Locked Unified Grid (Zone B to K) */}
@@ -662,18 +670,25 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
                 return (
                   <div key={zone} className="flex flex-col space-y-1">
                     {/* Rack Header */}
-                    <div 
-                      className={`text-center font-black text-xs py-1.5 rounded-lg border shadow-2xs ${
+                    <button 
+                      onClick={() => {
+                        setSelectedZone(zone);
+                        setA4SectionTab('FRONT_ELEVATION');
+                      }}
+                      className={`text-center font-black text-xs py-1.5 rounded-lg border shadow-2xs transition-transform hover:scale-[1.02] cursor-pointer ${
                         isPurple 
-                          ? 'bg-blue-600 text-white border-blue-700' 
-                          : 'bg-indigo-600 text-white border-indigo-700'
+                          ? 'bg-blue-600 hover:bg-blue-700 text-white border-blue-700' 
+                          : 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-700'
                       }`}
+                      title={`คลิกเพื่อเปิดมุมมองหน้าตรง (Front View) ของ Rack ${zone}`}
                     >
-                      <div className="text-xs font-black">Rack {zone}</div>
+                      <div className="text-xs font-black flex items-center justify-center gap-1">
+                        <span>Rack {zone}</span>
+                      </div>
                       <div className="text-[9px] font-medium opacity-90 leading-tight mt-0.5">
                         {zoneStats ? `${zoneStats.occupiedLocations}/${zoneStats.maxCapacity} P` : ''}
                       </div>
-                    </div>
+                    </button>
 
                     {/* Locked Bay Cells (Top-aligned matching 3D layout) */}
                     {(isPurple
@@ -786,48 +801,84 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
         </div>
       )}
 
+
       {/* ========================================================================= */}
-      {/* 🌟 TAB: STANDARDIZED 4-TIER RACK ZONE LAYOUT (Template 2)                   */}
+      {/* 🏢 FRONT ELEVATION VIEW (L1 - L4) AS SEPARATE TAB                         */}
       {/* ========================================================================= */}
-      {a4SectionTab === 'STANDARD_RACK_DESIGN' && (
-        <div className="w-full animate-fadeIn">
-          <MultiLevelRackZoneLayout
-            zoneTitle="โซน A4 แร็คจัดเก็บสูง (DA4D-2 & DA4D-3 680P)"
-            zoneSubtitle="โรงงาน 4 อาคาร A4 &bull; แร็ค B ถึง K สูง 4 ชั้น (Selective Rack)"
-            locatorSign="DA4D-2/3"
-            facilityCode="FAC-A4-RACK"
-            rows={standardA4RackRows}
+      {a4SectionTab === 'FRONT_ELEVATION' && (
+        <div className="w-full flex-1 min-h-0 overflow-y-auto animate-fadeIn">
+          <A4FrontElevationView
             items={items}
             searchQuery={activeQuery}
-            onOpenScanner={(z, b, l, m) => {
-              if (onOpenScanner) onOpenScanner(z, b, l, m);
+            selectedZone={selectedZone !== 'ALL' ? (selectedZone as StorageZone) : undefined}
+            onSelectZone={(z) => setSelectedZone(z)}
+            onSlotClick={(zone, bayNum, locatorSign, targetLevel) => {
+              const slotItems = items.filter(
+                it => it.zone === zone && it.bayNumber === bayNum && (targetLevel ? it.level === targetLevel : true)
+              );
+              const mainItem = slotItems.length > 0 ? slotItems[0] : null;
+
+              setSelectedSlotForModal({
+                slotId: `${zone}-${bayNum}-${targetLevel || 1}`,
+                title: `แร็ค ${zone} - ช่องเสา ${bayNum} (ชั้น L${targetLevel || 1})`,
+                locatorCode: locatorSign,
+                zoneName: `แร็ค ${zone} (Selective Rack)`,
+                positionLabel: `Bay ${bayNum}, ชั้น L${targetLevel || 1}`,
+                item: mainItem,
+                items: slotItems,
+                zone: zone,
+                bayNumber: bayNum,
+                level: (targetLevel || 1) as ShelfLevel,
+                totalLevels: 4,
+                capacity: 1,
+                isOccupied: slotItems.length > 0,
+              });
             }}
-            onRelocateItem={onRelocateItem}
-            onOpen3D={onOpen3D}
-            onNavigateBack={onNavigateToCampus}
-            backButtonLabel="กลับสู่โซนรวมแคมปัส"
-            isDashboardFullscreen={isFullscreenActive}
-            onToggleFullscreen={handleToggleFullscreen}
+            onSlotHover={(e, zone, bayNum) => {
+              setHoveredBay({
+                zone,
+                bayNumber: bayNum,
+                x: e.clientX,
+                y: e.clientY
+              });
+            }}
+            onSlotLeave={() => setHoveredBay(null)}
+            onOpenScanner={onOpenScanner}
           />
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* 🌐 TAB 4: FULL 3D MAP VIEW */}
+      {/* 🌐 TAB 4: FULL 3D MAP VIEW                                                */}
       {/* ========================================================================= */}
       {a4SectionTab === 'FULL3D' && (
-        <div className="w-full relative min-w-0" style={{ height: isDashboardFullscreen ? 'calc(100vh - 180px)' : '550px' }}>
-          <Warehouse3DMap 
+        <div className="w-full flex-1 min-h-0 overflow-hidden relative flex flex-col bg-slate-950 rounded-xl border border-slate-800">
+          <A4UnifiedFactory3DView 
             items={items} 
             searchQuery={activeQuery}
-            onSelectBay={(z, b) => {
-              onSelectBay(z, b);
-              onOpen3D(z, b);
-            }} 
-            isDashboardFullscreen={isDashboardFullscreen}
+            initialFocus="RACKS"
+            onSelectSlot={(type, locator, item) => {
+              if (type === 'RACK') {
+                const match = locator.match(/DA4D-[23]-([B-K])(\d+)-L(\d)/i);
+                if (match) {
+                  onSelectBay(match[1].toUpperCase() as StorageZone, parseInt(match[2], 10));
+                }
+              }
+            }}
+            onOpenScanner={onOpenScanner}
+            onNavigateToCampus={onNavigateToCampus}
           />
         </div>
       )}
+
+      {/* BOTTOM: Ultra-compact KPI Cards (ความจุ, รับเข้า-รับออก, Aging) */}
+      <div className="shrink-0">
+        <ZoneKpiFormalDashboard
+          zoneKey="A4_RACK"
+          items={items}
+          logs={logs}
+        />
+      </div>
 
       {/* FLOATING HOVER MINI-STATS OVERLAY FOR RACKS */}
       {hoveredBay && (() => {

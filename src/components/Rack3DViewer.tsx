@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { InventoryItem, ShelfLevel, StorageZone, ZoneCapacityMaster } from '../types';
 import { useTranslation } from '../i18n/i18nContext';
+import { createRackBayNeonHighlight, applyFaintEmissiveHighlight } from './zone-3d/neonEdgeHighlight';
 import { 
   Layers, 
   RotateCcw, 
@@ -18,7 +19,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
-  Info
+  Info,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 interface Rack3DViewerProps {
@@ -46,6 +49,7 @@ export const Rack3DViewer: React.FC<Rack3DViewerProps> = ({
   const [selectedLevel, setSelectedLevel] = useState<ShelfLevel>(1);
   const [isAutoRotate, setIsAutoRotate] = useState<boolean>(false);
   const [hoveredLevel, setHoveredLevel] = useState<ShelfLevel | null>(null);
+  const [themeMode, setThemeMode] = useState<'DARK_MODE' | 'STUDIO_LIGHT'>('DARK_MODE');
   const [isSelfFullscreen, setIsSelfFullscreen] = useState<boolean>(false);
 
   const toggleFullscreen = () => {
@@ -134,7 +138,8 @@ export const Rack3DViewer: React.FC<Rack3DViewerProps> = ({
 
     // 1. Scene
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#0f172a'); // Bright Clean Slate Navy Canvas
+    const isDark = themeMode === 'DARK_MODE';
+    scene.background = new THREE.Color(isDark ? '#0b1120' : '#f8fafc');
 
     // 2. Camera
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
@@ -145,7 +150,7 @@ export const Rack3DViewer: React.FC<Rack3DViewerProps> = ({
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
 
     // Clear existing children
     while (mountRef.current.firstChild) {
@@ -163,35 +168,35 @@ export const Rack3DViewer: React.FC<Rack3DViewerProps> = ({
     controls.target.set(0, 2.2, 0);
 
     // 5. Lights (Bright & High Contrast)
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.3);
+    const ambientLight = new THREE.AmbientLight(0xffffff, isDark ? 1.4 : 1.6);
     scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.8);
+    const dirLight = new THREE.DirectionalLight(0xffffff, isDark ? 1.7 : 1.9);
     dirLight.position.set(10, 15, 10);
     dirLight.castShadow = true;
     dirLight.shadow.mapSize.width = 1024;
     dirLight.shadow.mapSize.height = 1024;
     scene.add(dirLight);
 
-    const fillDirLight = new THREE.DirectionalLight(0xdbeafe, 1.0);
+    const fillDirLight = new THREE.DirectionalLight(isDark ? 0x93c5fd : 0xdbeafe, 1.0);
     fillDirLight.position.set(-10, 12, -10);
     scene.add(fillDirLight);
 
-    const blueSpotLight = new THREE.PointLight(0x06b6d4, 2.0, 18);
+    const blueSpotLight = new THREE.PointLight(isDark ? 0x38bdf8 : 0x0ea5e9, isDark ? 2.2 : 1.2, 20);
     blueSpotLight.position.set(-4, 6, 4);
     scene.add(blueSpotLight);
 
     // 6. Grid Floor
-    const gridHelper = new THREE.GridHelper(16, 16, 0x38bdf8, 0x334155);
+    const gridHelper = new THREE.GridHelper(16, 16, isDark ? 0x38bdf8 : 0x0284c7, isDark ? 0x1e293b : 0xcbd5e1);
     gridHelper.position.y = -0.01;
     scene.add(gridHelper);
 
     // Concrete pad floor
     const floorGeo = new THREE.PlaneGeometry(12, 12);
     const floorMat = new THREE.MeshStandardMaterial({
-      color: 0x1e293b,
+      color: isDark ? 0x0f172a : 0xf1f5f9,
       roughness: 0.5,
-      metalness: 0.3,
+      metalness: 0.2,
     });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
@@ -201,6 +206,10 @@ export const Rack3DViewer: React.FC<Rack3DViewerProps> = ({
     // 7. BUILD 3D RACK STRUCTURE (4 Shelf Tiers / 4 ชั้น)
     const rackGroup = new THREE.Group();
     scene.add(rackGroup);
+
+    // Subtle Neon Edge Rack Bay Highlight
+    const rackBayNeon = createRackBayNeonHighlight();
+    scene.add(rackBayNeon.group);
 
     // Dimensions
     const rackWidth = 2.4;
@@ -262,6 +271,8 @@ export const Rack3DViewer: React.FC<Rack3DViewerProps> = ({
 
     // Stores references to level bounding meshes for raycasting/highlighting
     const levelMeshes: { mesh: THREE.Mesh; level: ShelfLevel }[] = [];
+    const levelPallets: { [key: number]: THREE.Group } = {};
+    const levelStatuses: { [key: number]: string } = {};
 
     // Build the 4 Levels (ชั้น 1, ชั้น 2, ชั้น 3, ชั้น 4)
     ([1, 2, 3, 4] as ShelfLevel[]).forEach((lvl, idx) => {
@@ -308,6 +319,7 @@ export const Rack3DViewer: React.FC<Rack3DViewerProps> = ({
       const itemOnLevel = getItemAtLevel(lvl);
 
       if (itemOnLevel) {
+        levelStatuses[lvl] = itemOnLevel.agingStatus || 'SAFE';
         // Render Wooden Pallet
         const palletGroup = new THREE.Group();
         palletGroup.position.set(0, y + 0.08, 0);
@@ -348,6 +360,7 @@ export const Rack3DViewer: React.FC<Rack3DViewerProps> = ({
         }
 
         rackGroup.add(palletGroup);
+        levelPallets[lvl] = palletGroup;
 
         // Glowing LED Status Indicator light on front beam
         const ledColor = itemOnLevel.agingStatus === 'SAFE' 
@@ -366,12 +379,59 @@ export const Rack3DViewer: React.FC<Rack3DViewerProps> = ({
         const ledPointLight = new THREE.PointLight(ledColor, 0.8, 1.2);
         ledPointLight.position.set(rackWidth / 2 - 0.2, y + 0.1, rackDepth / 2 + 0.1);
         rackGroup.add(ledPointLight);
+      } else {
+        levelStatuses[lvl] = 'EMPTY';
       }
     });
 
-    // 8. Raycasting for Mouse Clicks on 3D Levels
+    // 8. Raycasting for Mouse Interaction on 3D Levels (Neon Edge & Emissive)
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
+    let currentEmissiveRestore: (() => void) | null = null;
+
+    const handlePointerMove = (event: MouseEvent) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(levelMeshes.map((m) => m.mesh));
+
+      if (intersects.length > 0) {
+        const hLevel = intersects[0].object.userData.shelfLevel as ShelfLevel;
+        if (hLevel) {
+          setHoveredLevel(hLevel);
+          canvasDom.style.cursor = 'pointer';
+
+          // Position subtle Neon Edge highlight around load beams & upright posts of this bay tier
+          const y = levelHeights[hLevel - 1];
+          const st = levelStatuses[hLevel] || 'EMPTY';
+          const neonColor = st === 'OVERDUE' ? 0xef4444 : st === 'WARNING' ? 0xf59e0b : st === 'SAFE' ? 0x38bdf8 : 0x10b981;
+          rackBayNeon.setBay(0, y, 0, rackWidth, 1.15, rackDepth, neonColor);
+          rackBayNeon.show();
+
+          // Apply faint emissive highlight on item in dark mode
+          if (isDark) {
+            if (currentEmissiveRestore) {
+              currentEmissiveRestore();
+              currentEmissiveRestore = null;
+            }
+            if (levelPallets[hLevel]) {
+              currentEmissiveRestore = applyFaintEmissiveHighlight(levelPallets[hLevel], true, st);
+            }
+          }
+          return;
+        }
+      }
+
+      setHoveredLevel(null);
+      rackBayNeon.hide();
+      if (currentEmissiveRestore) {
+        currentEmissiveRestore();
+        currentEmissiveRestore = null;
+      }
+      canvasDom.style.cursor = 'default';
+    };
 
     const handlePointerDown = (event: MouseEvent) => {
       const rect = renderer.domElement.getBoundingClientRect();
@@ -390,12 +450,15 @@ export const Rack3DViewer: React.FC<Rack3DViewerProps> = ({
     };
 
     const canvasDom = renderer.domElement;
+    canvasDom.addEventListener('pointermove', handlePointerMove);
     canvasDom.addEventListener('pointerdown', handlePointerDown);
 
     // 9. Animation Loop
     let animationFrameId: number;
+    const startTime = performance.now();
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
+      const elapsedTime = (performance.now() - startTime) / 1000;
 
       if (isAutoRotate) {
         controls.autoRotate = true;
@@ -405,16 +468,18 @@ export const Rack3DViewer: React.FC<Rack3DViewerProps> = ({
       }
 
       controls.update();
+      rackBayNeon.update(elapsedTime);
       renderer.render(scene, camera);
     };
 
     animate();
 
-    // Resize Handler
+    // Resize Handler with ResizeObserver
     const handleResize = () => {
       if (!mountRef.current) return;
       const w = mountRef.current.clientWidth;
       const h = mountRef.current.clientHeight || 500;
+      if (w === 0 || h === 0) return;
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
@@ -422,13 +487,27 @@ export const Rack3DViewer: React.FC<Rack3DViewerProps> = ({
 
     window.addEventListener('resize', handleResize);
 
+    const resizeObserver = new ResizeObserver(() => {
+      handleResize();
+    });
+    if (mountRef.current) {
+      resizeObserver.observe(mountRef.current);
+    }
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
     return () => {
+      resizeObserver.disconnect();
       window.removeEventListener('resize', handleResize);
+      canvasDom.removeEventListener('pointermove', handlePointerMove);
       canvasDom.removeEventListener('pointerdown', handlePointerDown);
       cancelAnimationFrame(animationFrameId);
+      if (currentEmissiveRestore) currentEmissiveRestore();
+      rackBayNeon.dispose();
       renderer.dispose();
     };
-  }, [selectedZone, selectedBayNumber, items, selectedLevel, isAutoRotate]);
+  }, [selectedZone, selectedBayNumber, items, selectedLevel, isAutoRotate, themeMode]);
 
   return (
     <div 
@@ -456,6 +535,29 @@ export const Rack3DViewer: React.FC<Rack3DViewerProps> = ({
 
         {/* Rack Locator Switcher */}
         <div className="flex flex-wrap items-center gap-2.5 text-xs">
+          {/* Theme Mode Toggle (Dark Mode with Neon Edge vs Studio Light) */}
+          <button
+            onClick={() => setThemeMode(themeMode === 'DARK_MODE' ? 'STUDIO_LIGHT' : 'DARK_MODE')}
+            className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center space-x-1.5 border active:scale-95 shadow-sm ${
+              themeMode === 'DARK_MODE'
+                ? 'bg-slate-900 hover:bg-slate-800 text-cyan-300 border-cyan-500/50'
+                : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
+            }`}
+            title={themeMode === 'DARK_MODE' ? 'สลับเป็น Studio Light (ธีมสว่าง)' : 'สลับเป็น Dark Mode (Neon Edge Hover)'}
+          >
+            {themeMode === 'DARK_MODE' ? (
+              <>
+                <Moon className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Dark Mode (Neon)</span>
+              </>
+            ) : (
+              <>
+                <Sun className="w-3.5 h-3.5 text-amber-500" />
+                <span>Studio Light</span>
+              </>
+            )}
+          </button>
+
           {/* Fullscreen Button */}
           <button
             onClick={toggleFullscreen}
@@ -545,6 +647,12 @@ export const Rack3DViewer: React.FC<Rack3DViewerProps> = ({
           <div className="absolute top-3 left-3 z-10 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-700 text-[11px] font-semibold text-slate-200 flex items-center space-x-2 shadow-sm">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
             <span>Rack {selectedZone}{selectedBayNumber} (4 ชั้นความสูง)</span>
+            {themeMode === 'DARK_MODE' && (
+              <span className="ml-1.5 px-2 py-0.5 rounded text-[10px] bg-cyan-950/80 text-cyan-300 border border-cyan-500/40 font-mono flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-cyan-400" />
+                <span>Neon Edge Active</span>
+              </span>
+            )}
           </div>
 
           {/* Left Arrow Button (Previous Rack) */}
