@@ -29,7 +29,8 @@ import {
   CalendarClock,
   Wrench,
   Check,
-  AlertCircle
+  AlertCircle,
+  Printer
 } from 'lucide-react';
 import { HighlightText, getZoneMeta } from './GlobalSearchZoneLookup';
 
@@ -50,6 +51,7 @@ interface InventoryListPanelProps {
   onOpenVinylAction?: (item: InventoryItem) => void;
   agingConfig?: AgingThresholdConfig;
   onQuickPickItem?: (item: InventoryItem) => void;
+  onPrintLabel?: (item: InventoryItem) => void;
 }
 
 export type SortField = 
@@ -78,6 +80,7 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
   onOpenVinylAction,
   agingConfig,
   onQuickPickItem,
+  onPrintLabel,
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>(globalSearchQuery);
   const [filterMode, setFilterMode] = useState<'ALL' | 'LOW_STOCK' | 'SAFE_STOCK'>('ALL');
@@ -1519,6 +1522,16 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
                            >
                              <Flame className="w-3.5 h-3.5" />
                            </button>
+                        )}
+
+                        {onPrintLabel && (
+                          <button
+                            onClick={() => onPrintLabel(item)}
+                            className="p-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 transition-all border border-purple-200 inline-flex items-center justify-center shadow-2xs active:scale-95"
+                            title="พิมพ์ป้าย QR Code พาเลทนี้"
+                          >
+                            <Printer className="w-4 h-4" />
+                          </button>
                         )}
 
                         <button

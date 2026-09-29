@@ -48,7 +48,7 @@ const initialZoneCapacities: ZoneCapacityMaster[] = [
 
 export default function App() {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<string>('blueprint');
+  const [activeTab, setActiveTab] = useState<string>('a4_rack');
   const [showZoneTopSearch, setShowZoneTopSearch] = useState<boolean>(false);
   const isZoneTab = ['blueprint', 'dashboard', 'campus_overview', 'a4_floor', 'a4_rack', 'layout', 'flow_floor', 'tent_layout', 'cy3_layout'].includes(activeTab);
 
@@ -86,6 +86,7 @@ export default function App() {
   const [globalSearchQuery, setGlobalSearchQuery] = useState<string>('');
   const [a4InitialTab, setA4InitialTab] = useState<'FLOOR_DA4D1' | 'RACK_ZONES' | 'FULL3D'>('FULL3D');
   const [a5InitialTent, setA5InitialTent] = useState<number | undefined>(undefined);
+  const [selectedPrintItemId, setSelectedPrintItemId] = useState<string>('');
 
   // Dynamic Aging Threshold Config State (New 5-Level 28-day standard)
   const [agingConfig, setAgingConfig] = useState<AgingThresholdConfig>(() => {
@@ -286,6 +287,9 @@ export default function App() {
     protectionMethod?: ProtectionMethod;
     productType?: ProductType;
     productStorageType?: ProductStorageType;
+    targetZone?: StorageZone;
+    targetBayNumber?: number;
+    targetLevel?: ShelfLevel;
   }) => {
     const {
       type,
@@ -303,7 +307,10 @@ export default function App() {
       looseQty,
       protectionMethod = 'NOT_APPLICABLE',
       productType,
-      productStorageType
+      productStorageType,
+      targetZone,
+      targetBayNumber,
+      targetLevel
     } = data;
 
     let locatorCode = `DA4D-1.05-${zone}${bayNumber}-L${level}`;
@@ -363,7 +370,6 @@ export default function App() {
         item.stdQtyPerPallet = stdQtyPerPallet;
         item.fullPallets = fullPallets ?? Math.floor(item.quantity / stdQtyPerPallet);
         item.looseQty = looseQty ?? (item.quantity % stdQtyPerPallet);
-        // Do not reset aging of existing items unless they were empty
       } else {
         const newItem: InventoryItem = {
           id: `item-${zone}${bayNumber}-${level}-${Date.now()}`,
@@ -399,6 +405,64 @@ export default function App() {
         };
         updatedItems.push(newItem);
       }
+    } else if (type === 'TRANSFER' && targetZone && targetBayNumber && targetLevel) {
+      // 🔄 TRANSFER: Move goods from source locator to target locator
+      let sourceItem = existingIndex >= 0 ? updatedItems[existingIndex] : null;
+      if (existingIndex >= 0) {
+        const currentQty = updatedItems[existingIndex].quantity;
+        const remaining = currentQty - actualQty;
+        if (remaining <= 0) {
+          updatedItems.splice(existingIndex, 1);
+        } else {
+          updatedItems[existingIndex].quantity = remaining;
+        }
+      }
+
+      // Calculate target locator code
+      let targetLocatorCode = `DA4D-1.05-${targetZone}${targetBayNumber}-L${targetLevel}`;
+      if (String(targetZone).startsWith('CY3') || String(targetZone).startsWith('DY3T')) {
+        const rowCode = String(targetZone).replace('CY3-', '');
+        const rowNum = rowCode === 'A' ? '1.01' : rowCode === 'B' ? '1.02' : rowCode === 'C' ? '1.03' : '1.04';
+        targetLocatorCode = `DY3T-${rowNum}-${rowCode}${targetBayNumber}-L${targetLevel}`;
+      } else if (String(targetZone).startsWith('X')) {
+        targetLocatorCode = `DA4D-1-${targetZone}-${targetBayNumber}`;
+      } else if (String(targetZone).startsWith('R') || String(targetZone).startsWith('FR')) {
+        const railNum = String(targetZone).replace(/\D/g, '');
+        targetLocatorCode = `DA2D-1-R${railNum}-${String(targetBayNumber).padStart(2, '0')}`;
+      }
+
+      // Add or merge into target slot
+      const targetIndex = updatedItems.findIndex(
+        it => it.zone === targetZone && it.bayNumber === targetBayNumber && it.level === targetLevel
+      );
+      if (targetIndex >= 0) {
+        updatedItems[targetIndex].quantity += actualQty;
+      } else {
+        const transferredItem: InventoryItem = {
+          id: `item-${targetZone}${targetBayNumber}-${targetLevel}-${Date.now()}`,
+          modelHE,
+          partName: sourceItem?.partName || `Part ${modelHE}`,
+          quantity: actualQty,
+          stdQtyPerPallet: sourceItem?.stdQtyPerPallet || stdQtyPerPallet,
+          fullPallets: Math.floor(actualQty / (sourceItem?.stdQtyPerPallet || stdQtyPerPallet)),
+          looseQty: actualQty % (sourceItem?.stdQtyPerPallet || stdQtyPerPallet),
+          qrCode: sourceItem?.qrCode || scanInput,
+          locatorCode: targetLocatorCode,
+          zone: targetZone,
+          bayNumber: targetBayNumber,
+          level: targetLevel,
+          storageType,
+          facilityId,
+          useLine: sourceItem?.useLine || useLine,
+          storageInDate: sourceItem?.storageInDate || new Date().toISOString(),
+          agingDays: sourceItem?.agingDays || 0,
+          agingStatus: sourceItem?.agingStatus || 'SAFE',
+          priorityUse: false,
+          remark: `ย้ายจาก ${locatorCode} -> ${targetLocatorCode}`,
+          protectionMethod: 'NOT_APPLICABLE'
+        };
+        updatedItems.push(transferredItem);
+      }
     } else {
       // OUT (เบิกจ่าย)
       newBalance = Math.max(0, newBalance - actualQty);
@@ -416,14 +480,20 @@ export default function App() {
     setItems(updatedItems);
 
     // 2. Add Transaction Log
+    const targetLocText = (type === 'TRANSFER' && targetZone)
+      ? `DA4D-1.05-${targetZone}${targetBayNumber}-L${targetLevel}`
+      : locatorCode;
+
     const newLog: MovementLog = {
       id: `log-${Date.now()}`,
       scanInput,
       type,
       modelHE,
-      locatorCode,
+      locatorCode: targetLocText,
       locatorGroup: 'DA4D-1',
-      locatorDetail: `วางพื้น/Rack โรง 4 ชั้น ${level}`,
+      locatorDetail: type === 'TRANSFER' 
+        ? `ย้ายพิกัดจาก ${locatorCode} ไปยัง ${targetLocText}`
+        : `วางพื้น/Rack โรง 4 ชั้น ${level}`,
       quantityCheck,
       actualQty,
       qtyGap,
@@ -432,7 +502,7 @@ export default function App() {
       scanStatus: 'DONE',
       issueDate: new Date().toISOString().slice(0, 10),
       createdOn: new Date().toISOString().replace('T', ' ').slice(0, 19),
-      remark,
+      remark: type === 'TRANSFER' ? `🔄 ย้ายตำแหน่ง [${locatorCode}] -> [${targetLocText}]` : remark,
     };
 
     setLogs([newLog, ...logs]);
@@ -757,6 +827,7 @@ export default function App() {
                 }}
                 onNavigateToCampus={() => setActiveTab('blueprint')}
                 onPrintLabel={(item) => {
+                  setSelectedPrintItemId(item.id);
                   setActiveTab('printer');
                 }}
               />
@@ -777,6 +848,10 @@ export default function App() {
                 onOpenVinylAction={item => setActiveVinylItem(item)}
                 agingConfig={agingConfig}
                 onQuickPickItem={handleQuickPickAgingItem}
+                onPrintLabel={(item) => {
+                  setSelectedPrintItemId(item.id);
+                  setActiveTab('printer');
+                }}
               />
             </div>
           )}
@@ -815,6 +890,9 @@ export default function App() {
                 agingConfig={agingConfig}
                 facilities={facilities}
                 customSlots={customSlots}
+                masterData={masterData}
+                initialSelectedItemId={selectedPrintItemId}
+                onOpenScanner={(z, b, l, m) => handleOpenScanner(z, b, l, m)}
               />
             </div>
           )}

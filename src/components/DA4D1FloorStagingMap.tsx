@@ -261,120 +261,61 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
   });
 
   return (
-    <div className="w-full h-full flex flex-col min-h-0 space-y-1.5 overflow-hidden">
-      {/* ENTERPRISE PRIMARY TOOLBAR: ROW 1 (NAVIGATION + VIEW SWITCHER + SEARCH) */}
-      <div className="h-9 px-2 sm:px-2.5 bg-slate-900 border border-slate-800 rounded-lg text-white shadow-xs flex items-center justify-between gap-1.5 overflow-x-auto shrink-0">
-        <div className="flex items-center gap-2 shrink-0">
+    <div className="w-full h-full flex flex-col min-h-0 space-y-1.5 overflow-hidden font-sans">
+      {/* ========================================================================= */}
+      {/* UNIFIED ENTERPRISE TOOLBAR: STANDARD ORDER ACROSS ALL ZONES                */}
+      {/* ========================================================================= */}
+      <header className="h-11 sm:h-12 border-b border-slate-800 bg-slate-900/95 px-3 sm:px-4 flex items-center justify-between gap-3 shrink-0 backdrop-blur-md z-30 text-slate-100">
+        
+        {/* ด้านซ้าย: ปุ่มย้อนกลับผังรวมและชื่อโซน */}
+        <div className="flex items-center gap-2 min-w-0">
           {onNavigateToCampus && (
             <button
               onClick={onNavigateToCampus}
-              className="h-[26px] px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 flex items-center gap-1 shrink-0 transition-colors"
-              title={t('navigation.campusBlueprint')}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-bold border border-slate-700/80 transition-all shadow-sm shrink-0 active:scale-95"
+              title="กลับสู่ผังรวมแคมปัส"
             >
-              <ArrowLeft className="w-3 h-3 text-slate-400" />
-              <span className="hidden sm:inline">{t('navigation.campusBlueprint')}</span>
+              <ArrowLeft className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">โซน A4 วางพื้น (DA4D-1)</span>
+              <span className="sm:hidden">A4 วางพื้น</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-amber-600/30 text-amber-300 font-mono text-[10px] border border-amber-500/30">
+                432P
+              </span>
             </button>
           )}
+        </div>
 
-          {/* Page Title & Capacity Badge */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-            <span className="text-[12px] sm:text-[13px] font-black tracking-tight text-white whitespace-nowrap">
-              {t('navigation.a4Staging')}
-            </span>
-            <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded">
-              432P
-            </span>
-          </div>
-
-          {/* View Switcher: 3D Layout vs 2D Plan */}
-          <div className="inline-flex items-center bg-slate-950 p-0.5 rounded-md border border-slate-700 h-[26px] shrink-0">
+        {/* ตรงกลาง: View Switcher + Status Filter + Group Selector (ลำดับมาตรฐานเดียวกัน) */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+          {/* 1. View Switcher: [3D ผัง 3 มิติ] vs [แปลนบน (2D Matrix)] */}
+          <div className="inline-flex items-center bg-slate-950 p-0.5 rounded-xl border border-slate-800 text-xs font-bold shrink-0">
             <button
               onClick={() => setViewMode('3D')}
-              className={`h-[22px] px-2.5 py-0.5 rounded text-[11px] font-bold transition-all flex items-center gap-1.5 ${
-                viewMode === '3D' ? 'bg-amber-600 text-white font-black shadow-xs' : 'text-slate-300 hover:text-white'
+              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all whitespace-nowrap ${
+                viewMode === '3D'
+                  ? 'bg-amber-600 text-white shadow-md ring-1 ring-amber-400/50'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
               }`}
               title="แสดงผัง 3 มิติ (3D Twin)"
             >
-              <Box className="w-3.5 h-3.5" />
+              <Box className="w-3.5 h-3.5 text-amber-200" />
               <span>3D ผัง 3 มิติ</span>
             </button>
             <button
               onClick={() => setViewMode('2D')}
-              className={`h-[22px] px-2.5 py-0.5 rounded text-[11px] font-bold transition-all flex items-center gap-1.5 ${
-                viewMode === '2D' ? 'bg-amber-600 text-white font-black shadow-xs' : 'text-slate-300 hover:text-white'
+              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all whitespace-nowrap ${
+                viewMode === '2D'
+                  ? 'bg-amber-600 text-white shadow-md ring-1 ring-amber-400/50'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
               }`}
               title="แสดงแปลนพื้น 2 มิติ (2D Matrix)"
             >
-              <Grid className="w-3.5 h-3.5" />
-              <span>2D แปลนพื้น</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Right: Inline Search Box */}
-        <div className="relative w-full max-w-[220px] h-[26px] shrink-0 flex items-center ml-auto">
-          <Search className="w-3 h-3 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="text"
-            placeholder={t('common.searchPlaceholder')}
-            value={localSearch}
-            onChange={(e) => setLocalSearch(e.target.value)}
-            className="w-full h-[26px] bg-slate-800 border border-slate-700 text-white placeholder-slate-400 text-[11px] rounded-md pl-6.5 pr-6 focus:outline-none focus:border-amber-400 transition-colors"
-          />
-          {localSearch && (
-            <button
-              onClick={() => setLocalSearch('')}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-white"
-              title={t('common.filter')}
-            >
-              <X className="w-3 h-3" />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* ENTERPRISE SECONDARY TOOLBAR: ROW 2 (BLOCKS + STATUS + STATS) */}
-      <div className="h-[34px] px-2 sm:px-2.5 bg-slate-900/95 border border-slate-800 rounded-lg text-white shadow-xs flex items-center justify-between gap-1.5 overflow-x-auto">
-        
-        {/* Left Group: Block Selector + Status Selector + Column Dropdown */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          
-          {/* Block Selector: Single Segmented Group (H: 26px, Font: 11px, Pad: 2px 8px) */}
-          <div className="inline-flex items-center bg-slate-800 p-0.5 rounded-md border border-slate-700 h-[26px] shrink-0">
-            <button
-              onClick={() => setSelectedGroupFilter('ALL')}
-              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
-                selectedGroupFilter === 'ALL'
-                  ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-              }`}
-            >
-              {t('common.all')} (X1-X8)
-            </button>
-            <button
-              onClick={() => setSelectedGroupFilter('TOP')}
-              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
-                selectedGroupFilter === 'TOP'
-                  ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-              }`}
-            >
-              Top (X5-X8)
-            </button>
-            <button
-              onClick={() => setSelectedGroupFilter('BOTTOM')}
-              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
-                selectedGroupFilter === 'BOTTOM'
-                  ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-              }`}
-            >
-              Bottom (X1-X4)
+              <Grid className="w-3.5 h-3.5 text-amber-200" />
+              <span>แปลนพื้น (Top 2D)</span>
             </button>
           </div>
 
-          {/* Reusable Global Warehouse Slot Filter */}
+          {/* 2. Global Status Filter Pills */}
           <WarehouseSlotFilter
             activeFilter={statusFilter}
             onFilterChange={setStatusFilter}
@@ -387,64 +328,88 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
             compact
           />
 
-          {/* Collapsed Dropdown for Specific Column Groups X1-X8 */}
-          <div className="relative inline-block text-left shrink-0">
+          {/* 3. Sub-Zone Selector: กลุ่ม X1-X8 */}
+          <div className="inline-flex items-center bg-slate-950 p-0.5 rounded-xl border border-slate-800 text-xs font-bold shrink-0">
             <button
-              onClick={() => setIsGroupDropdownOpen(!isGroupDropdownOpen)}
-              className={`h-[26px] px-2 py-0.5 rounded-md text-[11px] font-bold border transition-colors flex items-center gap-1 shrink-0 ${
-                isGroupDropdownOpen || (selectedGroupFilter !== 'ALL' && selectedGroupFilter !== 'TOP' && selectedGroupFilter !== 'BOTTOM')
-                  ? 'bg-slate-700 text-white border-amber-500 ring-1 ring-amber-500/50'
-                  : 'bg-slate-800 text-slate-300 border-slate-700 hover:text-white hover:bg-slate-700'
+              onClick={() => setSelectedGroupFilter('ALL')}
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
+                selectedGroupFilter === 'ALL'
+                  ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
               }`}
             >
-              <span>X1-X8</span>
-              <ChevronDown className="w-2.5 h-2.5 text-slate-400" />
+              {t('common.all')} (X1-X8)
             </button>
-
-            {isGroupDropdownOpen && (
-              <div className="absolute left-0 mt-1 w-48 bg-slate-900 border border-slate-700 rounded-lg shadow-xl p-2 z-40 space-y-1 text-xs">
-                <div className="text-[10px] font-bold uppercase text-slate-400 mb-1">{t('common.select')}</div>
-                <div className="grid grid-cols-4 gap-1">
-                  {DA4D1_GROUPS.map(g => (
-                    <button
-                      key={g.id}
-                      onClick={() => {
-                        setSelectedGroupFilter(g.id);
-                        setIsGroupDropdownOpen(false);
-                      }}
-                      className={`h-[24px] px-1 py-0.5 rounded text-[11px] font-mono font-bold border ${
-                        selectedGroupFilter === g.id
-                          ? 'bg-amber-500 text-slate-950 border-amber-400'
-                          : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
-                      }`}
-                    >
-                      {g.id}
-                    </button>
-                  ))}
-                </div>
-                <div className="pt-1 border-t border-slate-800 flex justify-end">
-                  <button
-                    onClick={() => {
-                      setSelectedGroupFilter('ALL');
-                      setIsGroupDropdownOpen(false);
-                    }}
-                    className="text-[10px] text-slate-400 hover:text-amber-300 font-bold"
-                  >
-                    {t('common.all')}
-                  </button>
-                </div>
-              </div>
-            )}
+            <button
+              onClick={() => setSelectedGroupFilter('TOP')}
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
+                selectedGroupFilter === 'TOP'
+                  ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              บน (X5-X8)
+            </button>
+            <button
+              onClick={() => setSelectedGroupFilter('BOTTOM')}
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
+                selectedGroupFilter === 'BOTTOM'
+                  ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              ล่าง (X1-X4)
+            </button>
           </div>
         </div>
 
-        {/* Right Group: Inline Capacity Stats */}
-        <div className="text-[11px] font-mono text-slate-300 shrink-0 hidden md:flex items-center gap-1.5 ml-auto">
-          <span className="text-slate-400">{t('legends.occupiedSlot')}:</span>
-          <span className="font-bold text-amber-300">{stats.occupiedSlots}/{stats.totalSlots}P</span>
-          <span className="text-amber-400 font-bold">({stats.utilizationRate}%)</span>
+        {/* ด้านขวา: กลุ่มค้นหา, สแกน KANBAN และขยายเต็มจอ (ลำดับมาตรฐานเดียวกันทุกโซน) */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* ช่องค้นหาด่วน */}
+          <div className="relative w-36 sm:w-48 h-8">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="ค้นหา Model, Locator..."
+              value={localSearch}
+              onChange={(e) => setLocalSearch(e.target.value)}
+              className="w-full h-8 bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-6 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors"
+            />
+            {localSearch && (
+              <button
+                onClick={() => setLocalSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                title="ล้างคำค้นหา"
+              >
+                ×
+              </button>
+            )}
+          </div>
+
+          {/* ปุ่มสแกน KANBAN */}
+          {onOpenScanner && (
+            <button
+              onClick={() => onOpenScanner('X1' as any, 1, 1 as any, 'IN')}
+              className="h-8 px-3 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
+              title="เปิดกล้องสแกน KANBAN QR Code (รับเข้า/เบิกออก)"
+            >
+              <QrCode className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">สแกน KANBAN</span>
+            </button>
+          )}
+
+          {/* ปุ่มขยายเต็มจอ */}
+          {onToggleFullscreen && (
+            <button
+              onClick={onToggleFullscreen}
+              className="h-8 w-8 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-all shadow-sm shrink-0"
+              title={isDashboardFullscreen ? 'ย่อหน้าจอ' : 'ขยายเต็มจอ'}
+            >
+              {isDashboardFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            </button>
+          )}
         </div>
-      </div>
+      </header>
 
       {/* MAIN CONTAINER: Layout on Top (flex-1) + Ultra-compact KPI Cards at Bottom (shrink-0) */}
       <div className="flex-1 min-h-0 flex flex-col gap-1.5 overflow-hidden">

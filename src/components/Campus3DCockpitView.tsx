@@ -77,8 +77,8 @@ export const Campus3DCockpitView: React.FC<Campus3DCockpitViewProps> = ({
 
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [isAutoRotate, setIsAutoRotate] = useState<boolean>(false);
-  const [viewMode, setViewMode] = useState<'3D_ISOMETRIC' | 'TOP_VIEW' | 'TABLE_DETAIL'>('3D_ISOMETRIC');
-  const [activeZoneFocus, setActiveZoneFocus] = useState<'CAMPUS' | 'TOP_DOWN' | 'A4_ALL' | 'A4_RACK' | 'A4_FLOOR' | 'A2' | 'A5' | 'CY3'>('CAMPUS');
+  const [viewMode, setViewMode] = useState<'3D_ISOMETRIC' | 'TOP_VIEW' | 'TABLE_DETAIL'>('TOP_VIEW');
+  const [activeZoneFocus, setActiveZoneFocus] = useState<'CAMPUS' | 'TOP_DOWN' | 'A4_ALL' | 'A4_RACK' | 'A4_FLOOR' | 'A2' | 'A5' | 'CY3'>('TOP_DOWN');
   const [showTableModal, setShowTableModal] = useState<boolean>(false);
   const [hoveredObject, setHoveredObject] = useState<{ 
     name: string; 
@@ -412,9 +412,9 @@ export const Campus3DCockpitView: React.FC<Campus3DCockpitViewProps> = ({
     scene.fog = new THREE.FogExp2('#f8fafc', 0.005);
     sceneRef.current = scene;
 
-    // 2. Camera Setup
+    // 2. Camera Setup (Default: 85° Overhead Blueprint Top View)
     const camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 1000);
-    camera.position.set(58, 68, 76);
+    camera.position.set(0, 115, 0.05);
     cameraRef.current = camera;
 
     // 3. Renderer with PCF Shadows
@@ -1198,33 +1198,33 @@ export const Campus3DCockpitView: React.FC<Campus3DCockpitViewProps> = ({
 
         {/* Right Actions & Main Mode Selector */}
         <div className="flex items-center gap-1.5">
-          {/* Main Mode Segment: 3D Isometric vs Top View vs Table Detail */}
+          {/* Main Mode Segment: Top View (Default) vs 3D Isometric vs Table Detail */}
           <div className="inline-flex items-center bg-slate-950 p-0.5 rounded-xl border border-slate-700 h-8">
             <button
-              onClick={() => handleSetCameraPreset('CAMPUS')}
-              className={`h-7 px-2.5 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 ${
-                viewMode === '3D_ISOMETRIC' ? 'bg-blue-600 text-white font-black shadow-xs' : 'text-slate-300 hover:text-white'
-              }`}
-              title="มุมมองสามมิติ 3D Isometric (45°)"
-            >
-              <Box className="w-3.5 h-3.5" />
-              <span>ภาพรวม 3D</span>
-            </button>
-
-            <button
               onClick={() => handleSetCameraPreset('TOP_DOWN')}
-              className={`h-7 px-2.5 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 ${
+              className={`h-7 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                 viewMode === 'TOP_VIEW' ? 'bg-indigo-600 text-white font-black shadow-xs' : 'text-slate-300 hover:text-white'
               }`}
               title="มุมมองแปลนบน Top View (85°) สำหรับผู้บริหาร"
             >
               <Grid className="w-3.5 h-3.5 text-cyan-300" />
-              <span>แปลนบน Top View</span>
+              <span>แปลนบน (Top View)</span>
+            </button>
+
+            <button
+              onClick={() => handleSetCameraPreset('CAMPUS')}
+              className={`h-7 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                viewMode === '3D_ISOMETRIC' ? 'bg-blue-600 text-white font-black shadow-xs' : 'text-slate-300 hover:text-white'
+              }`}
+              title="มุมมองสามมิติ 3D Isometric (45°)"
+            >
+              <Box className="w-3.5 h-3.5" />
+              <span>3D ผัง 3 มิติ</span>
             </button>
 
             <button
               onClick={() => setShowTableModal(!showTableModal)}
-              className={`h-7 px-2.5 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 ${
+              className={`h-7 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                 showTableModal ? 'bg-amber-600 text-white font-black shadow-xs' : 'text-slate-300 hover:text-white hover:bg-slate-800'
               }`}
               title="เปิดตารางสรุปความจุ & Aging ทุกโซน"

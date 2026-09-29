@@ -27,7 +27,8 @@ import {
   SlidersHorizontal,
   PackageSearch,
   Database,
-  Boxes
+  Boxes,
+  LayoutDashboard
 } from 'lucide-react';
 
 import { WarehouseFacility } from '../types';
@@ -266,16 +267,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {isCollapsed ? (
             <div className="flex flex-col items-center space-y-2 py-1">
-              {setThemeMode ? (
-                <button
-                  onClick={() => setThemeMode(themeMode === 'light' ? 'dark' : 'light')}
-                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-800 text-slate-300 hover:text-white border border-slate-700/60 transition-colors shadow-sm"
-                  title={themeMode === 'light' ? 'เปลี่ยนเป็น Dark Mode' : 'เปลี่ยนเป็น Light Mode'}
-                >
-                  {themeMode === 'light' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-blue-400" />}
-                </button>
-              ) : null}
-
               {toggleFullscreen && (
                 <button
                   onClick={toggleFullscreen}
@@ -287,7 +278,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </div>
           ) : (
-            <div className="flex items-center justify-between space-x-1">
+            <div className="flex items-center justify-between space-x-1.5">
               {/* Language Selector */}
               <select
                 className="bg-slate-800 text-slate-300 border border-slate-700/80 rounded-lg px-2 py-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer w-full font-sans"
@@ -302,38 +293,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               </select>
 
               <div className="flex items-center space-x-1 shrink-0">
-                {/* Theme Mode Toggle (Light / Dark) */}
-                {setThemeMode ? (
-                  <div className="flex items-center bg-slate-800/90 rounded-lg p-0.5 border border-slate-700/80">
-                    <button
-                      onClick={() => setThemeMode('light')}
-                      className={`p-1.5 rounded-md transition-all ${
-                        themeMode === 'light' ? 'bg-amber-500 text-slate-950 font-bold shadow' : 'text-slate-400 hover:text-white'
-                      }`}
-                      title="สว่าง (Light Mode)"
-                    >
-                      <Sun className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => setThemeMode('dark')}
-                      className={`p-1.5 rounded-md transition-all ${
-                        themeMode === 'dark' ? 'bg-blue-600 text-white font-bold shadow' : 'text-slate-400 hover:text-white'
-                      }`}
-                      title="มืด (Dark Mode)"
-                    >
-                      <Moon className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ) : toggleDarkMode ? (
-                  <button
-                    onClick={toggleDarkMode}
-                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors border border-slate-700/80"
-                    title={isDarkMode ? 'Light Mode' : 'Dark Mode'}
-                  >
-                    {isDarkMode ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5" />}
-                  </button>
-                ) : null}
-
                 {/* Fullscreen Toggle */}
                 {toggleFullscreen && (
                   <button

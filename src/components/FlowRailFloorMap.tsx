@@ -157,68 +157,61 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
   }, [items]);
 
   return (
-    <div className="w-full h-full flex flex-col min-h-0 space-y-1.5 overflow-hidden animate-fadeIn">
-      {/* ULTRA-COMPACT ENTERPRISE TOOLBAR: HEIGHT <= 36px */}
-      <div className="h-9 px-2 sm:px-2.5 bg-slate-900 border border-slate-800 rounded-lg text-white shadow-xs flex items-center justify-between gap-1.5 overflow-x-auto shrink-0">
+    <div className="w-full h-full flex flex-col min-h-0 space-y-1.5 overflow-hidden animate-fadeIn font-sans">
+      {/* ========================================================================= */}
+      {/* UNIFIED ENTERPRISE TOOLBAR: STANDARD ORDER ACROSS ALL ZONES                */}
+      {/* ========================================================================= */}
+      <header className="h-11 sm:h-12 border-b border-slate-800 bg-slate-900/95 px-3 sm:px-4 flex items-center justify-between gap-3 shrink-0 backdrop-blur-md z-30 text-slate-100">
         
-        {/* Left Group: Back + Title + Segmented Bank & Status Controls */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        {/* ด้านซ้าย: ปุ่มย้อนกลับผังรวมและชื่อโซน */}
+        <div className="flex items-center gap-2 min-w-0">
           {onNavigateToCampus && (
             <button
               onClick={onNavigateToCampus}
-              className="h-[24px] px-2 py-0.5 rounded text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-white flex items-center gap-1 border border-slate-700 shrink-0"
-              title={t('navigation.campusBlueprint')}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-bold border border-slate-700/80 transition-all shadow-sm shrink-0 active:scale-95"
+              title="กลับสู่ผังรวมแคมปัส"
             >
-              <span>🏢 {t('navigation.campusBlueprint')}</span>
+              <ArrowLeft className="w-3.5 h-3.5 text-blue-400" />
+              <span className="hidden sm:inline">โซน A2 รางเลื่อน (DA2D-1)</span>
+              <span className="sm:hidden">A2 รางเลื่อน</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-blue-600/30 text-blue-300 font-mono text-[10px] border border-blue-500/30">
+                128P
+              </span>
             </button>
           )}
+        </div>
 
-            {/* Zone Title & Badge */}
-          <div className="flex items-center gap-1 shrink-0 mr-0.5">
-            <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-            <span className="text-[12px] font-black tracking-tight text-white whitespace-nowrap">
-              DA2D-1 Flow Rail
-            </span>
-            <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded hidden sm:inline">
-              128P
-            </span>
-          </div>
-
-          {/* Rail Filter Selector: Single Segmented Group (H: 26px, Font: 11px, Pad: 2px 8px) */}
-          <div className="inline-flex items-center bg-slate-800 p-0.5 rounded-md border border-slate-700 h-[26px] shrink-0">
+        {/* ตรงกลาง: View Switcher + Status Filter + Rail Selector + Flow Direction (ลำดับมาตรฐานเดียวกัน) */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+          {/* 1. View Switcher: [3D ผัง 3 มิติ] vs [แปลนบน (Top 2D)] */}
+          <div className="inline-flex items-center bg-slate-950 p-0.5 rounded-xl border border-slate-800 text-xs font-bold shrink-0">
             <button
-              onClick={() => setSelectedRailFilter('ALL')}
-              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
-                selectedRailFilter === 'ALL'
-                  ? 'bg-blue-600 text-white font-black shadow-xs'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+              onClick={() => setViewMode('3D')}
+              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all whitespace-nowrap ${
+                viewMode === '3D'
+                  ? 'bg-blue-600 text-white shadow-md ring-1 ring-blue-400/50'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
               }`}
+              title="แสดงโมเดล 3D รางเลื่อน (3D Twin)"
             >
-              {t('common.all')} (R1-R16)
+              <Box className="w-3.5 h-3.5 text-blue-200" />
+              <span>3D ผัง 3 มิติ</span>
             </button>
             <button
-              onClick={() => setSelectedRailFilter('TOP')}
-              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-mono font-bold transition-colors ${
-                selectedRailFilter === 'TOP'
-                  ? 'bg-blue-600 text-white font-black shadow-xs'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+              onClick={() => setViewMode('2D')}
+              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all whitespace-nowrap ${
+                viewMode === '2D'
+                  ? 'bg-blue-600 text-white shadow-md ring-1 ring-blue-400/50'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
               }`}
+              title="แสดงแปลนพื้น 2 มิติ (2D Plan)"
             >
-              R9-R16 (64P)
-            </button>
-            <button
-              onClick={() => setSelectedRailFilter('BOTTOM')}
-              className={`h-[22px] px-2 py-0.5 rounded text-[11px] font-mono font-bold transition-colors ${
-                selectedRailFilter === 'BOTTOM'
-                  ? 'bg-blue-600 text-white font-black shadow-xs'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-              }`}
-            >
-              R1-R8 (64P)
+              <Grid className="w-3.5 h-3.5 text-blue-200" />
+              <span>แปลนพื้น (Top 2D)</span>
             </button>
           </div>
 
-          {/* Reusable Global Warehouse Slot Filter */}
+          {/* 2. Global Status Filter Pills */}
           <WarehouseSlotFilter
             activeFilter={statusFilter}
             onFilterChange={setStatusFilter}
@@ -231,63 +224,88 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
             compact
           />
 
-          {/* Flow Direction Pill Indicator */}
-          <div className="hidden xl:inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10.5px] font-bold bg-slate-800 border border-slate-700 text-slate-300 shrink-0">
-            <span className="text-emerald-400 font-black flex items-center gap-0.5">
-              <ArrowLeft className="w-3 h-3" /> Outfeed
-            </span>
-            <span className="text-slate-600">|</span>
-            <span className="text-blue-400 font-black flex items-center gap-0.5">
-              Infeed <ArrowRight className="w-3 h-3" />
-            </span>
+          {/* 3. Sub-Zone Selector: ราง R1-R16 */}
+          <div className="inline-flex items-center bg-slate-950 p-0.5 rounded-xl border border-slate-800 text-xs font-bold shrink-0">
+            <button
+              onClick={() => setSelectedRailFilter('ALL')}
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
+                selectedRailFilter === 'ALL'
+                  ? 'bg-blue-600 text-white font-black shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              {t('common.all')} (R1-R16)
+            </button>
+            <button
+              onClick={() => setSelectedRailFilter('TOP')}
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
+                selectedRailFilter === 'TOP'
+                  ? 'bg-blue-600 text-white font-black shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              บน (R9-R16)
+            </button>
+            <button
+              onClick={() => setSelectedRailFilter('BOTTOM')}
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
+                selectedRailFilter === 'BOTTOM'
+                  ? 'bg-blue-600 text-white font-black shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              ล่าง (R1-R8)
+            </button>
           </div>
 
-          {/* 3D vs 2D View Switcher */}
-          <div className="inline-flex items-center bg-slate-950 p-0.5 rounded-md border border-slate-700 h-[26px] shrink-0">
-            <button
-              onClick={() => setViewMode('3D')}
-              className={`h-[22px] px-2.5 py-0.5 rounded text-[11px] font-bold transition-all flex items-center gap-1.5 ${
-                viewMode === '3D' ? 'bg-blue-600 text-white font-black shadow-xs' : 'text-slate-300 hover:text-white'
-              }`}
-              title="แสดงโมเดล 3D รางเลื่อน"
-            >
-              <Box className="w-3.5 h-3.5" />
-              <span>3D ผัง 3 มิติ</span>
-            </button>
-            <button
-              onClick={() => setViewMode('2D')}
-              className={`h-[22px] px-2.5 py-0.5 rounded text-[11px] font-bold transition-all flex items-center gap-1.5 ${
-                viewMode === '2D' ? 'bg-blue-600 text-white font-black shadow-xs' : 'text-slate-300 hover:text-white'
-              }`}
-              title="แสดงแปลน 2D รางเลื่อน"
-            >
-              <Grid className="w-3.5 h-3.5" />
-              <span>2D แปลน</span>
-            </button>
+          {/* Flow Direction Indicator */}
+          <div className="hidden xl:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-slate-950 border border-slate-800 text-slate-300 shrink-0">
+            <span className="text-emerald-400 font-black flex items-center gap-1">
+              <ArrowLeft className="w-3.5 h-3.5" /> Outfeed
+            </span>
+            <span className="text-slate-700">|</span>
+            <span className="text-blue-400 font-black flex items-center gap-1">
+              Infeed <ArrowRight className="w-3.5 h-3.5" />
+            </span>
           </div>
         </div>
 
-        {/* Right Group: Inline Compact Search (Max-Width 220px, Height 26px) */}
-        <div className="relative w-full max-w-[220px] h-[26px] shrink-0 flex items-center ml-auto">
-          <Search className="w-3 h-3 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="text"
-            placeholder={t('common.searchPlaceholder')}
-            value={localSearch}
-            onChange={(e) => setLocalSearch(e.target.value)}
-            className="w-full h-[26px] bg-slate-800 border border-slate-700 text-white placeholder-slate-400 text-[11px] rounded-md pl-6.5 pr-6 focus:outline-none focus:border-blue-500 transition-colors"
-          />
-          {localSearch && (
+        {/* ด้านขวา: กลุ่มค้นหา, สแกน KANBAN (ลำดับมาตรฐานเดียวกันทุกโซน) */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* ช่องค้นหาด่วน */}
+          <div className="relative w-36 sm:w-48 h-8">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="ค้นหา Model, Locator..."
+              value={localSearch}
+              onChange={(e) => setLocalSearch(e.target.value)}
+              className="w-full h-8 bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-6 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
+            />
+            {localSearch && (
+              <button
+                onClick={() => setLocalSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                title="ล้างคำค้นหา"
+              >
+                ×
+              </button>
+            )}
+          </div>
+
+          {/* ปุ่มสแกน KANBAN */}
+          {onOpenScanner && (
             <button
-              onClick={() => setLocalSearch('')}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-white"
-              title={t('common.filter')}
+              onClick={() => onOpenScanner('R1' as any, 1, 1 as any, 'IN')}
+              className="h-8 px-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
+              title="เปิดกล้องสแกน KANBAN QR Code (รับเข้า/เบิกออก)"
             >
-              <X className="w-3 h-3" />
+              <QrCode className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">สแกน KANBAN</span>
             </button>
           )}
         </div>
-      </div>
+      </header>
 
       {/* MAIN CONTAINER: Layout on Top (flex-1) + Ultra-compact KPI Cards at Bottom (shrink-0) */}
       <div className="flex-1 min-h-0 flex flex-col gap-1.5 overflow-hidden">

@@ -491,22 +491,22 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
         ctx.fillStyle = color;
         ctx.fillRect(0, 0, 512, 256);
 
-        ctx.lineWidth = 12;
-        ctx.strokeStyle = '#ffffff';
-        ctx.strokeRect(6, 6, 500, 244);
+        ctx.lineWidth = 14;
+        ctx.strokeStyle = '#facc15'; // Vibrant yellow safety border
+        ctx.strokeRect(7, 7, 498, 242);
 
         ctx.fillStyle = '#090d16';
-        ctx.fillRect(16, 16, 480, 224);
+        ctx.fillRect(18, 18, 476, 220);
 
         ctx.fillStyle = '#ffffff';
-        ctx.font = '900 84px "Segoe UI", Arial, sans-serif';
+        ctx.font = '900 90px "Segoe UI", Arial, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`แร็ค ${rowName}`, 256, 85);
+        ctx.fillText(`แร็ค ${rowName}`, 256, 82);
 
         ctx.fillStyle = '#38bdf8';
-        ctx.font = 'bold 34px "Segoe UI", Arial, sans-serif';
-        ctx.fillText(`${subCode} (${totalBays} ช่อง x 4 ชั้น)`, 256, 175);
+        ctx.font = 'bold 36px "Segoe UI", Arial, sans-serif';
+        ctx.fillText(`${subCode} (${totalBays} ช่อง x 4 ชั้น)`, 256, 172);
       }
       const tex = new THREE.CanvasTexture(canvas);
       tex.anisotropy = 8;
@@ -674,15 +674,23 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
         side: THREE.DoubleSide
       });
 
-      // 1. Large Floor Decal at Front of Rack Row (Aisle z = -9.5)
-      const frontFloorDecal = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.75), rackHeadMat);
-      frontFloorDecal.position.set(r.x, 0.025, -9.5);
+      // Compute floor decal X position:
+      // Inner rows C & E face the aisle to the left (-X), so shift out into the aisle.
+      // Outer rows D & F face the aisle to the right (+X), so shift out into the aisle.
+      // Row B is a single rack on the left end.
+      const isInnerLeft = ['C', 'E'].includes(r.name);
+      const isOuterRight = ['D', 'F'].includes(r.name);
+      const headDecalX = isInnerLeft ? r.x - 1.45 : isOuterRight ? r.x + 1.45 : r.x;
+
+      // 1. Large Floor Decal at Front of Rack Row (Clear forklift walkway at z = -8.2, well out from under rack at z = -10.8)
+      const frontFloorDecal = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.9), rackHeadMat);
+      frontFloorDecal.position.set(headDecalX, 0.025, -8.2);
       frontFloorDecal.rotation.x = -Math.PI / 2;
       rowGroup.add(frontFloorDecal);
 
-      // 2. Large Floor Decal at Rear of Rack Row (z = -39.8)
-      const rearFloorDecal = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.75), rackHeadMat);
-      rearFloorDecal.position.set(r.x, 0.025, -39.8);
+      // 2. Large Floor Decal at Rear of Rack Row (Clear rear walkway at z = -41.2, well clear of rear uprights at z = -39.6)
+      const rearFloorDecal = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.9), rackHeadMat);
+      rearFloorDecal.position.set(headDecalX, 0.025, -41.2);
       rearFloorDecal.rotation.x = -Math.PI / 2;
       rowGroup.add(rearFloorDecal);
 
@@ -702,12 +710,16 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
         const xRear = r.x - RACK_FRAME_DEPTH / 2;
 
         // Floor Bay Slot Number Marking (สลักตัวเลขเสา/ช่องบนพื้น)
+        // Rows C & E face the aisle on the left (-X), while B, D, F face right (+X)
+        const isLeftAisle = ['C', 'E'].includes(r.name);
+        const decalOffsetX = isLeftAisle ? -1.60 : 1.60;
+
         const bayDecalMat = new THREE.MeshBasicMaterial({
           map: createA4RackBayFloorTexture(r.name, bay),
           side: THREE.DoubleSide
         });
         const bayFloorDecal = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.6), bayDecalMat);
-        bayFloorDecal.position.set(r.x + 1.15, 0.022, zBayCenter);
+        bayFloorDecal.position.set(r.x + decalOffsetX, 0.022, zBayCenter);
         bayFloorDecal.rotation.x = -Math.PI / 2;
         rowGroup.add(bayFloorDecal);
 
@@ -931,15 +943,23 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
         side: THREE.DoubleSide
       });
 
-      // 1. Large Floor Decal at Front of Rack Row (Aisle z = -21.0)
-      const frontFloorDecal = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.75), rackHeadMat);
-      frontFloorDecal.position.set(r.x, 0.025, -21.0);
+      // Compute floor decal X position:
+      // Inner rows H & J face the aisle to the left (-X), so shift out into the aisle.
+      // Outer rows I & K face the aisle to the right (+X), so shift out into the aisle.
+      // Row G is a single rack on the left end.
+      const isInnerLeft = ['H', 'J'].includes(r.name);
+      const isOuterRight = ['I', 'K'].includes(r.name);
+      const headDecalX = isInnerLeft ? r.x - 1.45 : isOuterRight ? r.x + 1.45 : r.x;
+
+      // 1. Large Floor Decal at Front of Rack Row (Clear forklift road at z = -19.5, well out from under rack at z = -22.3)
+      const frontFloorDecal = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.9), rackHeadMat);
+      frontFloorDecal.position.set(headDecalX, 0.025, -19.5);
       frontFloorDecal.rotation.x = -Math.PI / 2;
       rowGroup.add(frontFloorDecal);
 
-      // 2. Large Floor Decal at Rear of Rack Row (z = -35.5)
-      const rearFloorDecal = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.75), rackHeadMat);
-      rearFloorDecal.position.set(r.x, 0.025, -35.5);
+      // 2. Large Floor Decal at Rear of Rack Row (Clear rear walkway at z = -37.0, well clear of rear uprights at z = -34.3)
+      const rearFloorDecal = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.9), rackHeadMat);
+      rearFloorDecal.position.set(headDecalX, 0.025, -37.0);
       rearFloorDecal.rotation.x = -Math.PI / 2;
       rowGroup.add(rearFloorDecal);
 
@@ -959,12 +979,16 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
         const xRear = r.x - RACK_FRAME_DEPTH / 2;
 
         // Floor Bay Slot Number Marking (สลักตัวเลขเสา/ช่องบนพื้น)
+        // Rows H & J face the aisle on the left (-X), while G, I, K face right (+X)
+        const isLeftAisle = ['H', 'J'].includes(r.name);
+        const decalOffsetX = isLeftAisle ? -1.60 : 1.60;
+
         const bayDecalMat = new THREE.MeshBasicMaterial({
           map: createA4RackBayFloorTexture(r.name, bay),
           side: THREE.DoubleSide
         });
         const bayFloorDecal = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.6), bayDecalMat);
-        bayFloorDecal.position.set(r.x + 1.15, 0.022, zBayCenter);
+        bayFloorDecal.position.set(r.x + decalOffsetX, 0.022, zBayCenter);
         bayFloorDecal.rotation.x = -Math.PI / 2;
         rowGroup.add(bayFloorDecal);
 
@@ -1574,30 +1598,24 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
           </div>
         </div>
 
-        {/* Right Mode Actions */}
-        <div className="flex items-center gap-2">
-          {/* Bright Studio Indicator */}
-          <div className="px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-900 text-slate-200 text-xs font-bold flex items-center gap-1.5 shadow-sm">
-            <Sun className="w-3.5 h-3.5 text-amber-400" />
-            <span>Bright Studio</span>
-          </div>
-
+        {/* Right Mode Actions: รีเซ็ตกล้อง และ ขยายเต็มจอ */}
+        <div className="flex items-center gap-1.5">
           {/* Reset Camera */}
           <button
             onClick={() => handleCameraPreset((initialFocus as CameraPresetKey) || 'ALL_A4')}
-            className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition-all shadow-sm"
+            className="h-8 w-8 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-all shadow-sm shrink-0"
             title="รีเซ็ตมุมมอง"
           >
-            <RotateCcw className="w-4 h-4" />
+            <RotateCcw className="w-3.5 h-3.5" />
           </button>
 
           {/* Fullscreen */}
           <button
             onClick={toggleFullscreen}
-            className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition-all shadow-sm"
+            className="h-8 w-8 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-all shadow-sm shrink-0"
             title="ขยายเต็มจอ"
           >
-            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
         </div>
       </div>

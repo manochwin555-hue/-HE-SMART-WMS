@@ -31,7 +31,8 @@ import {
   Flame,
   Clock,
   X,
-  LayoutGrid
+  LayoutGrid,
+  ArrowLeft
 } from 'lucide-react';
 
 interface A5TentFloorStagingMapProps {
@@ -262,78 +263,61 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
   const currentTentConfig = TENTS.find(t => t.number === selectedTent) || TENTS[0];
 
   return (
-    <div className="w-full h-full flex flex-col min-h-0 space-y-1.5 overflow-hidden animate-fadeIn">
-      {/* ULTRA-COMPACT ENTERPRISE TOOLBAR: HEIGHT <= 36px */}
-      <div className="h-9 px-2 sm:px-2.5 bg-slate-900 border border-slate-800 rounded-lg text-white shadow-xs flex items-center justify-between gap-1.5 overflow-x-auto shrink-0">
+    <div className="w-full h-full flex flex-col min-h-0 space-y-1.5 overflow-hidden animate-fadeIn font-sans">
+      {/* ========================================================================= */}
+      {/* UNIFIED ENTERPRISE TOOLBAR: STANDARD ORDER ACROSS ALL ZONES                */}
+      {/* ========================================================================= */}
+      <header className="h-11 sm:h-12 border-b border-slate-800 bg-slate-900/95 px-3 sm:px-4 flex items-center justify-between gap-3 shrink-0 backdrop-blur-md z-30 text-slate-100">
         
-        {/* Left Group: Back + Title + Segmented Tent Switcher & Status Controls */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        {/* ด้านซ้าย: ปุ่มย้อนกลับผังรวมและชื่อโซน */}
+        <div className="flex items-center gap-2 min-w-0">
           {onNavigateToCampus && (
             <button
               onClick={onNavigateToCampus}
-              className="h-[24px] px-2 py-0.5 rounded text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-white flex items-center gap-1 border border-slate-700 shrink-0"
-              title={t('navigation.campusBlueprint')}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-bold border border-slate-700/80 transition-all shadow-sm shrink-0 active:scale-95"
+              title="กลับสู่ผังรวมแคมปัส"
             >
-              <span>🏢 {t('navigation.campusBlueprint')}</span>
+              <ArrowLeft className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden sm:inline">โซน A5 เต็นท์ผ้าใบ (DA5T)</span>
+              <span className="sm:hidden">A5 เต็นท์</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-emerald-600/30 text-emerald-300 font-mono text-[10px] border border-emerald-500/30">
+                784P
+              </span>
             </button>
           )}
+        </div>
 
-          {/* Zone Title & Badge */}
-          <div className="flex items-center gap-1 shrink-0 mr-0.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-[12px] font-black tracking-tight text-white whitespace-nowrap">
-              A5 Tent Staging
-            </span>
-            <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded hidden sm:inline">
-              784P
-            </span>
-          </div>
-
-          {/* View & Tent Selector: Single Segmented Group (H: 26px, Font: 11px, Pad: 2px 8px) */}
-          <div className="inline-flex items-center bg-slate-800 p-0.5 rounded-md border border-slate-700 h-[26px] shrink-0">
+        {/* ตรงกลาง: View Switcher + Status Filter + Tent Selector (ลำดับมาตรฐานเดียวกัน) */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+          {/* 1. View Switcher: [3D ผัง 3 มิติ] vs [แปลนบน (Top 2D)] */}
+          <div className="inline-flex items-center bg-slate-950 p-0.5 rounded-xl border border-slate-800 text-xs font-bold shrink-0">
             <button
               onClick={() => setViewMode('3D_CANOPY_TENTS')}
-              className={`h-[22px] px-2 py-0.5 rounded text-[10.5px] font-bold transition-colors flex items-center gap-1 ${
+              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all whitespace-nowrap ${
                 viewMode === '3D_CANOPY_TENTS'
-                  ? 'bg-indigo-600 text-white font-black shadow-xs'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                  ? 'bg-emerald-600 text-white shadow-md ring-1 ring-emerald-400/50'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
               }`}
               title="แสดงโมเดล 3D เต็นท์ผ้าใบ (784P)"
             >
-              <Box className="w-3 h-3" />
-              <span>3D เต็นท์ผ้าใบ (784P)</span>
+              <Box className="w-3.5 h-3.5 text-emerald-200" />
+              <span>3D ผัง 3 มิติ</span>
             </button>
             <button
               onClick={() => setViewMode('OVERVIEW_4_TENTS')}
-              className={`h-[22px] px-2 py-0.5 rounded text-[10.5px] font-bold transition-colors flex items-center gap-1 ${
+              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all whitespace-nowrap ${
                 viewMode === 'OVERVIEW_4_TENTS'
-                  ? 'bg-blue-600 text-white font-black shadow-xs'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                  ? 'bg-emerald-600 text-white shadow-md ring-1 ring-emerald-400/50'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
               }`}
               title="ภาพรวม 4 เต็นท์ (Site Layout 2D)"
             >
-              <Grid className="w-3 h-3" />
-              <span>{t('warehouse.campusOverview')}</span>
+              <Grid className="w-3.5 h-3.5 text-emerald-200" />
+              <span>แปลนรวม (Top 2D)</span>
             </button>
-            {TENTS.map((t) => (
-              <button
-                key={t.number}
-                onClick={() => {
-                  setSelectedTent(t.number);
-                  setViewMode('TENT_DETAIL');
-                }}
-                className={`h-[22px] px-2 py-0.5 rounded text-[10.5px] font-bold transition-colors ${
-                  viewMode === 'TENT_DETAIL' && selectedTent === t.number
-                    ? 'bg-emerald-600 text-white font-black shadow-xs'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-                }`}
-              >
-                Tent {t.number}
-              </button>
-            ))}
           </div>
 
-          {/* Reusable Global Warehouse Slot Filter */}
+          {/* 2. Global Status Filter Pills */}
           <WarehouseSlotFilter
             activeFilter={filterStatus}
             onFilterChange={setFilterStatus}
@@ -346,37 +330,61 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
             compact
           />
 
-          {/* Compact Scan Button */}
-          <button
-            onClick={() => onOpenScanner('T1-01', 1, 1, 'IN')}
-            className="h-[26px] px-2 py-0.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md text-[11px] font-bold shadow-xs flex items-center gap-1 active:scale-95 transition-all shrink-0"
-          >
-            <QrCode className="w-3 h-3" />
-            <span>{t('scanner.scanInbound')}</span>
-          </button>
+          {/* 3. Sub-Zone Selector: เต็นท์ 1 - 4 */}
+          <div className="inline-flex items-center bg-slate-950 p-0.5 rounded-xl border border-slate-800 text-xs font-bold shrink-0">
+            {TENTS.map((t) => (
+              <button
+                key={t.number}
+                onClick={() => {
+                  setSelectedTent(t.number);
+                  setViewMode('TENT_DETAIL');
+                }}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
+                  viewMode === 'TENT_DETAIL' && selectedTent === t.number
+                    ? 'bg-emerald-600 text-white font-black shadow-xs'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                Tent {t.number}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Right Group: Inline Compact Search (Max-Width 220px, Height 26px) */}
-        <div className="relative w-full max-w-[220px] h-[26px] shrink-0 flex items-center ml-auto">
-          <Search className="w-3 h-3 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="text"
-            placeholder="ค้นหา Model, DA5T..."
-            value={localSearch}
-            onChange={(e) => setLocalSearch(e.target.value)}
-            className="w-full h-[26px] bg-slate-800 border border-slate-700 text-white placeholder-slate-400 text-[11px] rounded-md pl-6.5 pr-6 focus:outline-none focus:border-emerald-500 transition-colors"
-          />
-          {localSearch && (
-            <button
-              onClick={() => setLocalSearch('')}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-white"
-              title="ล้างการค้นหา"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          )}
+        {/* ด้านขวา: กลุ่มค้นหา, สแกน KANBAN (ลำดับมาตรฐานเดียวกันทุกโซน) */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* ช่องค้นหาด่วน */}
+          <div className="relative w-36 sm:w-48 h-8">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="ค้นหา Model, DA5T..."
+              value={localSearch}
+              onChange={(e) => setLocalSearch(e.target.value)}
+              className="w-full h-8 bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-6 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
+            />
+            {localSearch && (
+              <button
+                onClick={() => setLocalSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                title="ล้างคำค้นหา"
+              >
+                ×
+              </button>
+            )}
+          </div>
+
+          {/* ปุ่มสแกน KANBAN */}
+          <button
+            onClick={() => onOpenScanner('T1-01', 1, 1, 'IN')}
+            className="h-8 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
+            title="เปิดกล้องสแกน KANBAN QR Code (รับเข้า/เบิกออก)"
+          >
+            <QrCode className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">สแกน KANBAN</span>
+          </button>
         </div>
-      </div>
+      </header>
 
       {/* MAIN CONTAINER: Layout on Top (flex-1) + Ultra-compact KPI Cards at Bottom (shrink-0) */}
       <div className="flex-1 min-h-0 flex flex-col gap-1.5 overflow-hidden">

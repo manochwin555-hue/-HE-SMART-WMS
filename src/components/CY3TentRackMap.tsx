@@ -14,7 +14,6 @@ import {
   QrCode, 
   Layers, 
   ChevronRight, 
-  RefreshCw, 
   AlertTriangle, 
   CheckCircle2, 
   Box, 
@@ -23,7 +22,8 @@ import {
   X,
   Truck,
   LayoutGrid,
-  Info
+  Info,
+  ArrowLeft
 } from 'lucide-react';
 
 interface CY3TentRackMapProps {
@@ -244,113 +244,74 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 text-slate-100 overflow-hidden select-none">
+    <div className="flex flex-col h-full bg-slate-950 text-slate-100 overflow-hidden select-none font-sans">
       
       {/* ========================================================================= */}
-      {/* 1. ULTRA-COMPACT ENTERPRISE TOOLBAR (Height <= 36px, Single Unified Row)  */}
+      {/* UNIFIED ENTERPRISE TOOLBAR: STANDARD ORDER ACROSS ALL ZONES                */}
       {/* ========================================================================= */}
-      <div className="h-10 px-3 bg-slate-900 border-b border-slate-800 flex items-center justify-between gap-2 shrink-0 z-20 text-xs">
+      <header className="h-11 sm:h-12 border-b border-slate-800 bg-slate-900/95 px-3 sm:px-4 flex items-center justify-between gap-3 shrink-0 backdrop-blur-md z-30 text-slate-100">
         
-        {/* Left: Breadcrumb & Title */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            onClick={onNavigateToCampus}
-            className="flex items-center gap-1 text-slate-400 hover:text-white font-bold transition-colors"
-            title="กลับสู่ผังรวม (Master Blueprint)"
-          >
-            <Building2 className="w-3.5 h-3.5 text-blue-400" />
-            <span className="hidden sm:inline text-[11px]">ผังรวม</span>
-          </button>
-          <ChevronRight className="w-3 h-3 text-slate-600 shrink-0" />
-          
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-            <h2 className="font-black text-xs sm:text-sm text-white tracking-tight flex items-center gap-1">
-              <span>CY3 Tent</span>
-              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 font-bold border border-rose-500/30">
-                4-Floor Rack (400P)
+        {/* ด้านซ้าย: ปุ่มย้อนกลับผังรวมและชื่อโซน */}
+        <div className="flex items-center gap-2 min-w-0">
+          {onNavigateToCampus && (
+            <button
+              onClick={onNavigateToCampus}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-bold border border-slate-700/80 transition-all shadow-sm shrink-0 active:scale-95"
+              title="กลับสู่ผังรวมแคมปัส"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 text-rose-400" />
+              <span className="hidden sm:inline">โซน CY3 แร็คกลางแจ้ง (DY3T)</span>
+              <span className="sm:hidden">CY3 แร็ค</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-rose-600/30 text-rose-300 font-mono text-[10px] border border-rose-500/30">
+                400P
               </span>
-            </h2>
-          </div>
-
-          {/* Real-Time Live Occupancy Pill */}
-          <div className="hidden lg:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-[10.5px] font-mono">
-            <span className="text-slate-400">จัดเก็บ:</span>
-            <span className="text-emerald-400 font-black">{metrics.totalOccupied}</span>
-            <span className="text-slate-500">/</span>
-            <span className="text-slate-300 font-bold">{metrics.totalCapacity} P</span>
-            <span className="text-blue-400 font-bold">({metrics.utilizationRate}%)</span>
-          </div>
+            </button>
+          )}
         </div>
 
-        {/* Center: Floor Filter & View Mode Switcher */}
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-          
-          {/* Level / Floor Selector Pills */}
-          <div className="inline-flex items-center bg-slate-800/90 p-0.5 rounded-md border border-slate-700/80 h-7 shrink-0">
-            <span className="px-1 text-[10px] font-bold text-slate-400 hidden xl:inline">ชั้น:</span>
-            {(['ALL', 1, 2, 3, 4] as const).map((lvl) => (
-              <button
-                key={lvl}
-                onClick={() => setFloorFilter(lvl)}
-                className={`h-6 px-1.5 rounded text-[10.5px] font-mono font-bold transition-all ${
-                  floorFilter === lvl
-                    ? 'bg-rose-600 text-white shadow-xs'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-                }`}
-                title={lvl === 'ALL' ? 'แสดงทุกชั้น L1-L4' : `กรองเฉพาะชั้น L${lvl}`}
-              >
-                {lvl === 'ALL' ? 'ทุกชั้น' : `L${lvl}`}
-              </button>
-            ))}
-          </div>
-
-          {/* View Mode Switcher: 3D / Front / Top */}
-          <div className="inline-flex items-center bg-slate-800/90 p-0.5 rounded-md border border-slate-700/80 h-7 shrink-0 gap-0.5">
-            {/* 3D Outdoor Racks View */}
+        {/* ตรงกลาง: View Switcher + Status Filter + Floor Level Selector (ลำดับมาตรฐานเดียวกัน) */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+          {/* 1. View Switcher: [3D ผัง 3 มิติ] vs [แปลนบน (Top 2D)] vs [หน้าตรง (L1-L4)] */}
+          <div className="inline-flex items-center bg-slate-950 p-0.5 rounded-xl border border-slate-800 text-xs font-bold shrink-0">
             <button
               onClick={() => setViewMode('3D_RACK')}
-              className={`h-6 px-2 rounded text-[10.5px] font-bold flex items-center gap-1 transition-all ${
+              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all whitespace-nowrap ${
                 viewMode === '3D_RACK'
-                  ? 'bg-rose-600 text-white shadow-xs'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                  ? 'bg-rose-600 text-white shadow-md ring-1 ring-rose-400/50'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
               }`}
               title="3D Digital Twin แร็ค 4 ชั้นกลางแจ้ง (400P)"
             >
-              <Box className="w-3.5 h-3.5 text-rose-300" />
+              <Box className="w-3.5 h-3.5 text-rose-200" />
               <span>3D ผัง 3 มิติ</span>
             </button>
-
-            {/* Front View */}
-            <button
-              onClick={() => setViewMode('FRONT')}
-              className={`h-6 px-2 rounded text-[10.5px] font-bold flex items-center gap-1 transition-all ${
-                viewMode === 'FRONT'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-              }`}
-              title="มุมมองหน้าตรง แร็ค 4 ชั้น (L1-L4)"
-            >
-              <Layers className="w-3.5 h-3.5 text-emerald-300" />
-              <span>หน้าตรง L1-L4</span>
-            </button>
-
-            {/* Top View */}
             <button
               onClick={() => setViewMode('TOP')}
-              className={`h-6 px-2 rounded text-[10.5px] font-bold flex items-center gap-1 transition-all ${
+              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all whitespace-nowrap ${
                 viewMode === 'TOP'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                  ? 'bg-rose-600 text-white shadow-md ring-1 ring-rose-400/50'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
               }`}
               title="มุมมองแปลนบน (Top 2D Matrix)"
             >
-              <Grid className="w-3.5 h-3.5" />
-              <span>แปลนบน 2D</span>
+              <Grid className="w-3.5 h-3.5 text-rose-200" />
+              <span>แปลนบน (Top 2D)</span>
+            </button>
+            <button
+              onClick={() => setViewMode('FRONT')}
+              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all whitespace-nowrap ${
+                viewMode === 'FRONT'
+                  ? 'bg-rose-600 text-white shadow-md ring-1 ring-rose-400/50'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+              }`}
+              title="มุมมองหน้าตรง แร็ค 4 ชั้น (L1-L4)"
+            >
+              <Layers className="w-3.5 h-3.5 text-rose-200" />
+              <span>หน้าตรง (L1-L4)</span>
             </button>
           </div>
 
-          {/* Reusable Global Warehouse Slot Filter */}
+          {/* 2. Global Status Filter Pills */}
           <WarehouseSlotFilter
             activeFilter={filterStatus}
             onFilterChange={setFilterStatus}
@@ -362,47 +323,60 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
             }}
             compact
           />
+
+          {/* 3. Sub-Zone Selector: ชั้น L1 - L4 */}
+          <div className="inline-flex items-center bg-slate-950 p-0.5 rounded-xl border border-slate-800 text-xs font-bold shrink-0">
+            {(['ALL', 1, 2, 3, 4] as const).map((lvl) => (
+              <button
+                key={lvl}
+                onClick={() => setFloorFilter(lvl)}
+                className={`px-2 py-1 rounded-lg text-xs font-bold transition-all ${
+                  floorFilter === lvl
+                    ? 'bg-rose-600 text-white font-black shadow-xs'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                }`}
+                title={lvl === 'ALL' ? 'แสดงทุกชั้น L1-L4' : `กรองเฉพาะชั้น L${lvl}`}
+              >
+                {lvl === 'ALL' ? 'ทุกชั้น' : `L${lvl}`}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Right: Search, Scan Shortcut & Sync */}
+        {/* ด้านขวา: กลุ่มค้นหา, สแกน KANBAN (ลำดับมาตรฐานเดียวกันทุกโซน) */}
         <div className="flex items-center gap-1.5 shrink-0">
-          <div className="relative w-36 sm:w-44 h-7">
-            <Search className="w-3 h-3 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+          {/* ช่องค้นหาด่วน */}
+          <div className="relative w-36 sm:w-48 h-8">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               placeholder="ค้นหา Model, Locator..."
               value={localSearch}
               onChange={(e) => setLocalSearch(e.target.value)}
-              className="w-full h-7 bg-slate-800 border border-slate-700 rounded-md pl-6 pr-5 text-[11px] text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+              className="w-full h-8 bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-6 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500 transition-colors"
             />
             {localSearch && (
               <button
                 onClick={() => setLocalSearch('')}
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                title="ล้างคำค้นหา"
               >
-                <X className="w-3 h-3" />
+                ×
               </button>
             )}
           </div>
 
+          {/* ปุ่มสแกน KANBAN */}
           <button
             onClick={() => onOpenScanner('CY3-A', 1, 1, 'IN')}
-            className="h-7 px-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md text-[11px] font-bold flex items-center gap-1 shadow-xs transition-colors"
-            title="เปิดกล้องสแกน QR Code รับ-เบิก"
+            className="h-8 px-3 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
+            title="เปิดกล้องสแกน KANBAN QR Code (รับเข้า/เบิกออก)"
           >
             <QrCode className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">สแกน QR</span>
-          </button>
-
-          <button
-            onClick={handleManualSync}
-            className="h-7 w-7 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 flex items-center justify-center transition-colors shrink-0"
-            title={lastSyncTime}
-          >
-            <RefreshCw className={`w-3.5 h-3.5 text-blue-400 ${isSyncing ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">สแกน KANBAN</span>
           </button>
         </div>
-      </div>
+      </header>
 
       {/* ========================================================================= */}
       {/* 2. MAIN WAREHOUSE BLUEPRINT VIEWPORT (FULL SIZE MATCHING OTHER ZONES)      */}

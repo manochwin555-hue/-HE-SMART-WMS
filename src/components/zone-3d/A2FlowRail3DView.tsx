@@ -227,14 +227,14 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
       emissiveIntensity: 0.7
     });
     const ghostBox = new THREE.Mesh(new THREE.BoxGeometry(1.58, 0.96, 1.38), ghostBoxMat);
-    ghostBox.position.y = 0.52;
+    ghostBox.position.y = 0.65;
     hoverGhostGroup.add(ghostBox);
 
     // B. Neon Glowing Wireframe Cage
     const ghostWireGeo = new THREE.BoxGeometry(1.64, 1.04, 1.44);
     const ghostWireMat = new THREE.MeshBasicMaterial({ color: 0x34d399, wireframe: true });
     const ghostWire = new THREE.Mesh(ghostWireGeo, ghostWireMat);
-    ghostWire.position.y = 0.52;
+    ghostWire.position.y = 0.65;
     hoverGhostGroup.add(ghostWire);
 
     // C. 4 Glowing Corner Laser Pins
@@ -246,11 +246,11 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
       [0.8, 0.7]
     ].forEach(([cx, cz]) => {
       const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 1.4, 8), pinMat);
-      pin.position.set(cx, 0.52, cz);
+      pin.position.set(cx, 0.65, cz);
       hoverGhostGroup.add(pin);
 
       const dot = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), pinMat);
-      dot.position.set(cx, 1.24, cz);
+      dot.position.set(cx, 1.35, cz);
       hoverGhostGroup.add(dot);
     });
 
@@ -258,7 +258,7 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
     const floorRingMat = new THREE.MeshBasicMaterial({ color: 0x34d399, side: THREE.DoubleSide });
     const floorRing = new THREE.Mesh(new THREE.RingGeometry(0.75, 0.95, 32), floorRingMat);
     floorRing.rotation.x = -Math.PI / 2;
-    floorRing.position.y = -0.45;
+    floorRing.position.y = 0.02;
     hoverGhostGroup.add(floorRing);
 
     // Helper: Create a canvas text texture for Rail / Station Signs
@@ -385,13 +385,27 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
     const hitboxMat = new THREE.MeshBasicMaterial({ visible: false });
 
     // =========================================================================
-    // BUILD 14 CONTINUOUS FLOW RAILS (DA2D-1 R01 to R14)
+    // BUILD 16 CONTINUOUS FLOW RAILS (DA2D-1 R01 to R16)
     // 8 Pallet Blocks along each rail (Pos 1: Infeed at Right +X -> Pos 8: Outfeed at Left -X)
     // =========================================================================
     const railsGroup = new THREE.Group();
     const RAIL_SPACING_Z = 2.6; // Spacing between each rail track
     const POS_SPACING_X = 2.45; // Spacing between each of the 8 pallet blocks
     const SLOPE_Y_PER_POS = 0.07; // 7cm gravity slope drop per position toward outfeed
+    const TOTAL_SLOPE_DROP = 7 * SLOPE_Y_PER_POS; // 0.49m total slope drop
+    const Y_RAIL_OUTFEED = 0.85; // Low end at Outfeed (Left -X = -9.8m)
+    const Y_RAIL_INFEED = Y_RAIL_OUTFEED + TOTAL_SLOPE_DROP; // High end at Infeed (Right +X = +9.8m) -> 1.34m
+    const TRACK_X_START = 9.8; // Infeed X
+    const TRACK_X_END = -9.8; // Outfeed X
+    const TRACK_LENGTH = TRACK_X_START - TRACK_X_END; // 19.6m
+    const railSlopeAngle = Math.atan2(TOTAL_SLOPE_DROP, TRACK_LENGTH); // Slope angle along X axis
+
+    // Uniform linear gravity slope formula: gets exact roller top surface height at any X
+    const getRailYAtX = (x: number) => {
+      const clampedX = Math.max(TRACK_X_END, Math.min(TRACK_X_START, x));
+      const ratio = (clampedX - TRACK_X_END) / TRACK_LENGTH;
+      return Y_RAIL_OUTFEED + ratio * TOTAL_SLOPE_DROP;
+    };
 
     // Floor demarcation lanes & flow indicators
     const floorDecoGroup = new THREE.Group();
@@ -444,25 +458,53 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
       infeedFloorDecal.rotation.z = Math.PI / 2;
       floorDecoGroup.add(infeedFloorDecal);
 
-      // Rail Sign Plate at Infeed (Right side)
-      const infeedSignMat = new THREE.MeshBasicMaterial({ 
-        map: createSignTexture(rLabel, '#0f172a', '#38bdf8'), 
-        side: THREE.DoubleSide 
-      });
-      const infeedSign = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.55), infeedSignMat);
-      infeedSign.position.set(11.2, 1.25 + (7 * SLOPE_Y_PER_POS), zPos);
-      infeedSign.rotation.y = Math.PI / 2;
-      railsGroup.add(infeedSign);
+      // =======================================================================
+      // MOUNTING FRAME ON RAIL HEAD (โครงสร้างยึดป้ายติดตั้งกับหัวรางอย่างมั่นคง)
+      // =======================================================================
+      
+      // A. OUTFEED RAIL HEAD SIGN MOUNT (-X = -10.15)
+      // ติดตั้งเสาเหล็กยึดป้ายคู่กับหัวรางฝั่ง Outfeed (หน้าไลน์ HE) พร้อมคานขวางและป้ายชื่อราง
+      const outfeedMountPostL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.95, 0.06), railSteelBlue);
+      outfeedMountPostL.position.set(-10.15, Y_RAIL_OUTFEED + 0.475, zPos - 0.75);
+      const outfeedMountPostR = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.95, 0.06), railSteelBlue);
+      outfeedMountPostR.position.set(-10.15, Y_RAIL_OUTFEED + 0.475, zPos + 0.75);
 
-      // Rail Sign Plate at Outfeed (Left side)
+      const outfeedMountHeader = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 1.56), railSteelBlue);
+      outfeedMountHeader.position.set(-10.15, Y_RAIL_OUTFEED + 0.95, zPos);
+
+      const outfeedSignBacking = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.56, 1.28), stopperBlackMat);
+      outfeedSignBacking.position.set(-10.17, Y_RAIL_OUTFEED + 0.95, zPos);
+
       const outfeedSignMat = new THREE.MeshBasicMaterial({ 
         map: createSignTexture(rLabel, '#0f172a', '#f59e0b'), 
         side: THREE.DoubleSide 
       });
-      const outfeedSign = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.55), outfeedSignMat);
-      outfeedSign.position.set(-11.2, 1.25, zPos);
+      const outfeedSign = new THREE.Mesh(new THREE.PlaneGeometry(1.24, 0.52), outfeedSignMat);
+      outfeedSign.position.set(-10.19, Y_RAIL_OUTFEED + 0.95, zPos);
       outfeedSign.rotation.y = -Math.PI / 2;
-      railsGroup.add(outfeedSign);
+      railsGroup.add(outfeedMountPostL, outfeedMountPostR, outfeedMountHeader, outfeedSignBacking, outfeedSign);
+
+      // B. INFEED RAIL HEAD SIGN MOUNT (+X = +10.15)
+      // ติดตั้งเสาเหล็กยึดป้ายคู่กับหัวรางฝั่ง Infeed (จุดรับเข้า) พร้อมคานขวางและป้ายชื่อราง
+      const infeedMountPostL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.95, 0.06), railSteelBlue);
+      infeedMountPostL.position.set(10.15, Y_RAIL_INFEED + 0.475, zPos - 0.75);
+      const infeedMountPostR = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.95, 0.06), railSteelBlue);
+      infeedMountPostR.position.set(10.15, Y_RAIL_INFEED + 0.475, zPos + 0.75);
+
+      const infeedMountHeader = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 1.56), railSteelBlue);
+      infeedMountHeader.position.set(10.15, Y_RAIL_INFEED + 0.95, zPos);
+
+      const infeedSignBacking = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.56, 1.28), stopperBlackMat);
+      infeedSignBacking.position.set(10.17, Y_RAIL_INFEED + 0.95, zPos);
+
+      const infeedSignMat = new THREE.MeshBasicMaterial({ 
+        map: createSignTexture(rLabel, '#0f172a', '#38bdf8'), 
+        side: THREE.DoubleSide 
+      });
+      const infeedSign = new THREE.Mesh(new THREE.PlaneGeometry(1.24, 0.52), infeedSignMat);
+      infeedSign.position.set(10.19, Y_RAIL_INFEED + 0.95, zPos);
+      infeedSign.rotation.y = Math.PI / 2;
+      railsGroup.add(infeedMountPostL, infeedMountPostR, infeedMountHeader, infeedSignBacking, infeedSign);
 
       // 1. Floor Marking Lines for Rail Lane (Yellow border)
       const laneLineGeo = new THREE.BoxGeometry(21.5, 0.01, 0.06);
@@ -479,34 +521,35 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
       floorDecoGroup.add(flowArrowMesh);
 
       // 2. Heavy-Duty Side Channel Guide Rails (Double Rails: Left & Right)
-      const trackLength = 8 * POS_SPACING_X + 0.6; // ~20.2m long continuous bed
-      const channelGeo = new THREE.BoxGeometry(trackLength, 0.18, 0.08);
+      const continuousBedLength = 20.4;
+      const channelGeo = new THREE.BoxGeometry(continuousBedLength, 0.16, 0.08);
+      const yMidBed = getRailYAtX(0) - 0.08;
 
       const leftChannel = new THREE.Mesh(channelGeo, railSteelBlue);
-      leftChannel.position.set(0, 0.85 + (3.5 * SLOPE_Y_PER_POS), zPos - 0.95);
-      leftChannel.rotation.z = Math.atan2(-7 * SLOPE_Y_PER_POS, trackLength);
+      leftChannel.position.set(0, yMidBed, zPos - 0.95);
+      leftChannel.rotation.z = railSlopeAngle;
       leftChannel.castShadow = true;
 
       const rightChannel = new THREE.Mesh(channelGeo, railSteelBlue);
-      rightChannel.position.set(0, 0.85 + (3.5 * SLOPE_Y_PER_POS), zPos + 0.95);
-      rightChannel.rotation.z = Math.atan2(-7 * SLOPE_Y_PER_POS, trackLength);
+      rightChannel.position.set(0, yMidBed, zPos + 0.95);
+      rightChannel.rotation.z = railSlopeAngle;
       rightChannel.castShadow = true;
 
       // Safety Orange Top Guide Flanges (ขอบกั้นประคองพาเลท)
-      const flangeGeo = new THREE.BoxGeometry(trackLength, 0.05, 0.04);
+      const flangeGeo = new THREE.BoxGeometry(continuousBedLength, 0.05, 0.04);
       const leftFlange = new THREE.Mesh(flangeGeo, railGuideOrange);
-      leftFlange.position.set(0, 0.96 + (3.5 * SLOPE_Y_PER_POS), zPos - 0.95);
-      leftFlange.rotation.z = leftChannel.rotation.z;
+      leftFlange.position.set(0, yMidBed + 0.10, zPos - 0.95);
+      leftFlange.rotation.z = railSlopeAngle;
 
       const rightFlange = new THREE.Mesh(flangeGeo, railGuideOrange);
-      rightFlange.position.set(0, 0.96 + (3.5 * SLOPE_Y_PER_POS), zPos + 0.95);
-      rightFlange.rotation.z = rightChannel.rotation.z;
+      rightFlange.position.set(0, yMidBed + 0.10, zPos + 0.95);
+      rightFlange.rotation.z = railSlopeAngle;
 
       railsGroup.add(leftChannel, rightChannel, leftFlange, rightFlange);
 
       // 3. Structural Support Legs & Cross Beams (Every 2 Pallet Blocks)
       [-9.8, -4.9, 0, 4.9, 9.8].forEach((xLeg) => {
-        const legBaseH = 0.65 + ((9.8 - xLeg) * (SLOPE_Y_PER_POS / POS_SPACING_X));
+        const legBaseH = getRailYAtX(xLeg);
         
         // Post Left & Post Right
         const postL = new THREE.Mesh(new THREE.BoxGeometry(0.1, legBaseH, 0.1), railSteelBlue);
@@ -530,54 +573,56 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
       // 4. Gravity Skate Wheels & Rollers (High Density across 8 Blocks)
       const numRollers = 32;
       for (let ro = 0; ro < numRollers; ro++) {
-        const xRol = 9.8 - (ro * (19.6 / (numRollers - 1)));
-        const yRol = 0.85 + ((9.8 - xRol) * (SLOPE_Y_PER_POS / POS_SPACING_X));
+        const xRol = TRACK_X_START - (ro * (TRACK_LENGTH / (numRollers - 1)));
+        const ySurface = getRailYAtX(xRol);
+        const yRolCenter = ySurface - 0.05; // Roller top surface reaches exactly ySurface
         
         // Dual Skate Wheel lines (Left Track and Right Track)
         const rollerL = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.35, 12), rollerGalvanized);
         rollerL.rotation.x = Math.PI / 2;
-        rollerL.position.set(xRol, yRol, zPos - 0.55);
+        rollerL.position.set(xRol, yRolCenter, zPos - 0.55);
         
         const rollerR = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.35, 12), rollerGalvanized);
         rollerR.rotation.x = Math.PI / 2;
-        rollerR.position.set(xRol, yRol, zPos + 0.55);
+        rollerR.position.set(xRol, yRolCenter, zPos + 0.55);
 
         const axleCenter = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.8, 8), rollerGalvanized);
         axleCenter.rotation.x = Math.PI / 2;
-        axleCenter.position.set(xRol, yRol, zPos);
+        axleCenter.position.set(xRol, yRolCenter, zPos);
 
         railsGroup.add(rollerL, rollerR, axleCenter);
       }
 
       // 5. Infeed Entry Guides (ฝั่งขวา +X = +10.2, Pos 1)
       const infeedGuideL = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.25, 0.08), infeedGreenMat);
-      infeedGuideL.position.set(10.2, 0.92 + (7 * SLOPE_Y_PER_POS), zPos - 1.1);
+      infeedGuideL.position.set(10.2, Y_RAIL_INFEED + 0.06, zPos - 1.1);
       infeedGuideL.rotation.y = -Math.PI / 6;
 
       const infeedGuideR = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.25, 0.08), infeedGreenMat);
-      infeedGuideR.position.set(10.2, 0.92 + (7 * SLOPE_Y_PER_POS), zPos + 1.1);
+      infeedGuideR.position.set(10.2, Y_RAIL_INFEED + 0.06, zPos + 1.1);
       infeedGuideR.rotation.y = Math.PI / 6;
 
       railsGroup.add(infeedGuideL, infeedGuideR);
 
       // 6. Outfeed Heavy-Duty End Stopper (ฝั่งซ้าย -X = -10.2, Pos 8)
       const stopperBase = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.55, 1.95), stopperHazardMat);
-      stopperBase.position.set(-10.15, 0.9, zPos);
+      stopperBase.position.set(-10.15, Y_RAIL_OUTFEED + 0.22, zPos);
       
       const rubberBufferL = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.25, 0.4), stopperBlackMat);
-      rubberBufferL.position.set(-10.05, 0.95, zPos - 0.55);
+      rubberBufferL.position.set(-10.05, Y_RAIL_OUTFEED + 0.25, zPos - 0.55);
       const rubberBufferR = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.25, 0.4), stopperBlackMat);
-      rubberBufferR.position.set(-10.05, 0.95, zPos + 0.55);
+      rubberBufferR.position.set(-10.05, Y_RAIL_OUTFEED + 0.25, zPos + 0.55);
 
       railsGroup.add(stopperBase, rubberBufferL, rubberBufferR);
 
       // =======================================================================
       // 8 DISTINCT PALLET BLOCKS / POSITIONS (BLOCK 1 TO BLOCK 8)
-      // Pos 1 = Infeed (+8.6m) -> Pos 8 = Outfeed (-8.6m)
+      // Pos 1 = Infeed (+8.575m) -> Pos 8 = Outfeed (-8.575m)
+      // ตัวงาน (Pallet & Cargo) ยกสูงนั่งบนผิวลูกกลิ้งของรางวางงานพอดี 100% ไม่จมราง
       // =======================================================================
       for (let p = 1; p <= 8; p++) {
-        const xPos = 8.6 - ((p - 1) * POS_SPACING_X);
-        const yPos = 0.88 + ((8 - p) * SLOPE_Y_PER_POS);
+        const xPos = 8.575 - ((p - 1) * POS_SPACING_X);
+        const railSurfaceY = getRailYAtX(xPos); // ผิวหน้าลูกกลิ้งรางวางงาน
 
         // Floor block divider mark (เส้นคั่น 8 บล็อก)
         const blockDivider = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.015, 1.8), floorLineWhite);
@@ -602,27 +647,29 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
           else if (item.agingDays > 45 || item.agingStatus === 'OVERDUE') currentBoxMat = boxOverdueRed;
           else if (item.agingDays > 28 || item.agingStatus === 'WARNING') currentBoxMat = boxAgingAmber;
 
-          // Pallet + Box Group
+          // Pallet + Box Group: วางตำแหน่งฐานที่ผิวบนของรางลูกกลิ้ง (railSurfaceY) พอดี
           const palletGrp = new THREE.Group();
-          palletGrp.position.set(xPos, yPos, zPos);
+          palletGrp.position.set(xPos, railSurfaceY, zPos);
+          palletGrp.rotation.z = railSlopeAngle; // เอียงระนาบตามมุมลาดชันของราง
 
-          // Realistic Pine Wood Pallet (Top boards + 3 runners)
-          const topDeck = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.06, 1.4), woodPine);
-          topDeck.position.y = 0.08;
+          // Realistic Pine Wood Pallet (3 คานไม้รองฐานสูง 10 ซม. + แผ่นไม้ปูบนหนา 5 ซม.)
+          // ขอบล่างของคานไม้ runner สัมผัสกับผิวลูกกลิ้งพอดีที่ y = 0
+          const runner1 = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.10, 0.12), woodPine);
+          runner1.position.set(0, 0.05, 0.6);
+          const runner2 = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.10, 0.12), woodPine);
+          runner2.position.set(0, 0.05, 0);
+          const runner3 = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.10, 0.12), woodPine);
+          runner3.position.set(0, 0.05, -0.6);
+          palletGrp.add(runner1, runner2, runner3);
+
+          const topDeck = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.05, 1.4), woodPine);
+          topDeck.position.set(0, 0.125, 0);
           topDeck.castShadow = true;
           palletGrp.add(topDeck);
 
-          const runner1 = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.06, 0.12), woodPine);
-          runner1.position.set(0, 0.03, 0.6);
-          const runner2 = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.06, 0.12), woodPine);
-          runner2.position.set(0, 0.03, 0);
-          const runner3 = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.06, 0.12), woodPine);
-          runner3.position.set(0, 0.03, -0.6);
-          palletGrp.add(runner1, runner2, runner3);
-
-          // Loaded Cargo Unit Box (1,000 Kgs / 1 Pallet)
+          // Loaded Cargo Unit Box (ตัวงาน/กล่องสินค้าขนาดใหญ่ วางซ้อนบนพาเลทไม้ ยกสูงเต็มความสูงราง)
           const cargoBox = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.95, 1.35), currentBoxMat);
-          cargoBox.position.y = 0.58;
+          cargoBox.position.set(0, 0.65, 0); // ฐานกล่องเริ่มที่ y = 0.15m (บนแผ่นพาเลทไม้)
           cargoBox.castShadow = true;
           palletGrp.add(cargoBox);
 
@@ -630,28 +677,30 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
           const labelGeo = new THREE.PlaneGeometry(0.35, 0.2);
           const labelMat = new THREE.MeshBasicMaterial({ color: '#ffffff' });
           const label = new THREE.Mesh(labelGeo, labelMat);
-          label.position.set(0, 0.58, 0.68);
+          label.position.set(0, 0.65, 0.68);
           palletGrp.add(label);
 
           railsGroup.add(palletGrp);
         } else {
           // Empty designated block slot wireframe & interaction zone
-          const emptySlotGeo = new THREE.BoxGeometry(1.8, 0.05, 1.5);
+          const emptySlotGeo = new THREE.BoxGeometry(1.8, 0.04, 1.5);
           const emptyMesh = new THREE.Mesh(emptySlotGeo, blockMarkMat);
-          emptyMesh.position.set(xPos, yPos + 0.03, zPos);
+          emptyMesh.position.set(xPos, railSurfaceY + 0.02, zPos);
+          emptyMesh.rotation.z = railSlopeAngle;
           railsGroup.add(emptyMesh);
         }
 
         // Invisible Hit Box for 100% reliable raycasting
         const hitBox = new THREE.Mesh(hitboxGeo, hitboxMat);
-        hitBox.position.set(xPos, yPos + 0.5, zPos);
+        hitBox.position.set(xPos, railSurfaceY + 0.65, zPos);
+        hitBox.rotation.z = railSlopeAngle;
         railsGroup.add(hitBox);
         clickableMeshes.push({ 
           mesh: hitBox, 
           rail: r, 
           pos: p, 
           x: xPos, 
-          y: yPos, 
+          y: railSurfaceY, 
           z: zPos, 
           item,
           palletMesh: railsGroup.children[railsGroup.children.length - 2] // The palletGrp or emptyMesh just added
@@ -697,6 +746,7 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
 
           // Position 3D Hologram Ghost Box directly on target slot
           hoverGhostGroup.position.set(hit.x, hit.y, hit.z);
+          hoverGhostGroup.rotation.z = railSlopeAngle;
           hoverGhostGroup.visible = true;
 
           const statusMode = hit.item
@@ -817,28 +867,6 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
     <div ref={containerRef} className="relative w-full h-full min-h-0 rounded-2xl overflow-hidden border shadow-2xl transition-colors duration-300 border-slate-300 bg-[#f8fafc] flex flex-col">
       {/* 3D Canvas Mount */}
       <div ref={mountRef} className="w-full flex-1 h-full min-h-[300px]" />
-
-      {/* Top Floating Telemetry Header (Top Left) & Camera Focus Bar (Top Right) */}
-      <div className="absolute top-3 left-3 pointer-events-auto z-20 max-w-[55%] hidden md:block">
-        <div className="backdrop-blur-md px-3.5 py-2 rounded-xl shadow-md flex items-center gap-2.5 border bg-white/95 border-slate-300 text-slate-900">
-          <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-xs shrink-0">
-            <Box className="w-3.5 h-3.5" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <h2 className="text-xs font-black text-slate-900 truncate">
-                DA2D-1 Flow Rail 3D Digital Twin
-              </h2>
-              <span className="px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-300 text-[10px] font-mono font-bold shrink-0">
-                128 PL
-              </span>
-            </div>
-            <p className="text-[11px] font-medium text-slate-600 truncate mt-0.5">
-              จัดเก็บ: <span className="font-bold text-blue-900">{stats.occupied}/{stats.total} PL ({stats.rate}%)</span>
-            </p>
-          </div>
-        </div>
-      </div>
 
       {/* Multi-Perspective Camera Toolbar (Top Right) */}
       <div className="absolute top-3 right-3 pointer-events-auto z-20">
