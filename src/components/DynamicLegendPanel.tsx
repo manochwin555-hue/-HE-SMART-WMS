@@ -58,9 +58,9 @@ export const DynamicLegendPanel: React.FC = () => {
         type: 'FLOW_RAIL',
         valid: true,
         building: 'A2 Building (Infeed Lines)',
-        area: 'DA2D-1 (Gravity Flow Rail 20 Rails 160P)',
+        area: 'DA2D-1 (Gravity Flow Rail 13 Rails 104P)',
         details: `Roller Flow Rail FIFO System • Supply Assembly HE1-3`,
-        formula: '[Building DA2D] - [Rail Zone 1.01] - [Rail No. R01-R20] - [Position 01-08]'
+        formula: '[Building DA2D] - [Rail Zone 1.01] - [Rail No. R01-R13] - [Position 01-08]'
       };
     }
 
@@ -171,7 +171,7 @@ export const DynamicLegendPanel: React.FC = () => {
                 }`}
               >
                 <GitCommit className="w-3.5 h-3.5 text-rose-400" />
-                <span>DA2D-1 (160P)</span>
+                <span>DA2D-1 (104P)</span>
               </button>
               <button
                 onClick={() => setActiveSector('TENT')}

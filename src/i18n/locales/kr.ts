@@ -153,7 +153,7 @@ export const kr: TranslationDictionary = {
     campusTitle: 'Master Campus 종합 보관 배치도',
     campusSubtitle: 'Zone A2, A4, A5, CY3 실시간 실적 연동',
     zoneA2Title: 'Zone A2 (Flow Roller Rail)',
-    zoneA2Desc: '20개 레인 자동 유동 랙 (160 Pallets)',
+    zoneA2Desc: '13개 레인 자동 유동 랙 (104 Pallets)',
     zoneA4FloorTitle: 'Zone A4 Floor Staging (DA4D-1)',
     zoneA4FloorDesc: '평치 적재 8개 레인 X1-X8 (432 Pallets)',
     zoneA4RackTitle: 'Zone A4 Selective Racks (DA4D-2 & 3)',

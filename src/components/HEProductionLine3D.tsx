@@ -56,7 +56,7 @@ export const A2_HE_LINES: HELineConfig[] = [
     actualPerHour: 116,
     efficiency: 96.6,
     status: 'ACTIVE',
-    feedZone: 'DA2D-1 (R1-R7)',
+    feedZone: 'DA2D-1 (R1-R4)',
     stations: [
       { id: 'FP-E1', name: 'FIN Press E-1', code: 'FP-1', type: 'PRESS', status: 'RUNNING', pressure: 45, speed: 120, cycleTimeSec: 28, description: 'เครื่องปั๊มครีบระบายความร้อน Fin Press อัตโนมัติ' },
       { id: 'EXP-1', name: 'Expender', code: 'EXP-1', type: 'EXPANDER', status: 'RUNNING', pressure: 60, speed: 120, cycleTimeSec: 30, description: 'เครื่องขยายท่อทองแดงเพื่อความแน่นสนิทกับ Fin' },
@@ -85,7 +85,7 @@ export const A2_HE_LINES: HELineConfig[] = [
     actualPerHour: 108,
     efficiency: 98.1,
     status: 'ACTIVE',
-    feedZone: 'DA2D-1 (R8-R14)',
+    feedZone: 'DA2D-1 (R5-R8)',
     stations: [
       { id: 'FP-E2', name: 'FIN Press E-2', code: 'FP-2', type: 'PRESS', status: 'RUNNING', pressure: 48, speed: 110, cycleTimeSec: 30, description: 'เครื่องปั๊มครีบ Fin Press HE-2' },
       { id: 'EXP-2', name: 'Expender', code: 'EXP-2', type: 'EXPANDER', status: 'RUNNING', pressure: 62, speed: 110, cycleTimeSec: 32, description: 'ขยายท่อทองแดงแม่นยำสูง' },
@@ -114,7 +114,7 @@ export const A2_HE_LINES: HELineConfig[] = [
     actualPerHour: 95,
     efficiency: 95.0,
     status: 'ACTIVE',
-    feedZone: 'DA2D-1 (R15-R20)',
+    feedZone: 'DA2D-1 (R9-R13)',
     stations: [
       { id: 'FP-E3', name: 'FIN Press E-3', code: 'FP-3', type: 'PRESS', status: 'RUNNING', pressure: 50, speed: 100, cycleTimeSec: 32, description: 'เครื่องปั๊มครีบ Fin Press HE-3' },
       { id: 'EXP-3', name: 'Expender', code: 'EXP-3', type: 'EXPANDER', status: 'RUNNING', pressure: 60, speed: 100, cycleTimeSec: 34, description: 'เครื่องขยายท่อทองแดง' },

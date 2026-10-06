@@ -153,7 +153,7 @@ export const th: TranslationDictionary = {
     campusTitle: 'ผังรวมคลังสินค้า Master Campus',
     campusSubtitle: 'ข้อมูลสดโซน A2, A4, A5 และ CY3',
     zoneA2Title: 'A2 รางเลื่อน (Flow Rail)',
-    zoneA2Desc: 'รางเลื่อน 14 ราง (112 พาเลท)',
+    zoneA2Desc: 'รางเลื่อน 13 ราง (104 พาเลท)',
     zoneA4FloorTitle: 'A4 ลานวางพื้น (DA4D-1)',
     zoneA4FloorDesc: 'วางพื้น 8 กลุ่ม X1-X8 (432 พาเลท)',
     zoneA4RackTitle: 'A4 แร็คสูง (DA4D-2 & 3)',

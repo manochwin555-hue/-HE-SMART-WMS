@@ -52,13 +52,13 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
 
   // Quick stats across the 4 physical zones (matching physical reality & Image 3)
   const zoneBreakdown = [
-    { id: 'A2', name: 'A2 Building', code: 'DA2D-1 (Flow Rail)', cap: 112, pl: 94, ea: 9309, pct: 84, color: 'blue' },
+    { id: 'A2', name: 'A2 Building', code: 'DA2D-1 (Flow Rail)', cap: 104, pl: 94, ea: 9309, pct: 90, color: 'blue' },
     { id: 'A4', name: 'A4 Building', code: 'DA4D-1/2/3 (Rack + Floor)', cap: 1112, pl: 70, ea: 7370, pct: 6, color: 'amber' },
     { id: 'A5', name: 'A5 Tent Yard', code: 'DAST 1-4 (4 Canopy Tents)', cap: 784, pl: 121, ea: 15427, pct: 15, color: 'emerald' },
     { id: 'CY3', name: 'CY3 Tent Yard', code: 'DY3T 1.01-1.04 (4 Outdoor Racks)', cap: 400, pl: 671, ea: 33767, pct: 168, color: 'orange' },
   ];
 
-  const totalCap = 2408;
+  const totalCap = 2400;
   const totalPL = 956;
   const totalEA = 65873;
   const totalOccupancy = Math.round((totalPL / totalCap) * 100);

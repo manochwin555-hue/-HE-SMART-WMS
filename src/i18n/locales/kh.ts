@@ -153,7 +153,7 @@ export const kh: TranslationDictionary = {
     campusTitle: 'ប្លង់ទីតាំងស្តុកសរុប Master Campus',
     campusSubtitle: 'ភ្ជាប់ទិន្នន័យផ្ទាល់ពីតំបន់ A2, A4, A5 និង CY3',
     zoneA2Title: 'តំបន់ A2 (Flow Roller Rail)',
-    zoneA2Desc: 'ប្រព័ន្ធផ្លូវរអិល ២០ ខ្សែ (១៦០ ប៉ាលែត)',
+    zoneA2Desc: 'ប្រព័ន្ធផ្លូវរអិល ១៣ ខ្សែ (១០៤ ប៉ាលែត)',
     zoneA4FloorTitle: 'តំបន់ A4 Floor Staging (DA4D-1)',
     zoneA4FloorDesc: 'ទីតាំងផ្ទាល់ដី ៨ ជួរ X1-X8 (៤៣២ ប៉ាលែត)',
     zoneA4RackTitle: 'តំបន់ A4 Selective Racks (DA4D-2 & 3)',

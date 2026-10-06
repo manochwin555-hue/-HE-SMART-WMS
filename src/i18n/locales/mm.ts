@@ -153,7 +153,7 @@ export const mm: TranslationDictionary = {
     campusTitle: 'Master Campus သိုလှောင်မှုပင်မမြေပုံ',
     campusSubtitle: 'A2, A4, A5 နှင့် CY3 ဇုန်များ၏ တိုက်ရိုက်ဒေတာ ချိတ်ဆက်မှု',
     zoneA2Title: 'A2 ဇုန် (Flow Roller Rail)',
-    zoneA2Desc: 'လမ်းကြောင်း ၂၀ အလိုအလျောက်ရထားလမ်း (၁၆၀ ပါလက်)',
+    zoneA2Desc: 'လမ်းကြောင်း ၁၃ အလိုအလျောက်ရထားလမ်း (၁၀၄ ပါလက်)',
     zoneA4FloorTitle: 'A4 ဇုန် Floor Staging (DA4D-1)',
     zoneA4FloorDesc: 'ကြမ်းပြင်တန်း ၈ တန်း X1-X8 (၄၃၂ ပါလက်)',
     zoneA4RackTitle: 'A4 ဇုန် Selective Racks (DA4D-2 & 3)',

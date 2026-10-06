@@ -371,7 +371,7 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
     if (['G', 'H', 'I', 'J', 'K'].includes(z)) return 5;
     if (z.startsWith('CY3') || z.startsWith('DY3T')) return 25;
     if (z.startsWith('X')) return 12;
-    if (z.startsWith('R') || z.startsWith('FR')) return 16;
+    if (z.startsWith('R') || z.startsWith('FR')) return 8;
     if (z.startsWith('T') || z.startsWith('DA5T')) return 20;
     return 12;
   };
@@ -442,7 +442,7 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
     const rackMatch = clean.match(/(?:DA4D-[23](?:\.01)?[-_]|LOC[-_]|ZONE[-_]|RACK[-_])?([B-K])[-_\s]*(?:BAY[-_\s]*)?0?([1-9]|1[0-2])(?:[-_\s]*(?:LEVEL|LVL|L)?[-_\s]*([1-4]))?/i);
     const cy3Match = clean.match(/(?:DY3T[-_]1\.0([1-4])|CY3[-_]([A-D]))[-_\s]*(?:([A-D])?0?([1-9]|1[0-9]|2[0-5]))(?:[-_\s]*(?:LEVEL|LVL|L)?[-_\s]*([1-4]))?/i);
     const floorMatch = clean.match(/(?:DA4D-1(?:\.01)?[-_])?(?:(X[1-8]))[-_\s]*0?([1-9]|1[0-2])?/i);
-    const railMatch = clean.match(/(?:DA2D-1(?:\.01)?[-_])?(?:FR|R)(1[0-6]|[1-9])[-_\s]*0?([1-8])?/i);
+    const railMatch = clean.match(/(?:DA2D-1(?:\.01)?[-_])?(?:FR|R)(1[0-3]|[1-9])[-_\s]*0?([1-8])?/i);
 
     if (rackMatch && rackMatch[1]) {
       const z = rackMatch[1] as StorageZone;
@@ -1223,8 +1223,8 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
                         <option key={x} value={x}>{x} ลานกองพื้น</option>
                       ))}
                     </optgroup>
-                    <optgroup label="A2 รางเลื่อน (R1-R16)">
-                      {Array.from({ length: 16 }, (_, idx) => `R${idx + 1}`).map(r => (
+                    <optgroup label="A2 รางเลื่อน (R1-R13)">
+                      {Array.from({ length: 13 }, (_, idx) => `R${idx + 1}`).map(r => (
                         <option key={r} value={r}>รางเลื่อน {r}</option>
                       ))}
                     </optgroup>

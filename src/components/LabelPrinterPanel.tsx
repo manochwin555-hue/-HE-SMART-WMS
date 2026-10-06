@@ -900,8 +900,8 @@ export const LabelPrinterPanel: React.FC<LabelPrinterPanelProps> = ({
                     <option key={z} value={z}>Zone {z} (ลานกองพื้น DA4D-1)</option>
                   ))}
                 </optgroup>
-                <optgroup label="🛤️ อาคาร A2 (Flow Rail 16 ราง R1-R16)">
-                  {Array.from({ length: 16 }, (_, i) => `R${i + 1}`).map(z => (
+                <optgroup label="🛤️ อาคาร A2 (Flow Rail 13 ราง R1-R13)">
+                  {Array.from({ length: 13 }, (_, i) => `R${i + 1}`).map(z => (
                     <option key={z} value={z}>Rail {z} (รางเลื่อน DA2D-1)</option>
                   ))}
                 </optgroup>

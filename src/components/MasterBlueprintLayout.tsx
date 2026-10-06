@@ -131,7 +131,7 @@ export const MasterBlueprintLayout: React.FC<MasterBlueprintLayoutProps> = ({
     const cy3EA = cy3Items.reduce((sum, it) => sum + (it.quantity || 0), 0);
 
     return {
-      a2: { pl: a2PL || 94, ea: a2EA || 9309, cap: 112 },
+      a2: { pl: a2PL || 94, ea: a2EA || 9309, cap: 104 },
       a4: { pl: a4PL || 70, ea: a4EA || 7370, cap: 1112 }, // 680 (Rack) + 432 (Floor)
       a5: { pl: a5PL || 121, ea: a5EA || 15427, cap: 784 },
       cy3: { pl: cy3PL || 671, ea: cy3EA || 33767, cap: 400 },
@@ -144,7 +144,7 @@ export const MasterBlueprintLayout: React.FC<MasterBlueprintLayoutProps> = ({
 
   // Reference blueprint table data matching exactly 2D CAD specification
   const planSpecRows: ItemInfoRow[] = [
-    { depotArea: 'A2 Building', code: 'DA2D-1 (Flow Rail)', team: '(Component Team)', capacityPL: 112, inventoryPL: 94, inventoryEA: 9309, ratePercent: 84, badge: 'A2', navigateTarget: 'A2_RAIL' },
+    { depotArea: 'A2 Building', code: 'DA2D-1 (Flow Rail)', team: '(Component Team)', capacityPL: 104, inventoryPL: 94, inventoryEA: 9309, ratePercent: 90, badge: 'A2', navigateTarget: 'A2_RAIL' },
     { depotArea: 'A4 Building', code: 'DA4D-1/2/3 (Rack + Floor)', team: '(Component Team)', capacityPL: 1112, inventoryPL: 70, inventoryEA: 7370, ratePercent: 6, badge: 'A4', navigateTarget: 'A4_RACK' },
     { depotArea: 'A5 Tent Yard', code: 'DAST 1-4 (Tents 1-4)', team: '(Material (A/C) Team)', capacityPL: 784, inventoryPL: 121, inventoryEA: 15427, ratePercent: 15, badge: 'A5', navigateTarget: 'A5_TENT' },
     { depotArea: 'CY3 Tent Yard', code: 'DY3T 1.01-1.04 (4-Tier Rack)', team: '(Material (A/C) Team)', capacityPL: 400, inventoryPL: 671, inventoryEA: 33767, ratePercent: 168, badge: 'CY3', navigateTarget: 'CY3_TENT' },
@@ -355,17 +355,17 @@ export const MasterBlueprintLayout: React.FC<MasterBlueprintLayoutProps> = ({
           <div className="text-center pb-1.5 border-b border-slate-800">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-mono font-bold px-2 py-0.5 bg-slate-800 text-blue-300 rounded border border-slate-700">
-                DA2D-1 &bull; 112 PL
+                DA2D-1 &bull; 104 PL
               </span>
               <h2 className="text-base sm:text-lg font-black tracking-wide text-white">
                 A2 Building
               </h2>
               <span className="text-[10px] font-mono font-bold px-2 py-0.5 bg-slate-800 text-emerald-300 rounded border border-slate-700">
-                14 Rails
+                13 Rails
               </span>
             </div>
             <p className="text-[10px] font-medium text-slate-400 mt-0.5">
-              คลังรางเลื่อน A2 (14 ราง 112 พาเลท)
+              คลังรางเลื่อน A2 (13 ราง 104 พาเลท)
             </p>
           </div>
 
@@ -380,11 +380,11 @@ export const MasterBlueprintLayout: React.FC<MasterBlueprintLayoutProps> = ({
             <div 
               id="zone-da2d-1"
               onClick={() => handleZoneClick(
-                'DA2D-1 Flow Rail R1-R16',
+                'DA2D-1 Flow Rail R1-R13',
                 'DA2D-1',
                 'A2 Building',
-                'ระบบจัดเก็บรางเลื่อน Flow Rail 16 ราง x 8 ช่อง = 128 พาเลท ต่อเนื่องเข้าสายการผลิต',
-                128,
+                'ระบบจัดเก็บรางเลื่อน Flow Rail 13 ราง x 8 ช่อง = 104 พาเลท ต่อเนื่องเข้าสายการผลิต',
+                104,
                 liveStats.a2.pl,
                 'A2_RAIL',
                 undefined,
@@ -399,15 +399,15 @@ export const MasterBlueprintLayout: React.FC<MasterBlueprintLayoutProps> = ({
                     DA2D-1
                   </span>
                   <span className="text-[9px] font-bold text-slate-400 font-mono">
-                    FLOW RAIL (R1 - R16)
+                    FLOW RAIL (R1 - R13)
                   </span>
                 </div>
                 <div className="flex items-center space-x-1.5">
                   <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-blue-950/80 text-blue-300 border border-blue-800/60">
-                    จัดเก็บ {liveStats.a2.pl} / 128 PL
+                    จัดเก็บ {liveStats.a2.pl} / 104 PL
                   </span>
                   <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                    R1-R16 (128P)
+                    R1-R13 (104P)
                   </span>
                 </div>
               </div>
@@ -423,14 +423,14 @@ export const MasterBlueprintLayout: React.FC<MasterBlueprintLayoutProps> = ({
                 </span>
               </div>
 
-              {/* 16 Continuous Rails Expanding to fill height */}
+              {/* 13 Continuous Rails Expanding to fill height */}
               <div className="flex-1 flex flex-col justify-between space-y-0.5 bg-slate-900/90 rounded-md p-1.5 border border-slate-800 shadow-inner">
                 <div className="text-[7px] font-mono text-slate-300 mb-0.5 flex justify-between px-0.5">
-                  <span className="text-cyan-300 font-bold">Continuous Flow Rails (R1 - R16)</span>
-                  <span className="text-slate-400">16 เลน &bull; 128 พาเลท</span>
+                  <span className="text-cyan-300 font-bold">Continuous Flow Rails (R1 - R13)</span>
+                  <span className="text-slate-400">13 เลน &bull; 104 พาเลท</span>
                 </div>
                 <div className="space-y-0.5">
-                  {[16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map(railNum => (
+                  {[13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map(railNum => (
                     <div key={railNum} className="flex items-center space-x-1">
                       <span className="w-3.5 text-[6.5px] font-mono font-black text-slate-300 text-right">R{railNum}</span>
                       <div className="grid grid-cols-8 gap-0.5 flex-1">

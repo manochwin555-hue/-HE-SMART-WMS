@@ -59,12 +59,12 @@ export const WarehouseCapacityDashboard: React.FC<WarehouseCapacityDashboardProp
     // --- A2 BUILDING ---
     {
       id: 'ZONE_A2_FLOW_RAIL',
-      name: 'DA2D-1 (รางเลื่อน 16 ราง R1-R16)',
+      name: 'DA2D-1 (รางเลื่อน 13 ราง R1-R13)',
       building: 'A2',
       buildingName: 'อาคาร A2 (Flow Rail)',
       type: 'FLOW_RAIL',
       typeLabel: 'รางเลื่อน (Flow Rail)',
-      capacityPallets: 128,
+      capacityPallets: 104,
       occupiedPallets: items.filter(it => 
         it.zone.startsWith('R') || 
         it.zone.startsWith('FR') || 
@@ -86,7 +86,7 @@ export const WarehouseCapacityDashboard: React.FC<WarehouseCapacityDashboardProp
         (it.agingDays > 30 || it.agingStatus === 'WARNING' || it.agingStatus === 'OVERDUE')
       ).length,
       targetNavigation: 'A2_RAIL',
-      description: '14 ราง x 8 ตำแหน่งพาเลท จัดส่งตรงเข้าสู่ไลน์ประกอบ HE (112P)'
+      description: '13 ราง x 8 ตำแหน่งพาเลท จัดส่งตรงเข้าสู่ไลน์ประกอบ HE (104P)'
     },
 
     // --- A4 BUILDING ---

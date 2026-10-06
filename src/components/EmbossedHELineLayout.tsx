@@ -41,7 +41,7 @@ export const A2_HE_EMBOSSED_LINES: HELineEmbossedConfig[] = [
     model: 'ADL74920904',
     speedPerHour: 116,
     efficiency: 96.6,
-    feedZone: 'DA2D-1 (R1-R7)',
+    feedZone: 'DA2D-1 (R1-R4)',
     stations: [
       { id: 'FP1', name: 'FIN Press E-1', shortName: 'FIN', category: 'PRESS', status: 'ACTIVE', speed: '180 SPM' },
       { id: 'EXP1', name: 'Expander 1', shortName: 'EXP', category: 'EXPANDER', status: 'ACTIVE', pressure: '4.2 Bar' },
@@ -65,7 +65,7 @@ export const A2_HE_EMBOSSED_LINES: HELineEmbossedConfig[] = [
     model: 'ACG76284709',
     speedPerHour: 108,
     efficiency: 98.1,
-    feedZone: 'DA2D-1 (R8-R14)',
+    feedZone: 'DA2D-1 (R5-R8)',
     stations: [
       { id: 'FP2', name: 'FIN Press E-2', shortName: 'FIN', category: 'PRESS', status: 'ACTIVE', speed: '175 SPM' },
       { id: 'EXP2', name: 'Expander 2', shortName: 'EXP', category: 'EXPANDER', status: 'ACTIVE', pressure: '4.5 Bar' },
@@ -89,7 +89,7 @@ export const A2_HE_EMBOSSED_LINES: HELineEmbossedConfig[] = [
     model: 'AEB73820101',
     speedPerHour: 95,
     efficiency: 95.0,
-    feedZone: 'DA2D-1 (R15-R20)',
+    feedZone: 'DA2D-1 (R9-R13)',
     stations: [
       { id: 'FP3', name: 'FIN Press E-3', shortName: 'FIN', category: 'PRESS', status: 'ACTIVE', speed: '160 SPM' },
       { id: 'EXP3', name: 'Expander 3', shortName: 'EXP', category: 'EXPANDER', status: 'ACTIVE', pressure: '4.1 Bar' },
@@ -362,7 +362,7 @@ export const EmbossedHELineVerticalColumn: React.FC<{
 
       {/* Micro sub-info bottom */}
       <div className="text-[7px] text-slate-500 font-mono text-center pt-0.5 border-t border-slate-200 truncate font-semibold">
-        {line.feedZone.replace(' (R1-R7)', '').replace(' (R8-R14)', '').replace(' (R15-R20)', '')}
+        {line.feedZone.replace(' (R1-R4)', '').replace(' (R5-R8)', '').replace(' (R9-R13)', '')}
       </div>
 
     </div>

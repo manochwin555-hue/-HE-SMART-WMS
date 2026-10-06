@@ -162,7 +162,7 @@ export const Campus3DCockpitView: React.FC<Campus3DCockpitViewProps> = ({
     const cy3Occupied = cy3Items.length;
 
     const totalOccupied = a2Occupied + a4RackOccupied + a4FloorOccupied + a5Occupied + cy3Occupied;
-    const totalCapacity = 128 + 680 + 432 + 784 + 400; // 2,424 PL
+    const totalCapacity = 104 + 680 + 432 + 784 + 400; // 2,400 PL
 
     const todayInTotal = todayLogs.filter(l => l.type === 'IN').length;
     const todayOutTotal = todayLogs.filter(l => l.type === 'OUT').length;
@@ -202,11 +202,11 @@ export const Campus3DCockpitView: React.FC<Campus3DCockpitViewProps> = ({
         id: 'A2_RAIL',
         name: 'อาคาร A2 • Continuous Flow Rail',
         code: 'DA2D-1',
-        type: 'รางเลื่อนแรงโน้มถ่วง 16 ราง (R1–R16)',
-        cap: 128,
+        type: 'รางเลื่อนแรงโน้มถ่วง 13 ราง (R1–R13)',
+        cap: 104,
         occupied: a2Occupied,
-        free: 128 - a2Occupied,
-        pct: Math.round((a2Occupied / 128) * 100),
+        free: 104 - a2Occupied,
+        pct: Math.round((a2Occupied / 104) * 100),
         inScans: a2Logs.filter(l => l.type === 'IN').length,
         outScans: a2Logs.filter(l => l.type === 'OUT').length,
         aging: a2Aging,
@@ -246,7 +246,7 @@ export const Campus3DCockpitView: React.FC<Campus3DCockpitViewProps> = ({
     ];
 
     return {
-      a2: { occupied: a2Occupied, cap: 128, pct: Math.round((a2Occupied / 128) * 100), items: a2Items, aging: a2Aging },
+      a2: { occupied: a2Occupied, cap: 104, pct: Math.round((a2Occupied / 104) * 100), items: a2Items, aging: a2Aging },
       a4Rack: { occupied: a4RackOccupied, cap: 680, pct: Math.round((a4RackOccupied / 680) * 100), items: a4RackItems, aging: a4RackAging },
       a4Floor: { occupied: a4FloorOccupied, cap: 432, pct: Math.round((a4FloorOccupied / 432) * 100), items: a4FloorItems, aging: a4FloorAging },
       a5: { occupied: a5Occupied, cap: 784, pct: Math.round((a5Occupied / 784) * 100), items: a5Items, aging: a5Aging },
@@ -705,14 +705,14 @@ export const Campus3DCockpitView: React.FC<Campus3DCockpitViewProps> = ({
 
     // =========================================================================
     // 🚚 FACILITY 2: A2 FLOW RAIL (DA2D-1 Continuous Gravity Flow Rail)
-    // 16 horizontal rails R16 top to R01 bottom (128 PL)
+    // 13 horizontal rails R13 top to R01 bottom (104 PL)
     // =========================================================================
     const a2Group = new THREE.Group();
     a2Group.position.set(-40, 0, -4);
 
     // A2 Floor Slab
     const a2Floor = new THREE.Mesh(
-      new THREE.BoxGeometry(24, 0.3, 48),
+      new THREE.BoxGeometry(24, 0.3, 40),
       new THREE.MeshStandardMaterial({ color: '#f1f5f9', roughness: 0.5, metalness: 0.1 })
     );
     a2Floor.position.y = 0.15;
@@ -720,27 +720,27 @@ export const Campus3DCockpitView: React.FC<Campus3DCockpitViewProps> = ({
     a2Group.add(a2Floor);
 
     const a2Border = new THREE.LineSegments(
-      new THREE.EdgesGeometry(new THREE.BoxGeometry(24, 0.32, 48)),
+      new THREE.EdgesGeometry(new THREE.BoxGeometry(24, 0.32, 40)),
       new THREE.LineBasicMaterial({ color: '#059669', linewidth: 2 })
     );
     a2Border.position.y = 0.16;
     a2Group.add(a2Border);
 
     // Left Outfeed Yellow Apron Stripe
-    const outfeedApron = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 46), new THREE.MeshBasicMaterial({ color: '#fef08a' }));
+    const outfeedApron = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 38), new THREE.MeshBasicMaterial({ color: '#fef08a' }));
     outfeedApron.rotation.x = -Math.PI / 2;
     outfeedApron.position.set(-9.8, 0.32, 0);
     a2Group.add(outfeedApron);
 
     // Right Infeed Green Apron Stripe
-    const infeedApron = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 46), new THREE.MeshBasicMaterial({ color: '#a7f3d0' }));
+    const infeedApron = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 38), new THREE.MeshBasicMaterial({ color: '#a7f3d0' }));
     infeedApron.rotation.x = -Math.PI / 2;
     infeedApron.position.set(9.8, 0.32, 0);
     a2Group.add(infeedApron);
 
-    // 16 Rails (R16 at top Z = -20 down to R01 at bottom Z = +20)
-    for (let r = 1; r <= 16; r++) {
-      const rz = -20 + (r - 1) * 2.65;
+    // 13 Rails (R13 at top Z = -16 down to R01 at bottom Z = +16)
+    for (let r = 1; r <= 13; r++) {
+      const rz = -16 + (r - 1) * 2.65;
       // Rail frame
       const railSteel = new THREE.Mesh(new THREE.BoxGeometry(17.5, 0.25, 1.8), steelDark);
       railSteel.position.set(0, 0.8, rz);
@@ -764,7 +764,7 @@ export const Campus3DCockpitView: React.FC<Campus3DCockpitViewProps> = ({
       a2Group.add(stopper);
 
       // Pallets on Rails
-      if (r % 2 === 0 || r === 5 || r === 11 || r === 15) {
+      if (r % 2 === 0 || r === 5 || r === 11) {
         const pal = createPalletWithBox(r === 6 ? 'AGING' : 'OCCUPIED', 0.8);
         pal.position.set(-6.5 + (r % 4) * 2.8, 0.95, rz);
         a2Group.add(pal);
@@ -772,28 +772,28 @@ export const Campus3DCockpitView: React.FC<Campus3DCockpitViewProps> = ({
     }
 
     // A2 Signboard
-    const a2SignTex = createSignTexture('อาคาร A2 • FLOW RAIL', '16 Continuous Gravity Rails (128 PL)', '#059669');
+    const a2SignTex = createSignTexture('อาคาร A2 • FLOW RAIL', '13 Continuous Gravity Rails (104 PL)', '#059669');
     const a2Sign = new THREE.Mesh(new THREE.PlaneGeometry(11, 3.4), new THREE.MeshBasicMaterial({ map: a2SignTex, transparent: true }));
-    a2Sign.position.set(-40, 9.5, -27);
+    a2Sign.position.set(-40, 9.5, -22);
     scene.add(a2Sign);
 
     // Top-down ground label
-    const a2TopTex = createGroundLabel('A2 FLOW RAIL (128 PL)', '16 Gravity Rails (R01-R16)', '#34d399');
+    const a2TopTex = createGroundLabel('A2 FLOW RAIL (104 PL)', '13 Gravity Rails (R01-R13)', '#34d399');
     const a2TopLabel = new THREE.Mesh(new THREE.PlaneGeometry(14, 4.2), new THREE.MeshBasicMaterial({ map: a2TopTex, transparent: true }));
     a2TopLabel.rotation.x = -Math.PI / 2;
-    a2TopLabel.position.set(-40, 0.38, 23);
+    a2TopLabel.position.set(-40, 0.38, 20);
     scene.add(a2TopLabel);
 
-    const a2Hitbox = new THREE.Mesh(new THREE.BoxGeometry(24, 10, 48), new THREE.MeshBasicMaterial({ visible: false }));
+    const a2Hitbox = new THREE.Mesh(new THREE.BoxGeometry(24, 10, 42), new THREE.MeshBasicMaterial({ visible: false }));
     a2Hitbox.position.set(-40, 5, -4);
     scene.add(a2Hitbox);
     interactiveObjects.push({
       mesh: a2Hitbox,
       name: 'อาคาร A2 FLOW RAIL 3D',
-      zone: 'DA2D-1 (R1–R16)',
-      desc: 'รางเลื่อนแรงโน้มถ่วง 16 ราง ส่งตรงไลน์ผลิต HE (128 พาเลท)',
+      zone: 'DA2D-1 (R1–R13)',
+      desc: 'รางเลื่อนแรงโน้มถ่วง 13 ราง ส่งตรงไลน์ผลิต HE (104 พาเลท)',
       count: metrics.a2.occupied,
-      cap: 128,
+      cap: 104,
       pct: metrics.a2.pct,
       targetTab: 'A2_RAIL'
     });

@@ -7,7 +7,7 @@ import { getAgingCategory, AGING_STYLES } from './agingColorSystem';
 export interface SingleLevelSlotDefinition {
   id: string;
   locatorCode: string;
-  displayCode: string; // e.g. "R16-01" or "X1-01"
+  displayCode: string; // e.g. "R13-01" or "X1-01"
   zone: StorageZone;
   bayNumber: number;
   groupOrRow?: string | number;

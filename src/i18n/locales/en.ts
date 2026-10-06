@@ -153,7 +153,7 @@ export const en: TranslationDictionary = {
     campusTitle: 'Master Campus Facility Overview',
     campusSubtitle: 'Real-time synchronization across Zones A2, A4, A5, and CY3',
     zoneA2Title: 'Zone A2 (Flow Roller Rail)',
-    zoneA2Desc: '20-Lane Gravity Flow System (160 Pallets)',
+    zoneA2Desc: '13-Lane Gravity Flow System (104 Pallets)',
     zoneA4FloorTitle: 'Zone A4 Floor Staging (DA4D-1)',
     zoneA4FloorDesc: '8 Staging Lanes X1-X8 (432 Pallets)',
     zoneA4RackTitle: 'Zone A4 Selective Racks (DA4D-2 & 3)',

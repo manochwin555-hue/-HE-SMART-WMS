@@ -77,18 +77,18 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
     if (!cameraRef.current || !controlsRef.current) return;
 
     if (view === 'OVERVIEW') {
-      // 45° Elevated isometric overview of all 16 rails - calibrated to fill the canvas
+      // 45° Elevated isometric overview of all 13 rails - calibrated to fill the canvas
       flyCameraTo(new THREE.Vector3(0, 39, 47), new THREE.Vector3(0, 0, 0));
     } else if (view === 'TOP') {
-      // Top 85° Blueprint view looking straight down at the 16 rails layout - spans full layout
+      // Top 85° Blueprint view looking straight down at the 13 rails layout - spans full layout
       flyCameraTo(new THREE.Vector3(0, 49, 0.05), new THREE.Vector3(0, 0, 0));
     } else if (view === 'OUTFEED') {
-      // Stand at outfeed (First-Out) - elevated and widened so all 16 rails R01-R16 fit full-width across frame without clipping
+      // Stand at outfeed (First-Out) - elevated and widened so all 13 rails R01-R13 fit full-width across frame without clipping
       flyCameraTo(new THREE.Vector3(-38, 19, 0), new THREE.Vector3(1.5, 0, 0));
     }
   };
 
-  // Filter items matching DA2D-1 (16 rails x 8 positions = 128 pallets)
+  // Filter items matching DA2D-1 (13 rails x 8 positions = 104 pallets)
   const slotItemMap = useMemo(() => {
     const map = new Map<string, InventoryItem>();
     items.forEach(it => {
@@ -102,13 +102,13 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
         pos = parseInt(match[2], 10);
       } else if (it.zone && (it.zone.startsWith('R') || it.zone.startsWith('FR'))) {
         const num = parseInt(it.zone.replace(/\D/g, ''), 10);
-        if (num >= 1 && num <= 16) {
+        if (num >= 1 && num <= 13) {
           rail = num;
           pos = it.bayNumber || 1;
         }
       }
 
-      if (rail >= 1 && rail <= 16 && pos >= 1 && pos <= 8) {
+      if (rail >= 1 && rail <= 13 && pos >= 1 && pos <= 8) {
         map.set(`${rail}-${pos}`, it);
       }
     });
@@ -173,7 +173,7 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
     scene.add(cyanLight);
 
     // Floor Concrete Slab with Industrial Epoxy Finish
-    const floorGeo = new THREE.BoxGeometry(42, 0.4, 46);
+    const floorGeo = new THREE.BoxGeometry(42, 0.4, 38);
     const floorMat = new THREE.MeshStandardMaterial({ 
       color: '#e2e8f0', 
       roughness: 0.6, 
@@ -385,7 +385,7 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
     const hitboxMat = new THREE.MeshBasicMaterial({ visible: false });
 
     // =========================================================================
-    // BUILD 16 CONTINUOUS FLOW RAILS (DA2D-1 R01 to R16)
+    // BUILD 13 CONTINUOUS FLOW RAILS (DA2D-1 R01 to R13)
     // 8 Pallet Blocks along each rail (Pos 1: Infeed at Right +X -> Pos 8: Outfeed at Left -X)
     // =========================================================================
     const railsGroup = new THREE.Group();
@@ -412,7 +412,7 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
     scene.add(floorDecoGroup);
 
     // Infeed Zone (+X = +12.5)
-    const infeedZoneGeo = new THREE.BoxGeometry(2.8, 0.02, 44.0);
+    const infeedZoneGeo = new THREE.BoxGeometry(2.8, 0.02, 36.0);
     const infeedZoneMat = new THREE.MeshStandardMaterial({ 
       color: '#10b981', 
       roughness: 0.7 
@@ -422,7 +422,7 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
     floorDecoGroup.add(infeedZone);
 
     // Outfeed Zone (-X = -12.5)
-    const outfeedZoneGeo = new THREE.BoxGeometry(2.8, 0.02, 44.0);
+    const outfeedZoneGeo = new THREE.BoxGeometry(2.8, 0.02, 36.0);
     const outfeedZoneMat = new THREE.MeshStandardMaterial({ 
       color: '#f59e0b', 
       roughness: 0.7 
@@ -431,9 +431,9 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
     outfeedZone.position.set(-12.4, 0.01, 0);
     floorDecoGroup.add(outfeedZone);
 
-    for (let r = 1; r <= 16; r++) {
-      // ORDERING: R1 is in FRONT (+Z = +19.5) -> R16 is in BACK (-Z = -19.5)
-      const zPos = (8.5 - r) * RAIL_SPACING_Z;
+    for (let r = 1; r <= 13; r++) {
+      // ORDERING: R1 is in FRONT (+Z = +15.6) -> R13 is in BACK (-Z = -15.6)
+      const zPos = (7 - r) * RAIL_SPACING_Z;
       const rLabel = `R${String(r).padStart(2, '0')}`;
 
       // 1. Large Engraved Floor Decal at Outfeed (Left side - Front of Line / First-Out)
@@ -857,7 +857,7 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
   }, [slotItemMap, searchQuery]);
 
   const stats = useMemo(() => {
-    const total = 16 * 8; // 128
+    const total = 13 * 8; // 104
     const occupied = slotItemMap.size;
     const rate = Math.round((occupied / total) * 100);
     return { total, occupied, rate };
