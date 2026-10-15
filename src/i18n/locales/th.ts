@@ -88,7 +88,7 @@ export const th: TranslationDictionary = {
     logs: 'ประวัติรับ-เบิก',
     aging: 'อายุจัดเก็บ (FIFO)',
     printer: 'พิมพ์ฉลาก',
-    master: 'ตั้งค่าข้อมูล',
+    master: 'เครื่องมือ & ข้อมูลหลัก',
     settings: 'ตั้งค่าระบบ',
     subtitle: 'ระบบคลังสินค้า',
     totalCapacity: 'ความจุรวม:',

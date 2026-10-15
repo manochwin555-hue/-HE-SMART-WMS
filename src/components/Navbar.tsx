@@ -90,7 +90,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const activeFacility = facilities.find(f => f.id === activeFacilityId);
 
   const navItems = [
-    { id: 'blueprint', label: t('navigation.blueprint'), icon: Compass },
+    { id: 'campus_overview', label: 'ผังรวม (Master Overview)', icon: Building2 },
     { id: 'a4_floor', label: t('navigation.a4_floor'), icon: Grid3X3 },
     { id: 'a4_rack', label: t('navigation.a4_rack'), icon: Rows3 },
     { id: 'flow_floor', label: t('navigation.flow'), icon: SlidersHorizontal },
@@ -213,7 +213,10 @@ export const Navbar: React.FC<NavbarProps> = ({
         <nav className={`flex-1 ${isCollapsed ? 'px-2' : 'px-2.5'} py-2 space-y-1 overflow-y-auto no-scrollbar text-left`}>
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = activeTab === item.id;
+            const isActive = 
+              activeTab === item.id ||
+              (item.id === 'a4_rack' && (activeTab === 'layout' || activeTab === 'rack3d')) ||
+              (item.id === 'blueprint' && (activeTab === 'dashboard' || activeTab === 'campus_overview'));
             return (
               <button
                 key={item.id}
@@ -223,16 +226,25 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }}
                 className={`w-full flex items-center ${
                   isCollapsed ? 'justify-center h-10 w-10 mx-auto px-0' : 'justify-between px-3 py-2.5'
-                } rounded-xl text-xs font-semibold transition-all group relative ${
+                } rounded-xl text-xs transition-all group relative overflow-hidden ${
                   isActive
-                    ? 'bg-blue-600 text-white shadow-md font-bold'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/80'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25 font-black ring-1 ring-blue-400/50'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/80 font-medium'
                 }`}
                 title={isCollapsed ? item.label : undefined}
               >
+                {!isCollapsed && isActive && (
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-cyan-400 rounded-r-full shadow-xs shadow-cyan-400" />
+                )}
+
                 <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3'} truncate`}>
-                  <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-blue-400'}`} />
-                  {!isCollapsed && <span className="truncate">{item.label}</span>}
+                  <Icon className={`w-4 h-4 shrink-0 transition-transform ${isActive ? 'text-white scale-110' : 'text-slate-400 group-hover:text-blue-400'}`} />
+                  {!isCollapsed && (
+                    <span className="truncate flex items-center space-x-1.5">
+                      <span>{item.label}</span>
+                      {isActive && <span className="w-1.5 h-1.5 rounded-full bg-cyan-300 animate-pulse shrink-0" />}
+                    </span>
+                  )}
                 </div>
 
                 {item.count !== undefined && item.count > 0 && (

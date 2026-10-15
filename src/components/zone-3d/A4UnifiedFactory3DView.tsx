@@ -1626,7 +1626,7 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
         {/* Top Floating Camera Focus Bar & Row/Zone Isolator - Compact Top Right Placement */}
         <div className="absolute top-3 right-3 z-20 flex flex-col items-end gap-1.5 max-w-[90vw]">
           {/* Main Presets Bar */}
-          <div className="bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-xl p-1 shadow-lg flex items-center gap-1 overflow-x-auto max-w-full">
+          <div className="bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-xl p-1 shadow-lg flex flex-col items-stretch gap-1">
             <button
               onClick={() => handleCameraPreset('ALL_A4')}
               className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all shrink-0 ${
@@ -1667,59 +1667,51 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
             >
               ลานพื้น X1–X8
             </button>
-            <button
-              onClick={() => handleCameraPreset('FRONT_35')}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all shrink-0 ${
-                cameraFocus === 'FRONT_35'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              หน้าโรงงาน
-            </button>
-          </div>
 
-          {/* Individual Row & Floor Zone Isolator Pills Bar */}
-          <div className="bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-xl p-1 shadow-lg flex items-center gap-1 overflow-x-auto max-w-full text-[10px] font-bold">
-            <span className="text-slate-400 px-1 shrink-0">แถวแร็ค:</span>
-            {(['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'] as const).map(rowKey => {
-              const presetKey = `ROW_${rowKey}` as CameraPresetKey;
-              return (
-                <button
-                  key={rowKey}
-                  onClick={() => handleCameraPreset(presetKey)}
-                  className={`px-1.5 py-0.5 rounded transition-all shrink-0 ${
-                    cameraFocus === presetKey
-                      ? 'bg-blue-600 text-white font-black'
-                      : 'text-slate-300 hover:text-white hover:bg-slate-800'
-                  }`}
-                >
-                  {rowKey}
-                </button>
-              );
-            })}
-
-            <div className="w-[1px] h-3 bg-slate-700 mx-0.5 shrink-0" />
-
-            <span className="text-slate-400 px-1 shrink-0">ลานพื้น:</span>
-            {(['X1', 'X2', 'X3', 'X4', 'X5', 'X6', 'X7', 'X8'] as const).map(zoneKey => {
-              const presetKey = `ZONE_${zoneKey}` as CameraPresetKey;
-              return (
-                <button
-                  key={zoneKey}
-                  onClick={() => handleCameraPreset(presetKey)}
-                  className={`px-1.5 py-0.5 rounded transition-all shrink-0 ${
-                    cameraFocus === presetKey
-                      ? 'bg-amber-600 text-white font-black'
-                      : 'text-slate-300 hover:text-white hover:bg-slate-800'
-                  }`}
-                >
-                  {zoneKey}
-                </button>
-              );
-            })}
           </div>
         </div>
+
+        {/* Individual Row & Floor Zone Isolator Pills Bar (Moved to Top Left) */}
+        <div className="absolute top-3 left-3 z-20 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-xl p-2 shadow-lg flex flex-row items-center gap-1.5 text-[11px] font-bold flex-wrap max-w-[60vw]">
+          <span className="text-slate-400 px-1 shrink-0">แถวแร็ค:</span>
+          {(['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'] as const).map(rowKey => {
+            const presetKey = `ROW_${rowKey}` as CameraPresetKey;
+            return (
+              <button
+                key={rowKey}
+                onClick={() => handleCameraPreset(presetKey)}
+                className={`px-2 py-1 rounded transition-all shrink-0 ${
+                  cameraFocus === presetKey
+                    ? 'bg-blue-600 text-white font-black'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                {rowKey}
+              </button>
+            );
+          })}
+
+          <div className="w-[1px] h-4 bg-slate-700 mx-1 shrink-0" />
+
+          <span className="text-slate-400 px-1 shrink-0">ลานพื้น:</span>
+          {(['X1', 'X2', 'X3', 'X4', 'X5', 'X6', 'X7', 'X8'] as const).map(zoneKey => {
+            const presetKey = `ZONE_${zoneKey}` as CameraPresetKey;
+            return (
+              <button
+                key={zoneKey}
+                onClick={() => handleCameraPreset(presetKey)}
+                className={`px-2 py-1 rounded transition-all shrink-0 ${
+                  cameraFocus === presetKey
+                    ? 'bg-amber-600 text-white font-black'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                {zoneKey}
+              </button>
+            );
+          })}
+        </div>
+
 
         {/* Three.js Canvas Mount */}
         <div ref={mountRef} className="w-full flex-1 h-full min-h-[300px] cursor-grab active:cursor-grabbing" />

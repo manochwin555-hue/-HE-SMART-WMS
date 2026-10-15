@@ -35,7 +35,8 @@ import {
   CustomRackSlot, 
   MasterDataItem, 
   AgingThresholdConfig, 
-  StorageZone 
+  StorageZone,
+  UseLineMaster
 } from '../types';
 
 interface LabelPrinterPanelProps {
@@ -44,6 +45,7 @@ interface LabelPrinterPanelProps {
   facilities?: WarehouseFacility[];
   customSlots?: CustomRackSlot[];
   masterData?: MasterDataItem[];
+  useLines?: UseLineMaster[];
   agingConfig?: AgingThresholdConfig;
   initialSelectedItemId?: string;
   onOpenScanner?: (zone: StorageZone, bay: number, level: any, mode: any) => void;
@@ -55,6 +57,7 @@ export const LabelPrinterPanel: React.FC<LabelPrinterPanelProps> = ({
   facilities = [],
   customSlots = [],
   masterData = [],
+  useLines = [],
   agingConfig = { safeDaysMax: 14, warningDaysMax: 30, criticalDays: 30, autoAlertEnabled: true },
   initialSelectedItemId,
   onOpenScanner
@@ -576,10 +579,20 @@ export const LabelPrinterPanel: React.FC<LabelPrinterPanelProps> = ({
                     onChange={(e) => setOverrideLine(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-blue-400 focus:ring-2 focus:ring-purple-500"
                   >
-                    <option value="HE1">Line HE1 (Main Assy)</option>
-                    <option value="HE2">Line HE2 (Outdoor)</option>
-                    <option value="HE3">Line HE3 (Commercial)</option>
-                    <option value="HE4">Line HE4 (Export)</option>
+                    {useLines && useLines.length > 0 ? (
+                      useLines.map((l) => (
+                        <option key={l.id} value={l.id}>
+                          Line {l.id} {l.name ? `- ${l.name}` : ''}
+                        </option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="HE1">Line HE1 (Main Assy)</option>
+                        <option value="HE2">Line HE2 (Outdoor)</option>
+                        <option value="HE3">Line HE3 (Commercial)</option>
+                        <option value="HE4">Line HE4 (Export)</option>
+                      </>
+                    )}
                   </select>
                 </div>
               </div>

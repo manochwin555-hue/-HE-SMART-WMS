@@ -30,7 +30,8 @@ import {
   Flame,
   Clock,
   Sliders,
-  ShieldAlert
+  ShieldAlert,
+  Wrench
 } from 'lucide-react';
 
 interface MasterListPanelProps {
@@ -86,6 +87,7 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
   const [lineSearch, setLineSearch] = useState('');
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
   const [editLineForm, setEditLineForm] = useState<UseLineMaster | null>(null);
+  const [lineSuccessMsg, setLineSuccessMsg] = useState<string | null>(null);
 
   // States for Zone Capacities list
   const [editingZone, setEditingZone] = useState<StorageZone | null>(null);
@@ -197,36 +199,79 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
     setEditLineForm({ ...line });
   };
 
-  const handleSaveLine = () => {
+  const handleCancelLine = () => {
+    setEditingLineId(null);
+    setEditLineForm(null);
+  };
+
+  const handleSaveLine = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (editLineForm) {
       const trimmedId = editLineForm.id.trim().toUpperCase();
+      const trimmedName = editLineForm.name.trim();
       if (!trimmedId) {
-        alert('กรุณากรอกรหัสไลน์ผลิต');
+        alert('กรุณากรอกรหัสไลน์ผลิต (Line ID เช่น HE1, HE6)');
+        return;
+      }
+      if (!trimmedName) {
+        alert('กรุณากรอกชื่อไลน์ผลิต (Line Name เช่น Line HE6)');
         return;
       }
       if (editingLineId === 'new') {
         if (useLines.some(l => l.id.toUpperCase() === trimmedId)) {
-          alert('รหัสไลน์ผลิตนี้มีอยู่แล้วในระบบ');
+          alert(`รหัสไลน์ผลิต "${trimmedId}" นี้มีอยู่แล้วในระบบ กรุณาใช้รหัสอื่น`);
           return;
         }
-        setUseLines([...useLines, { ...editLineForm, id: trimmedId }]);
+        const newLine: UseLineMaster = { 
+          id: trimmedId, 
+          name: trimmedName, 
+          description: editLineForm.description?.trim() || '' 
+        };
+        setUseLines([...useLines, newLine]);
+        setLineSuccessMsg(`✅ เพิ่มไลน์ผลิตใหม่ [${trimmedId} - ${trimmedName}] เรียบร้อยแล้ว!`);
       } else {
-        setUseLines(useLines.map(l => l.id === editingLineId ? { ...editLineForm, id: trimmedId } : l));
+        // Edit existing line
+        const oldId = editingLineId;
+        const updatedLine: UseLineMaster = {
+          id: trimmedId,
+          name: trimmedName,
+          description: editLineForm.description?.trim() || ''
+        };
+        setUseLines(useLines.map(l => l.id === oldId ? updatedLine : l));
+
+        // Cascade update in items if line ID changed
+        if (oldId && oldId !== trimmedId) {
+          setItems(prevItems => prevItems.map(it => it.useLine === oldId ? { ...it, useLine: trimmedId } : it));
+        }
+        setLineSuccessMsg(`✅ บันทึกการแก้ไขไลน์ผลิต [${trimmedId}] เรียบร้อยแล้ว!`);
       }
       setEditingLineId(null);
       setEditLineForm(null);
+
+      setTimeout(() => {
+        setLineSuccessMsg(null);
+      }, 4000);
     }
   };
 
   const handleDeleteLine = (id: string) => {
-    if (confirm(`คุณต้องการลบไลน์ ${id} ใช่หรือไม่?`)) {
+    const allocatedCount = items.filter(it => it.useLine === id).length;
+    const warningExtra = allocatedCount > 0 ? ` (คำเตือน: มีสินค้า/พาเลทในระบบ ${allocatedCount} รายการที่กำลังอ้างอิงไลน์นี้)` : '';
+    if (confirm(`คุณต้องการลบไลน์ ${id} ใช่หรือไม่?${warningExtra}`)) {
       setUseLines(useLines.filter(l => l.id !== id));
+      setLineSuccessMsg(`🗑️ ลบไลน์ผลิต [${id}] สำเร็จ`);
+      setTimeout(() => setLineSuccessMsg(null), 3000);
     }
   };
 
   const handleAddNewLine = () => {
-    setEditingLineId('new');
-    setEditLineForm({ id: '', name: '', description: '' });
+    if (editingLineId === 'new') {
+      setEditingLineId(null);
+      setEditLineForm(null);
+    } else {
+      setEditingLineId('new');
+      setEditLineForm({ id: '', name: '', description: '' });
+    }
   };
 
   // Zone Capacity Handlers
@@ -333,105 +378,131 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
               <Settings className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-800">ตั้งค่าข้อมูลหลัก & จัดการพื้นที่จัดเก็บ (Master Settings)</h2>
-              <p className="text-xs text-slate-500">
-                จัดการรหัสวัตถุดิบ (Model HE), สร้างช่อง Rack/รางเลื่อน/ลานกองพื้นใหม่ และเครื่องมือย้ายตำแหน่งสินค้า (Relocation)
+              <h2 className="text-lg font-black text-slate-900 tracking-tight flex items-center space-x-2">
+                <span>ตั้งค่าข้อมูลหลัก & เครื่องมือจัดการคลัง (Master & Tools)</span>
+                <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-mono text-[10px] font-black border border-blue-200">
+                  WMS HUB
+                </span>
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                จัดการรหัสวัตถุดิบ (Model HE), เพิ่ม/แก้ไขไลน์ผลิต (Production Lines), สร้างช่อง Rack และเครื่องมือย้ายตำแหน่งสินค้า (Relocation)
               </p>
             </div>
           </div>
 
           {/* Sub Tab Buttons */}
-          <div className="flex overflow-x-auto sm:flex-wrap bg-slate-200/80 p-1 rounded-lg border border-slate-300 gap-1 scrollbar-thin">
+          <div className="flex overflow-x-auto sm:flex-wrap bg-slate-200/90 p-1.5 rounded-xl border border-slate-300 gap-1.5 scrollbar-thin shadow-inner">
             <button
               id="tab-btn-facilities"
               onClick={() => setActiveTab('FACILITIES')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
                 activeTab === 'FACILITIES'
-                  ? 'bg-blue-600 text-white shadow-sm ring-1 ring-blue-700'
-                  : 'text-slate-700 hover:text-slate-900 hover:bg-slate-300/60'
+                  ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-500 font-black'
+                  : 'bg-white/80 hover:bg-white text-slate-700 hover:text-slate-950 border border-slate-300 shadow-2xs'
               }`}
             >
-              <Building2 className="w-3.5 h-3.5" />
+              <Building2 className={`w-3.5 h-3.5 ${activeTab === 'FACILITIES' ? 'text-white' : 'text-blue-600'}`} />
               <span>🏢 จัดการคลัง & อาคาร</span>
+              {activeTab === 'FACILITIES' && <span className="w-1.5 h-1.5 rounded-full bg-cyan-300 animate-pulse ml-0.5" />}
             </button>
+
+            <button
+              id="tab-btn-lines"
+              onClick={() => setActiveTab('LINES')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
+                activeTab === 'LINES'
+                  ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-500 font-black'
+                  : 'bg-white/80 hover:bg-white text-slate-700 hover:text-slate-950 border border-slate-300 shadow-2xs'
+              }`}
+            >
+              <Factory className={`w-3.5 h-3.5 ${activeTab === 'LINES' ? 'text-white' : 'text-emerald-600'}`} />
+              <span>🏭 ไลน์ผลิต ({useLines.length})</span>
+              {activeTab === 'LINES' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-200 animate-pulse ml-0.5" />}
+            </button>
+
+            <button
+              id="tab-btn-items"
+              onClick={() => setActiveTab('ITEMS')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
+                activeTab === 'ITEMS'
+                  ? 'bg-cyan-700 text-white shadow-md ring-2 ring-cyan-500 font-black'
+                  : 'bg-white/80 hover:bg-white text-slate-700 hover:text-slate-950 border border-slate-300 shadow-2xs'
+              }`}
+            >
+              <Database className={`w-3.5 h-3.5 ${activeTab === 'ITEMS' ? 'text-white' : 'text-cyan-700'}`} />
+              <span>📦 Master Items ({masterData.length})</span>
+              {activeTab === 'ITEMS' && <span className="w-1.5 h-1.5 rounded-full bg-cyan-200 animate-pulse ml-0.5" />}
+            </button>
+
+            <button
+              id="tab-btn-relocate-tools"
+              onClick={() => setActiveTab('RELOCATE')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
+                activeTab === 'RELOCATE'
+                  ? 'bg-amber-500 text-slate-950 shadow-md ring-2 ring-amber-400 font-black'
+                  : 'bg-white/80 hover:bg-white text-slate-800 hover:text-slate-950 border border-slate-300 shadow-2xs'
+              }`}
+              title="แท็บเครื่องมือย้ายตำแหน่งสินค้า (Relocation Tool)"
+            >
+              <Wrench className={`w-3.5 h-3.5 ${activeTab === 'RELOCATE' ? 'text-slate-950' : 'text-amber-600'}`} />
+              <span>🛠️ เครื่องมือย้ายตำแหน่ง</span>
+              {activeTab === 'RELOCATE' && <span className="w-1.5 h-1.5 rounded-full bg-slate-950 animate-pulse ml-0.5" />}
+            </button>
+
+            <button
+              id="tab-btn-rack-locations"
+              onClick={() => setActiveTab('RACK_LOCATIONS')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
+                activeTab === 'RACK_LOCATIONS'
+                  ? 'bg-indigo-600 text-white shadow-md ring-2 ring-indigo-500 font-black'
+                  : 'bg-white/80 hover:bg-white text-slate-700 hover:text-slate-950 border border-slate-300 shadow-2xs'
+              }`}
+            >
+              <FolderPlus className={`w-3.5 h-3.5 ${activeTab === 'RACK_LOCATIONS' ? 'text-white' : 'text-indigo-600'}`} />
+              <span>🏗️ สร้างช่อง Rack ({customSlots.length})</span>
+              {activeTab === 'RACK_LOCATIONS' && <span className="w-1.5 h-1.5 rounded-full bg-indigo-200 animate-pulse ml-0.5" />}
+            </button>
+
+            <button
+              id="tab-btn-zone-capacity"
+              onClick={() => setActiveTab('ZONE_CAPACITY')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
+                activeTab === 'ZONE_CAPACITY'
+                  ? 'bg-purple-600 text-white shadow-md ring-2 ring-purple-500 font-black'
+                  : 'bg-white/80 hover:bg-white text-slate-700 hover:text-slate-950 border border-slate-300 shadow-2xs'
+              }`}
+            >
+              <Layers className={`w-3.5 h-3.5 ${activeTab === 'ZONE_CAPACITY' ? 'text-white' : 'text-purple-600'}`} />
+              <span>ความจุ Rack ({zoneCapacities.length})</span>
+              {activeTab === 'ZONE_CAPACITY' && <span className="w-1.5 h-1.5 rounded-full bg-purple-200 animate-pulse ml-0.5" />}
+            </button>
+
             <button
               id="tab-btn-aging-config"
               onClick={() => setActiveTab('AGING_CONFIG')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
                 activeTab === 'AGING_CONFIG'
-                  ? 'bg-amber-500 text-slate-950 shadow-sm ring-1 ring-amber-600 font-black'
-                  : 'text-slate-700 hover:text-slate-900 hover:bg-slate-300/60'
+                  ? 'bg-rose-600 text-white shadow-md ring-2 ring-rose-500 font-black'
+                  : 'bg-white/80 hover:bg-white text-slate-700 hover:text-slate-950 border border-slate-300 shadow-2xs'
               }`}
             >
-              <Flame className="w-3.5 h-3.5 text-amber-950" />
-              <span>⏱️ กำหนดเกณฑ์ Aging FIFO</span>
+              <Flame className={`w-3.5 h-3.5 ${activeTab === 'AGING_CONFIG' ? 'text-white' : 'text-rose-600'}`} />
+              <span>⏱️ เกณฑ์ Aging FIFO</span>
+              {activeTab === 'AGING_CONFIG' && <span className="w-1.5 h-1.5 rounded-full bg-rose-200 animate-pulse ml-0.5" />}
             </button>
+
             <button
               id="tab-btn-guide-legend"
               onClick={() => setActiveTab('GUIDE_LEGEND')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
                 activeTab === 'GUIDE_LEGEND'
-                  ? 'bg-indigo-700 text-white shadow-sm ring-1 ring-indigo-800'
-                  : 'text-slate-700 hover:text-slate-900 hover:bg-slate-300/60'
+                  ? 'bg-slate-800 text-white shadow-md ring-2 ring-slate-600 font-black'
+                  : 'bg-white/80 hover:bg-white text-slate-700 hover:text-slate-950 border border-slate-300 shadow-2xs'
               }`}
             >
-              <BookOpen className="w-3.5 h-3.5 text-amber-300" />
+              <BookOpen className={`w-3.5 h-3.5 ${activeTab === 'GUIDE_LEGEND' ? 'text-white' : 'text-indigo-600'}`} />
               <span>📘 คู่มือโค้ดสี & รหัสพิกัด</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('ITEMS')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
-                activeTab === 'ITEMS'
-                  ? 'bg-white text-blue-700 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Database className="w-3.5 h-3.5" />
-              <span>Master Items ({masterData.length})</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('LINES')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
-                activeTab === 'LINES'
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Factory className="w-3.5 h-3.5" />
-              <span>ไลน์ผลิต ({useLines.length})</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('ZONE_CAPACITY')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
-                activeTab === 'ZONE_CAPACITY'
-                  ? 'bg-purple-600 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Layers className="w-3.5 h-3.5" />
-              <span>ความจุ Rack ({zoneCapacities.length})</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('RACK_LOCATIONS')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
-                activeTab === 'RACK_LOCATIONS'
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <FolderPlus className="w-3.5 h-3.5" />
-              <span>🏗️ สร้างช่อง Rack ({customSlots.length})</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('RELOCATE')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
-                activeTab === 'RELOCATE'
-                  ? 'bg-amber-500 text-slate-950 shadow-sm font-black'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <ArrowLeftRight className="w-3.5 h-3.5" />
-              <span>🔄 ย้ายตำแหน่ง</span>
+              {activeTab === 'GUIDE_LEGEND' && <span className="w-1.5 h-1.5 rounded-full bg-slate-300 animate-pulse ml-0.5" />}
             </button>
           </div>
         </div>
@@ -657,9 +728,22 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
                       <td className="px-3.5 py-2.5 text-center font-mono font-bold text-amber-700">{item.safetyStock.toLocaleString()} U</td>
                       <td className="px-3.5 py-2.5 text-center font-mono font-bold text-slate-700">{item.stdQtyPerPallet || 80} U</td>
                       <td className="px-3.5 py-2.5 text-right">
-                        <button onClick={() => handleDelete(item.modelHE)} className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all" title="ลบรายการ">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="inline-flex items-center space-x-1">
+                          <button 
+                            onClick={() => {
+                              setEditingId(item.modelHE);
+                              setEditForm({ ...item });
+                            }} 
+                            className="px-2 py-1 rounded-md text-blue-700 hover:text-white bg-blue-50 hover:bg-blue-600 border border-blue-200 transition-all font-bold text-[10.5px] flex items-center space-x-1" 
+                            title="แก้ไขข้อมูล Item"
+                          >
+                            <Edit2 className="w-3 h-3" />
+                            <span>แก้ไข</span>
+                          </button>
+                          <button onClick={() => handleDelete(item.modelHE)} className="p-1 rounded-lg text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all" title="ลบรายการ">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -669,38 +753,192 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
           </div>
         )}
 
-        {/* TAB 2: USE LINES */}
+        {/* TAB 2: USE LINES (ไลน์ผลิต) */}
         {activeTab === 'LINES' && (
-          <div className="space-y-4">
-            <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+          <div className="space-y-4 animate-fadeIn">
+            {lineSuccessMsg && (
+              <div className="p-3 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-bold animate-fadeIn flex items-center justify-between shadow-xs">
+                <div className="flex items-center space-x-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{lineSuccessMsg}</span>
+                </div>
+                <button 
+                  onClick={() => setLineSuccessMsg(null)} 
+                  className="text-emerald-700 hover:text-emerald-950 font-bold text-xs p-1"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
+            {/* Add / Edit Line Form Card */}
+            {editingLineId !== null && editLineForm && (
+              <form onSubmit={handleSaveLine} className="p-4 bg-gradient-to-br from-emerald-50/90 to-teal-50/70 border-2 border-emerald-400 rounded-2xl shadow-md space-y-3.5 animate-scaleUp">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2.5">
+                    <div className="p-2 bg-emerald-600 text-white rounded-xl shadow-xs">
+                      {editingLineId === 'new' ? <Plus className="w-4 h-4" /> : <Edit2 className="w-4 h-4" />}
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-emerald-950 flex items-center space-x-2">
+                        <span>{editingLineId === 'new' ? '➕ เพิ่มไลน์ผลิตใหม่ (Add New Line)' : `✏️ แก้ไขข้อมูลไลน์ผลิต [${editingLineId}]`}</span>
+                        <span className="px-2 py-0.5 rounded bg-emerald-200/80 text-emerald-900 font-mono text-[10px] font-bold">
+                          {editingLineId === 'new' ? 'NEW RECORD' : 'EDIT MODE'}
+                        </span>
+                      </h3>
+                      <p className="text-[11px] text-emerald-800/80">
+                        {editingLineId === 'new' 
+                          ? 'ระบุรหัสไลน์ ชื่อเรียกสายการผลิต และรายละเอียดเพื่อใช้ในการเบิก-จ่ายและพิมพ์ฉลาก QR' 
+                          : 'สามารถแก้ไขรหัสไลน์ ชื่อเรียก และคำอธิบายสายการผลิต (ระบบจะอัปเดตข้อมูลพาเลทที่เกี่ยวข้องอัตโนมัติ)'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCancelLine}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/80 transition-colors"
+                    title="ยกเลิก"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 pt-1">
+                  <div className="sm:col-span-3">
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      รหัสไลน์ผลิต (Line ID) <span className="text-rose-600">*</span>:
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full bg-white border border-emerald-300 rounded-lg px-3 py-2 text-xs font-mono font-black uppercase text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs"
+                      placeholder="e.g. HE1, HE6, REPAIR"
+                      value={editLineForm.id}
+                      onChange={e => setEditLineForm({ ...editLineForm, id: e.target.value.toUpperCase() })}
+                      required
+                    />
+                    <p className="text-[10px] text-slate-500 mt-1 font-mono">ตัวพิมพ์ใหญ่ เช่น HE1, HE2, HE6</p>
+                  </div>
+
+                  <div className="sm:col-span-4">
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      ชื่อไลน์ผลิต (Line Name) <span className="text-rose-600">*</span>:
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full bg-white border border-emerald-300 rounded-lg px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs"
+                      placeholder="e.g. Line HE6 (Export Zone)"
+                      value={editLineForm.name}
+                      onChange={e => setEditLineForm({ ...editLineForm, name: e.target.value })}
+                      required
+                    />
+                    <p className="text-[10px] text-slate-500 mt-1">ชื่อเรียกทางการของสายการผลิต</p>
+                  </div>
+
+                  <div className="sm:col-span-5">
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      คำอธิบาย / สายงาน (Description):
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full bg-white border border-emerald-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs"
+                      placeholder="e.g. สายการผลิตเครื่องทำความร้อน HE6 (โรง A2/A4)"
+                      value={editLineForm.description || ''}
+                      onChange={e => setEditLineForm({ ...editLineForm, description: e.target.value })}
+                    />
+                    <p className="text-[10px] text-slate-500 mt-1">อาคารโรงงานหรือวัตถุประสงค์การใช้งาน</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end space-x-2 pt-2 border-t border-emerald-200/80">
+                  <button
+                    type="button"
+                    onClick={handleCancelLine}
+                    className="px-3.5 py-1.5 rounded-lg border border-slate-300 text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+                  >
+                    ยกเลิก (Cancel)
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-md flex items-center space-x-1.5 transition-all active:scale-95"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>{editingLineId === 'new' ? 'บันทึกและเพิ่มไลน์ใหม่' : 'บันทึกการแก้ไขไลน์'}</span>
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Table */}
+            <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-xs">
               <table className="w-full text-left text-xs text-slate-700">
                 <thead className="bg-slate-50 text-slate-600 font-bold uppercase text-[11px] border-b border-slate-200">
                   <tr>
                     <th className="px-3.5 py-3">#</th>
-                    <th className="px-3.5 py-3">รหัสไลน์</th>
-                    <th className="px-3.5 py-3">ชื่อไลน์ผลิต</th>
-                    <th className="px-3.5 py-3">คำอธิบาย</th>
-                    <th className="px-3.5 py-3 text-right">จัดการ</th>
+                    <th className="px-3.5 py-3">รหัสไลน์ (Line ID)</th>
+                    <th className="px-3.5 py-3">ชื่อไลน์ผลิต (Line Name)</th>
+                    <th className="px-3.5 py-3">คำอธิบาย / รายละเอียด</th>
+                    <th className="px-3.5 py-3 text-center">พาเลทที่ใช้งานในคลัง</th>
+                    <th className="px-3.5 py-3 text-right">จัดการรายการ</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredLines.map((line, idx) => (
-                    <tr key={line.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-3.5 py-2.5 text-slate-400 font-mono">{idx + 1}</td>
-                      <td className="px-3.5 py-2.5">
-                        <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-bold text-[10px] border border-indigo-200">
-                          {line.id}
-                        </span>
-                      </td>
-                      <td className="px-3.5 py-2.5 font-bold text-slate-900">{line.name}</td>
-                      <td className="px-3.5 py-2.5 text-slate-500">{line.description || '-'}</td>
-                      <td className="px-3.5 py-2.5 text-right">
-                        <button onClick={() => handleDeleteLine(line.id)} className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all" title="ลบไลน์">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                  {filteredLines.map((line, idx) => {
+                    const allocatedItemsCount = items.filter(it => it.useLine === line.id).length;
+                    const isEditingThis = editingLineId === line.id;
+                    return (
+                      <tr 
+                        key={line.id} 
+                        className={`transition-colors ${
+                          isEditingThis ? 'bg-emerald-50/80 ring-1 ring-emerald-300' : 'hover:bg-slate-50'
+                        }`}
+                      >
+                        <td className="px-3.5 py-2.5 text-slate-400 font-mono">{idx + 1}</td>
+                        <td className="px-3.5 py-2.5">
+                          <span className="px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-800 font-mono font-black text-xs border border-emerald-200 inline-flex items-center space-x-1 shadow-2xs">
+                            <Factory className="w-3 h-3 text-emerald-600" />
+                            <span>{line.id}</span>
+                          </span>
+                        </td>
+                        <td className="px-3.5 py-2.5 font-bold text-slate-900">{line.name}</td>
+                        <td className="px-3.5 py-2.5 text-slate-600">{line.description || '-'}</td>
+                        <td className="px-3.5 py-2.5 text-center">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10.5px] font-mono font-bold ${
+                            allocatedItemsCount > 0 
+                              ? 'bg-blue-100 text-blue-800 border border-blue-200' 
+                              : 'bg-slate-100 text-slate-500'
+                          }`}>
+                            {allocatedItemsCount} พาเลท
+                          </span>
+                        </td>
+                        <td className="px-3.5 py-2.5 text-right">
+                          <div className="inline-flex items-center space-x-1.5">
+                            <button
+                              onClick={() => handleEditLine(line)}
+                              className="px-2.5 py-1.5 rounded-lg text-emerald-700 hover:text-white bg-emerald-50 hover:bg-emerald-600 border border-emerald-300 transition-all font-bold text-[11px] flex items-center space-x-1 shadow-2xs"
+                              title="แก้ไขข้อมูลไลน์ผลิตนี้"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                              <span>แก้ไข</span>
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteLine(line.id)} 
+                              className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all" 
+                              title="ลบไลน์นี้"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {filteredLines.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="text-center py-8 text-slate-400">
+                        ไม่พบข้อมูลไลน์ผลิตที่ตรงกับการค้นหา
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>

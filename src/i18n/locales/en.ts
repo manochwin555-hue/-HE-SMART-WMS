@@ -88,7 +88,7 @@ export const en: TranslationDictionary = {
     logs: 'Movement Logs',
     aging: 'FIFO & Aging',
     printer: 'Print Labels',
-    master: 'Master Data & Settings',
+    master: 'Tools & Master Settings',
     settings: 'Settings',
     subtitle: 'LGETH Warehouse Automation',
     totalCapacity: 'Total Cap:',

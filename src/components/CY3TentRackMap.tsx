@@ -4,7 +4,6 @@ import { UnifiedSlotModal, UnifiedSlotData } from './UnifiedSlotModal';
 import { SlotMiniStatsOverlay, MiniStatsSlotData } from './SlotMiniStatsOverlay';
 import { CY3FrontElevationView } from './CY3FrontElevationView';
 import { MiniatureRackIcon } from './MiniatureRackIcon';
-import { WarehouseSlotFilter } from './common/WarehouseSlotFilter';
 import { CY3OutdoorRack3DView } from './zone-3d/CY3OutdoorRack3DView';
 import { ZoneKpiFormalDashboard } from './ZoneKpiFormalDashboard';
 import { useTranslation } from '../i18n/i18nContext';
@@ -96,7 +95,7 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
   onPrintLabel
 }) => {
   const { t } = useTranslation();
-  const [viewMode, setViewMode] = useState<'3D_RACK' | 'FRONT' | 'TOP'>('3D_RACK');
+  const [viewMode, setViewMode] = useState<'3D_RACK' | 'FRONT'>('3D_RACK');
   const [floorFilter, setFloorFilter] = useState<'ALL' | 1 | 2 | 3 | 4>('ALL');
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'OCCUPIED' | 'EMPTY' | 'AGING'>('ALL');
   const [localSearch, setLocalSearch] = useState<string>(searchQuery);
@@ -285,18 +284,7 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
               <Box className="w-3.5 h-3.5 text-rose-200" />
               <span>3D ผัง 3 มิติ</span>
             </button>
-            <button
-              onClick={() => setViewMode('TOP')}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all whitespace-nowrap ${
-                viewMode === 'TOP'
-                  ? 'bg-rose-600 text-white shadow-md ring-1 ring-rose-400/50'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
-              }`}
-              title="มุมมองแปลนบน (Top 2D Matrix)"
-            >
-              <Grid className="w-3.5 h-3.5 text-rose-200" />
-              <span>แปลนบน (Top 2D)</span>
-            </button>
+
             <button
               onClick={() => setViewMode('FRONT')}
               className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all whitespace-nowrap ${
@@ -311,20 +299,7 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
             </button>
           </div>
 
-          {/* 2. Global Status Filter Pills */}
-          <WarehouseSlotFilter
-            activeFilter={filterStatus}
-            onFilterChange={setFilterStatus}
-            counts={{
-              total: metrics.totalCapacity,
-              occupied: slotMap.size,
-              empty: metrics.totalCapacity - slotMap.size,
-              aging: metrics.agingCount,
-            }}
-            compact
-          />
-
-          {/* 3. Sub-Zone Selector: ชั้น L1 - L4 */}
+          {/* 2. Sub-Zone Selector: ชั้น L1 - L4 */}
           <div className="inline-flex items-center bg-slate-950 p-0.5 rounded-xl border border-slate-800 text-xs font-bold shrink-0">
             {(['ALL', 1, 2, 3, 4] as const).map((lvl) => (
               <button

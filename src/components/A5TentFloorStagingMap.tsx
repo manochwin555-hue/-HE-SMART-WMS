@@ -2,7 +2,6 @@ import React, { useState, useMemo } from 'react';
 import { InventoryItem, MovementType, ShelfLevel, StorageZone, MovementLog } from '../types';
 import { UnifiedSlotModal, UnifiedSlotData } from './UnifiedSlotModal';
 import { SlotMiniStatsOverlay, MiniStatsSlotData } from './SlotMiniStatsOverlay';
-import { WarehouseSlotFilter } from './common/WarehouseSlotFilter';
 import { A5CanopyTents3DView } from './zone-3d/A5CanopyTents3DView';
 import { ZoneKpiFormalDashboard } from './ZoneKpiFormalDashboard';
 import { useTranslation } from '../i18n/i18nContext';
@@ -111,7 +110,7 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
       setViewMode('TENT_DETAIL');
     }
   }, [initialTentNumber]);
-  const [viewMode, setViewMode] = useState<'3D_CANOPY_TENTS' | 'OVERVIEW_4_TENTS' | 'TENT_DETAIL'>('3D_CANOPY_TENTS');
+  const [viewMode, setViewMode] = useState<'3D_CANOPY_TENTS' | 'TENT_DETAIL'>('3D_CANOPY_TENTS');
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'OCCUPIED' | 'EMPTY' | 'AGING'>('ALL');
   const [localSearch, setLocalSearch] = useState<string>(searchQuery);
   const [selectedSlotData, setSelectedSlotData] = useState<{
@@ -289,7 +288,7 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
 
         {/* ตรงกลาง: View Switcher + Status Filter + Tent Selector (ลำดับมาตรฐานเดียวกัน) */}
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
-          {/* 1. View Switcher: [3D ผัง 3 มิติ] vs [แปลนบน (Top 2D)] */}
+          {/* 1. View Switcher: [3D ผัง 3 มิติ] */}
           <div className="inline-flex items-center bg-slate-950 p-0.5 rounded-xl border border-slate-800 text-xs font-bold shrink-0">
             <button
               onClick={() => setViewMode('3D_CANOPY_TENTS')}
@@ -303,34 +302,9 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
               <Box className="w-3.5 h-3.5 text-emerald-200" />
               <span>3D ผัง 3 มิติ</span>
             </button>
-            <button
-              onClick={() => setViewMode('OVERVIEW_4_TENTS')}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all whitespace-nowrap ${
-                viewMode === 'OVERVIEW_4_TENTS'
-                  ? 'bg-emerald-600 text-white shadow-md ring-1 ring-emerald-400/50'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
-              }`}
-              title="ภาพรวม 4 เต็นท์ (Site Layout 2D)"
-            >
-              <Grid className="w-3.5 h-3.5 text-emerald-200" />
-              <span>แปลนรวม (Top 2D)</span>
-            </button>
           </div>
 
-          {/* 2. Global Status Filter Pills */}
-          <WarehouseSlotFilter
-            activeFilter={filterStatus}
-            onFilterChange={setFilterStatus}
-            counts={{
-              total: stats.totalCapacity,
-              occupied: stats.occupied,
-              empty: stats.empty,
-              aging: stats.agingCount,
-            }}
-            compact
-          />
-
-          {/* 3. Sub-Zone Selector: เต็นท์ 1 - 4 */}
+          {/* 2. Sub-Zone Selector: เต็นท์ 1 - 4 */}
           <div className="inline-flex items-center bg-slate-950 p-0.5 rounded-xl border border-slate-800 text-xs font-bold shrink-0">
             {TENTS.map((t) => (
               <button
@@ -407,30 +381,8 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
       {/* ========================================================================= */}
       {viewMode === 'OVERVIEW_4_TENTS' && (
         <div className="w-full h-full min-h-0 overflow-y-auto p-3 sm:p-4">
-          <div className="bg-slate-900 p-4 sm:p-6 rounded-2xl border-2 border-dashed border-blue-500/80 shadow-2xl text-center space-y-4 max-w-5xl mx-auto">
-          <div className="flex items-center justify-between">
-            <div className="text-left">
-              <span className="px-2.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-mono text-[10px] font-black border border-blue-500/30">
-                OUTDOOR TENT FACILITY (A5 ZONE)
-              </span>
-              <h3 className="text-lg font-black text-white mt-1">
-                A5 Tent Campus Master Blueprint
-              </h3>
-              <p className="text-xs text-slate-400">
-                {t('dashboard.campusSubtitle')}
-              </p>
-            </div>
-            <div className="text-right">
-              <span className="text-xs text-slate-400">A5 Tent Structure</span>
-              <div className="flex items-center space-x-2 mt-1 justify-end">
-                <span className="w-3 h-3 bg-red-600 border border-slate-300 rounded-xs inline-block" />
-                <span className="text-[11px] text-slate-300 font-bold">Red Frame Boundary</span>
-              </div>
-            </div>
-          </div>
-
           {/* 4 Tents Grid Layout matching Image 1: Tent 2 (top-left), Tent 4 (top-right), Tent 1 (bottom-left), Tent 3 (bottom-right) */}
-          <div className="relative p-6 bg-slate-950/80 rounded-xl border border-slate-800">
+          <div className="relative p-6 bg-slate-900 rounded-xl border border-slate-800 max-w-5xl mx-auto shadow-xl">
             {/* Forklift Way / Central Cross Aisle */}
             <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-8 bg-slate-800/80 flex items-center justify-center pointer-events-none border-y border-dashed border-slate-700">
               <span className="text-[10px] font-black tracking-widest text-slate-400 uppercase">
@@ -674,7 +626,6 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
             </div>
           </div>
         </div>
-      </div>
       )}
 
       {/* ========================================================================= */}

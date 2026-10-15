@@ -6,6 +6,7 @@ import {
   Box, 
   QrCode, 
   ArrowRightLeft, 
+  ArrowUpRight,
   Layers, 
   MapPin, 
   Clock, 
@@ -223,84 +224,77 @@ export const UnifiedSlotModal: React.FC<UnifiedSlotModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-fadeIn">
-      <div className="bg-white rounded-2xl max-w-xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh] animate-scaleUp">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-xs animate-fadeIn">
+      {/* POPUP CONTAINER - Visible Frame, Compact Max-Height, No Overflow Spilling */}
+      <div className="bg-slate-900 border-2 border-slate-700 rounded-2xl max-w-md w-full shadow-2xl overflow-hidden flex flex-col max-h-[85vh] text-slate-100 animate-scaleUp">
         
         {/* MODAL HEADER */}
-        <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-start justify-between relative">
-          <div className="space-y-1.5 pr-6">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className={`px-2.5 py-0.5 rounded-md font-black text-[11px] border flex items-center space-x-1 ${theme.badgeBg}`}>
-                <IconComponent className="w-3.5 h-3.5" />
-                <span>{theme.sectorLabel}</span>
-              </span>
-              <span className="text-xs text-slate-300 font-medium flex items-center space-x-1">
-                <Building2 className="w-3.5 h-3.5 text-slate-400" />
-                <span>{buildingName}</span>
-                <span className="text-slate-500">•</span>
-                <span className="text-slate-200 font-bold">{zoneName}</span>
-              </span>
+        <div className="bg-slate-950 px-4 py-3 border-b border-slate-800 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className={`p-1.5 rounded-lg shrink-0 ${
+              currentItem ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+            }`}>
+              <IconComponent className="w-4 h-4" />
             </div>
-
-            {/* Locator Code with Copy */}
-            <div className="flex items-center space-x-2 pt-1">
-              <h3 className="text-lg sm:text-xl font-black font-mono tracking-tight text-white">
-                {activeLocatorCode}
-              </h3>
-              <button
-                onClick={handleCopyActiveLocator}
-                className="p-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
-                title="คัดลอกรหัสตำแหน่ง"
-              >
-                {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-              </button>
-              {isMultiLevel && (
-                <span className="px-2 py-0.5 rounded-md bg-blue-600/80 text-white font-mono font-bold text-[11px] border border-blue-400">
-                  ชั้น {selectedLevel} (L{selectedLevel})
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-bold text-slate-400">
+                  {zoneName}
                 </span>
-              )}
+                <span className="text-[10px] text-slate-500">•</span>
+                <span className="text-[10px] font-bold text-slate-300">
+                  {theme.sectorLabel}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 pt-0.5">
+                <h3 className="text-base font-black font-mono tracking-tight text-white">
+                  {activeLocatorCode}
+                </h3>
+                <button
+                  onClick={handleCopyActiveLocator}
+                  className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+                  title="คัดลอกรหัสตำแหน่ง"
+                >
+                  {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                </button>
+              </div>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors absolute top-4 right-4"
+            className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors shrink-0"
+            title="ปิดหน้าต่าง"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* MULTI-LEVEL RACK SELECTOR (If multi-level bay) */}
         {isMultiLevel && (
-          <div className="bg-slate-100 p-2.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
-            <span className="text-slate-700 font-black text-xs px-1 flex items-center space-x-1.5">
-              <Layers className="w-4 h-4 text-blue-600" />
-              <span>แยกระดับชั้นชัดเจน (Rack 4 Floors):</span>
+          <div className="bg-slate-950/60 px-3 py-1.5 border-b border-slate-800 flex items-center justify-between text-xs shrink-0">
+            <span className="text-slate-400 font-bold text-[11px] flex items-center gap-1">
+              <Layers className="w-3.5 h-3.5 text-blue-400" />
+              <span>เลือกระดับชั้น (Rack L1-L4):</span>
             </span>
-            <div className="flex items-center space-x-1.5">
+            <div className="flex items-center gap-1">
               {([4, 3, 2, 1] as ShelfLevel[]).map((lvl) => {
                 const lvlItem = bayItems.find(it => it.level === lvl);
+                const isSelected = selectedLevel === lvl;
                 return (
                   <button
                     key={lvl}
                     onClick={() => setSelectedLevel(lvl)}
-                    className={`px-3 py-1.5 rounded-lg font-mono font-bold transition-all text-xs flex items-center space-x-1.5 ${
-                      selectedLevel === lvl
-                        ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-400 scale-105'
+                    className={`h-6 px-2 rounded font-mono font-bold text-[11px] transition-all flex items-center gap-1 ${
+                      isSelected
+                        ? 'bg-blue-600 text-white shadow-xs ring-1 ring-blue-400'
                         : lvlItem
-                        ? 'bg-white text-slate-800 border border-slate-300 hover:bg-slate-50'
-                        : 'bg-slate-200/70 text-slate-500 border border-dashed border-slate-300 hover:bg-slate-200'
+                        ? 'bg-slate-800 text-slate-200 border border-slate-700 hover:bg-slate-700'
+                        : 'bg-slate-900 text-slate-500 border border-slate-800 hover:text-slate-300'
                     }`}
                   >
                     <span>L{lvl}</span>
-                    <span className="text-[10px] opacity-75">
-                      {lvl === 4 ? '(บนสุด)' : lvl === 1 ? '(ติดพื้น)' : ''}
-                    </span>
-                    {lvlItem ? (
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 ring-1 ring-emerald-600" />
-                    ) : (
-                      <span className="text-[10px] text-slate-400">ว่าง</span>
-                    )}
+                    <span className={`w-1.5 h-1.5 rounded-full ${lvlItem ? 'bg-amber-400' : 'bg-slate-600'}`} />
                   </button>
                 );
               })}
@@ -308,112 +302,59 @@ export const UnifiedSlotModal: React.FC<UnifiedSlotModalProps> = ({
           </div>
         )}
 
-        {/* MODAL BODY */}
-        <div className="p-4 sm:p-5 overflow-y-auto space-y-4 text-xs">
+        {/* MODAL BODY (COMPACT & CLEAN DETAILS) */}
+        <div className="p-3.5 overflow-y-auto space-y-3 text-xs flex-1">
           
-          {/* LOCATION SPECIFICATION TABLE */}
-          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-            <div>
-              <span className="text-[10px] text-slate-400 block font-semibold">โซน / พื้นที่:</span>
-              <span className="font-bold text-slate-800 truncate block">{zoneName}</span>
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-400 block font-semibold">
-                {sectorType === 'FLOW_RAIL' ? 'รางที่ (Rail):' : sectorType === 'TENT' ? 'กลุ่ม (Group):' : sectorType === 'FLOOR_STAGING' ? 'กลุ่ม (Group):' : 'ช่อง (Bay):'}
-              </span>
-              <span className="font-bold text-slate-800 font-mono">
-                {bayOrGroupNumber || rowNumber || '-'}
-              </span>
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-400 block font-semibold">
-                {sectorType === 'FLOW_RAIL' ? 'ตำแหน่งลำดับ (Pos):' : sectorType === 'RACK' ? 'ระดับชั้น (Level):' : 'คอลัมน์ (Col):'}
-              </span>
-              <span className="font-bold text-slate-800 font-mono">
-                {sectorType === 'RACK' ? `L${selectedLevel || level || 1}` : columnOrRailNumber || '-'}
-              </span>
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-400 block font-semibold">สถานะช่อง:</span>
-              <span className={`font-black text-[11px] inline-flex items-center space-x-1 ${
-                currentItem ? 'text-emerald-700' : 'text-slate-500'
-              }`}>
-                {currentItem ? '● จัดเก็บพาเลทแล้ว' : '○ ตำแหน่งว่าง'}
-              </span>
-            </div>
-          </div>
-
           {/* OCCUPIED ITEM DETAILS */}
           {currentItem ? (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                <span className="font-black text-slate-900 flex items-center space-x-1.5">
-                  <Box className="w-4 h-4 text-blue-600" />
-                  <span>ข้อมูลพาเลทที่จัดเก็บ ณ ตำแหน่งนี้</span>
-                </span>
-                <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                  1 พาเลทมาตรฐาน (Standard Pallet)
-                </span>
-              </div>
-
-              <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-200 space-y-3.5">
-                {/* Model & Tool Part Header */}
+            <div className="space-y-2.5">
+              
+              {/* Product Header Card */}
+              <div className="p-3 bg-slate-950/80 rounded-xl border border-blue-500/40 space-y-2">
                 <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <span className="text-[10px] font-bold text-blue-700 block tracking-wider uppercase">MODEL / HE NO.</span>
-                    <h4 className="text-lg font-black text-blue-950 font-mono">
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-bold text-blue-400 block tracking-wider uppercase">MODEL / PART NO</span>
+                    <h4 className="text-base font-black text-white font-mono truncate">
                       {currentItem.modelHE}
                     </h4>
-                    <p className="text-xs text-slate-700 font-semibold mt-0.5">{currentItem.partName}</p>
+                    <p className="text-[11px] text-slate-300 font-medium truncate mt-0.5">{currentItem.partName}</p>
                   </div>
-                  <span className="text-xs font-black bg-blue-600 text-white px-2.5 py-1 rounded-lg shrink-0">
+                  <span className="text-xs font-black bg-blue-600 text-white px-2 py-0.5 rounded-lg shrink-0">
                     Line {currentItem.useLine || 'HE1'}
                   </span>
                 </div>
 
                 {/* Grid Metrics */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-3 border-t border-blue-200/70">
-                  <div className="bg-white p-2.5 rounded-lg border border-blue-100 shadow-2xs">
-                    <span className="text-[10px] text-slate-500 block">จำนวนชิ้นที่จัดเก็บ:</span>
-                    <span className="text-base font-black text-slate-900 font-mono">
-                      {currentItem.quantity.toLocaleString()} <span className="text-xs font-normal text-slate-500">ชิ้น</span>
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800">
+                  <div className="bg-slate-900 p-2 rounded-lg border border-slate-800">
+                    <span className="text-[10px] text-slate-400 block">จำนวนจัดเก็บ:</span>
+                    <span className="text-base font-black text-emerald-400 font-mono">
+                      {currentItem.quantity.toLocaleString()} <span className="text-xs font-normal text-slate-400">ชิ้น</span>
                     </span>
                   </div>
 
-                  <div className="bg-white p-2.5 rounded-lg border border-blue-100 shadow-2xs">
-                    <span className="text-[10px] text-slate-500 block">สถานะ Aging / FIFO:</span>
-                    <span className={`text-xs font-black flex items-center space-x-1 mt-0.5 ${
-                      currentItem.agingDays > 30 ? 'text-rose-600' : 'text-emerald-600'
+                  <div className="bg-slate-900 p-2 rounded-lg border border-slate-800">
+                    <span className="text-[10px] text-slate-400 block">อายุจัดเก็บ (Aging):</span>
+                    <span className={`text-xs font-black flex items-center gap-1 mt-0.5 ${
+                      currentItem.agingDays > 30 ? 'text-rose-400' : 'text-emerald-400'
                     }`}>
                       <Clock className="w-3.5 h-3.5 shrink-0" />
                       <span>{currentItem.agingDays} วัน ({currentItem.agingStatus})</span>
                     </span>
                   </div>
-
-                  <div className="col-span-2 sm:col-span-1 bg-white p-2.5 rounded-lg border border-blue-100 shadow-2xs">
-                    <span className="text-[10px] text-slate-500 block">วันเวลาที่นำเข้า:</span>
-                    <span className="text-[11px] font-mono text-slate-700 block mt-0.5">
-                      {currentItem.storageInDate ? new Date(currentItem.storageInDate).toLocaleDateString('th-TH') : '-'}
-                    </span>
-                  </div>
                 </div>
 
-                {/* QR Barcode & Lot code */}
-                {currentItem.qrCode && (
-                  <div className="flex items-center justify-between bg-white p-2.5 rounded-lg border border-blue-100 text-[11px]">
-                    <div className="flex items-center space-x-2">
-                      <QrCode className="w-4 h-4 text-blue-600" />
-                      <div>
-                        <span className="text-[9px] text-slate-400 block uppercase">QR Barcode Payload:</span>
-                        <span className="font-mono font-bold text-slate-800">{currentItem.qrCode}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                {/* Storage Date */}
+                <div className="flex items-center justify-between text-[10.5px] text-slate-400 pt-0.5">
+                  <span>วันที่รับเข้า:</span>
+                  <span className="font-mono text-slate-200 font-bold">
+                    {currentItem.storageInDate ? new Date(currentItem.storageInDate).toLocaleDateString('th-TH') : '-'}
+                  </span>
+                </div>
 
                 {/* Remark note if any */}
                 {currentItem.remark && (
-                  <div className="bg-amber-50 p-2.5 rounded-lg border border-amber-200 text-amber-900 text-[11px]">
+                  <div className="bg-amber-950/40 p-2 rounded-lg border border-amber-500/30 text-amber-300 text-[11px]">
                     <strong>💡 หมายเหตุ:</strong> {currentItem.remark}
                   </div>
                 )}
@@ -421,97 +362,101 @@ export const UnifiedSlotModal: React.FC<UnifiedSlotModalProps> = ({
             </div>
           ) : (
             /* EMPTY SLOT DETAILS */
-            <div className="py-8 px-4 text-center bg-slate-50 rounded-xl border-2 border-dashed border-slate-300 space-y-3">
-              <div className="w-12 h-12 mx-auto rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
-                <CheckCircle2 className="w-6 h-6" />
+            <div className="py-6 px-4 text-center bg-slate-950/60 rounded-xl border border-slate-800 space-y-2.5">
+              <div className="w-10 h-10 mx-auto rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                <CheckCircle2 className="w-5 h-5" />
               </div>
-              <h4 className="text-sm font-black text-slate-800">ช่องวางนี้ยังว่าง (พร้อมรับพาเลทเข้า)</h4>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
-                ตำแหน่ง <span className="font-mono font-bold text-blue-700">{locatorCode}</span> พร้อมจัดเก็บ 1 พาเลทมาตรฐาน (ความจุ 80–120 ชิ้น)
-              </p>
-              <div className="pt-2">
+              <div>
+                <h4 className="text-xs font-black text-white">ตำแหน่งว่าง (พร้อมรับเข้าสินค้า)</h4>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  พิกัด <span className="font-mono font-bold text-amber-300">{activeLocatorCode}</span> พร้อมสำหรับจัดเก็บพาเลท
+                </p>
+              </div>
+
+              <div className="pt-1">
                 <button
+                  type="button"
                   onClick={() => {
                     if (onOpenScanner) {
                       onOpenScanner(parsed.zone, parsed.bay, parsed.level, 'IN');
                     }
                     onClose();
                   }}
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-xl text-xs shadow-md inline-flex items-center space-x-2 transition-all active:scale-95"
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow-md inline-flex items-center gap-1.5 transition-all active:scale-95"
                 >
-                  <QrCode className="w-4 h-4" />
-                  <span>สแกนรับสินค้าเข้าตำแหน่งนี้ (Scan IN)</span>
+                  <QrCode className="w-3.5 h-3.5" />
+                  <span>สแกนรับสินค้าเข้าตำแหน่งนี้ (IN)</span>
                 </button>
               </div>
             </div>
           )}
         </div>
 
-        {/* MODAL FOOTER ACTIONS */}
-        <div className="bg-slate-50 p-3.5 sm:p-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+        {/* MODAL FOOTER ACTIONS (CLEAN, COMPACT, NEVER HIDDEN) */}
+        <div className="bg-slate-950 p-3 border-t border-slate-800 flex items-center justify-between gap-2 text-xs shrink-0">
           {currentItem ? (
             <>
-              <div className="flex flex-wrap items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-1">
                 {onOpenScanner && (
                   <button
+                    type="button"
                     onClick={() => {
                       onOpenScanner(parsed.zone, parsed.bay, parsed.level, 'OUT');
                       onClose();
                     }}
-                    className="px-3.5 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-lg shadow-xs flex items-center space-x-1.5 transition-all"
+                    className="flex-1 h-9 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg shadow-xs flex items-center justify-center gap-1 transition-all"
                   >
-                    <QrCode className="w-3.5 h-3.5" />
-                    <span>{t('scanner.outbound')} (PICK)</span>
+                    <ArrowUpRight className="w-3.5 h-3.5" />
+                    <span>เบิกออก (OUT)</span>
                   </button>
                 )}
 
                 {onRelocateItem && (
                   <button
+                    type="button"
                     onClick={() => {
                       onRelocateItem(currentItem);
                       onClose();
                     }}
-                    className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-lg shadow-xs flex items-center space-x-1.5 transition-all"
+                    className="flex-1 h-9 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg shadow-xs flex items-center justify-center gap-1 transition-all"
                   >
                     <ArrowRightLeft className="w-3.5 h-3.5" />
-                    <span>{t('scanner.moveStock')}</span>
+                    <span>ย้ายพิกัด</span>
                   </button>
                 )}
 
                 {onPrintLabel && (
                   <button
+                    type="button"
                     onClick={() => {
                       onPrintLabel(currentItem);
                       onClose();
                     }}
-                    className="px-3 py-2 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold rounded-lg shadow-2xs flex items-center space-x-1.5 transition-all"
+                    className="h-9 px-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold rounded-lg border border-slate-700 flex items-center gap-1 transition-all shrink-0"
+                    title="พิมพ์ฉลาก KANBAN"
                   >
-                    <Printer className="w-3.5 h-3.5 text-slate-500" />
-                    <span>{t('nav.labelPrinting')}</span>
+                    <Printer className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">พิมพ์ฉลาก</span>
                   </button>
                 )}
               </div>
 
-              {sectorType === 'RACK' && onOpen3D && (
-                <button
-                  onClick={() => {
-                    onOpen3D(parsed.zone, parsed.bay);
-                    onClose();
-                  }}
-                  className="px-3 py-2 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-800 font-bold rounded-lg flex items-center space-x-1.5 transition-all"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  <span>3D Viewer</span>
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={onClose}
+                className="h-9 px-3 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white font-bold rounded-lg transition-colors shrink-0"
+              >
+                ปิด
+              </button>
             </>
           ) : (
             <div className="w-full flex justify-end">
               <button
+                type="button"
                 onClick={onClose}
-                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition-colors"
+                className="h-9 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-lg transition-colors"
               >
-                {t('modals.cancelAction')}
+                ปิดหน้าต่าง
               </button>
             </div>
           )}

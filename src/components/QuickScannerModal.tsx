@@ -620,89 +620,59 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
   const isRackZone = !String(zone).startsWith('X') && !String(zone).startsWith('R') && !String(zone).startsWith('FR') && !String(zone).startsWith('T');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-950/80 backdrop-blur-xs animate-fadeIn">
-      {/* POPUP CONTAINER */}
-      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-lg max-h-[94dvh] overflow-y-auto overscroll-contain text-slate-100 shadow-2xl relative flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-xs animate-fadeIn">
+      {/* POPUP CONTAINER - Visible Frame, Compact Max-Height, No Overflow Spilling */}
+      <div className="bg-slate-900 border-2 border-slate-700 rounded-2xl w-full max-w-lg max-h-[85vh] text-slate-100 shadow-2xl relative flex flex-col overflow-hidden">
         
         {/* ========================================================================= */}
         {/* 1. HEADER (CLEAN & MODERN)                                                */}
         {/* ========================================================================= */}
-        <div className="px-4 py-3 border-b border-slate-800 bg-slate-950/70 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className={`p-2 rounded-xl shrink-0 ${
+        <div className="px-4 py-2.5 border-b border-slate-800 bg-slate-950/80 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2">
+            <div className={`p-1.5 rounded-lg shrink-0 ${
               type === 'IN' 
                 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
                 : type === 'OUT'
                 ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
                 : 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
             }`}>
-              {type === 'IN' && <ArrowDownRight className="w-5 h-5" />}
-              {type === 'OUT' && <ArrowUpRight className="w-5 h-5" />}
-              {type === 'TRANSFER' && <ArrowRightLeft className="w-5 h-5" />}
+              {type === 'IN' && <ArrowDownRight className="w-4 h-4" />}
+              {type === 'OUT' && <ArrowUpRight className="w-4 h-4" />}
+              {type === 'TRANSFER' && <ArrowRightLeft className="w-4 h-4" />}
             </div>
             <div>
-              <div className="flex items-center gap-1.5">
-                <h3 className="font-black text-sm sm:text-base tracking-tight text-white">
-                  {type === 'IN' ? 'บันทึกรับเข้า (Stock IN)' : type === 'OUT' ? 'บันทึกเบิกจ่าย (Stock OUT)' : 'ย้ายตำแหน่งพิกัด (Transfer)'}
-                </h3>
-                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 bg-slate-800 text-slate-300 rounded border border-slate-700">
-                  WMS
+              <h3 className="font-black text-sm tracking-tight text-white flex items-center gap-1.5">
+                <span>
+                  {type === 'IN' ? '📥 รับเข้าสินค้า (Stock IN)' : type === 'OUT' ? '📤 เบิกออกสินค้า (Stock OUT)' : '🔄 ย้ายพิกัดสินค้า (Transfer)'}
                 </span>
-              </div>
-              <p className="text-[11px] text-slate-400">
-                {type === 'IN' && 'รับชิ้นงานเข้าจัดเก็บในคลัง'}
-                {type === 'OUT' && 'เบิกชิ้นงานจ่ายเข้าไลน์ผลิต'}
-                {type === 'TRANSFER' && 'ย้ายสินค้าจากพิกัดเดิมไปยังพิกัดใหม่'}
-              </p>
+                <span className="text-[9.5px] font-mono px-1 py-0.2 bg-slate-800 text-slate-400 rounded">
+                  {formatLocatorCode(zone, bayNumber, level)}
+                </span>
+              </h3>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 flex items-center justify-center transition-colors shrink-0"
+            className="w-7 h-7 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 flex items-center justify-center transition-colors shrink-0"
             title="ปิดหน้าต่าง"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Success Alert Banner */}
-        {successMessage && (
-          <div className="mx-4 mt-3 p-2.5 bg-emerald-950/90 border border-emerald-500 rounded-xl text-emerald-300 text-xs font-bold flex items-center gap-2 animate-fadeIn shrink-0">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span className="truncate">{successMessage}</span>
-          </div>
-        )}
-
-        {/* Just Learned Alert Banner */}
-        {justLearnedMessage && (
-          <div className="mx-4 mt-2 p-2 bg-amber-950/80 border border-amber-500/60 rounded-xl text-amber-300 text-xs font-bold flex items-center gap-2 animate-fadeIn shrink-0">
-            <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
-            <span className="truncate">{justLearnedMessage}</span>
-          </div>
-        )}
-
-        {/* Validation Error Banner */}
-        {validationError && (
-          <div className="mx-4 mt-3 p-2.5 bg-rose-950/90 border border-rose-500 rounded-xl text-rose-300 text-xs font-bold flex items-center gap-2 animate-fadeIn shrink-0">
-            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-            <span>{validationError}</span>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="p-3 sm:p-4 space-y-3 flex-1 flex flex-col">
-          
-          {/* ========================================================================= */}
-          {/* 2. TRANSACTION TYPE SWITCHER: IN / OUT / TRANSFER                         */}
-          {/* ========================================================================= */}
-          <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-950 rounded-xl border border-slate-800 shrink-0">
+        {/* ========================================================================= */}
+        {/* 2. TRANSACTION TYPE SWITCHER (IN / OUT / TRANSFER)                        */}
+        {/* ========================================================================= */}
+        <div className="px-3 pt-2 pb-1 bg-slate-950/40 shrink-0">
+          <div className="grid grid-cols-3 gap-1 p-0.5 bg-slate-950 rounded-xl border border-slate-800">
             <button
               type="button"
               onClick={() => setType('IN')}
-              className={`h-9 rounded-lg font-black text-xs sm:text-sm flex items-center justify-center gap-1 transition-all ${
+              className={`h-8 rounded-lg font-black text-xs flex items-center justify-center gap-1 transition-all ${
                 type === 'IN'
-                  ? 'bg-emerald-600 text-white shadow-md ring-1 ring-emerald-400'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                  ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-400'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
               }`}
             >
               <ArrowDownRight className="w-3.5 h-3.5" />
@@ -717,10 +687,10 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
                   setActualQty(currentSlotItem.quantity);
                 }
               }}
-              className={`h-9 rounded-lg font-black text-xs sm:text-sm flex items-center justify-center gap-1 transition-all ${
+              className={`h-8 rounded-lg font-black text-xs flex items-center justify-center gap-1 transition-all ${
                 type === 'OUT'
-                  ? 'bg-blue-600 text-white shadow-md ring-1 ring-blue-400'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                  ? 'bg-blue-600 text-white shadow-sm ring-1 ring-blue-400'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
               }`}
             >
               <ArrowUpRight className="w-3.5 h-3.5" />
@@ -735,187 +705,148 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
                   setActualQty(currentSlotItem.quantity);
                 }
               }}
-              className={`h-9 rounded-lg font-black text-xs sm:text-sm flex items-center justify-center gap-1 transition-all ${
+              className={`h-8 rounded-lg font-black text-xs flex items-center justify-center gap-1 transition-all ${
                 type === 'TRANSFER'
-                  ? 'bg-purple-600 text-white shadow-md ring-1 ring-purple-400'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                  ? 'bg-purple-600 text-white shadow-sm ring-1 ring-purple-400'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
               }`}
             >
               <ArrowRightLeft className="w-3.5 h-3.5" />
               <span>ย้ายพิกัด</span>
             </button>
           </div>
+        </div>
 
-          {/* ========================================================================= */}
-          {/* 3. INPUT MODE SWITCHER: SCAN vs MANUAL                                   */}
-          {/* ========================================================================= */}
-          <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-950/80 rounded-xl border border-slate-800 shrink-0">
+        {/* Success Alert Banner */}
+        {successMessage && (
+          <div className="mx-3 mt-1.5 p-2 bg-emerald-950/90 border border-emerald-500 rounded-lg text-emerald-300 text-xs font-bold flex items-center gap-2 animate-fadeIn shrink-0">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span className="truncate">{successMessage}</span>
+          </div>
+        )}
+
+        {/* Validation Error Banner */}
+        {validationError && (
+          <div className="mx-3 mt-1.5 p-2 bg-rose-950/90 border border-rose-500 rounded-lg text-rose-300 text-xs font-bold flex items-center gap-2 animate-fadeIn shrink-0">
+            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+            <span className="truncate">{validationError}</span>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* 3. SCROLLABLE FORM BODY (CONCISE & UNCLUTTERED)                            */}
+        {/* ========================================================================= */}
+        <form onSubmit={handleSubmit} className="px-3 sm:px-4 py-2 space-y-2.5 overflow-y-auto flex-1 text-xs">
+
+          {/* Quick Scan / Barcode One-Liner */}
+          <div className="bg-slate-950/60 p-2 rounded-xl border border-slate-800 flex items-center gap-1.5">
+            <div className="relative flex-1 flex items-center">
+              <QrCode className="w-3.5 h-3.5 text-blue-400 absolute left-2.5 pointer-events-none" />
+              <input
+                type="text"
+                value={scanInput}
+                onChange={(e) => handleRawScanInput(e.target.value)}
+                placeholder="ยิงบาร์โค้ด หรือ พิมพ์ KANBAN..."
+                className="w-full h-8 bg-slate-900 border border-slate-700 focus:border-blue-500 rounded-lg pl-8 pr-16 text-xs font-mono text-blue-300 placeholder-slate-500 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => setCameraActive(!cameraActive)}
+                className={`absolute right-1 h-6 px-2 rounded text-[11px] font-bold flex items-center gap-1 ${
+                  cameraActive 
+                    ? 'bg-rose-600 hover:bg-rose-500 text-white' 
+                    : 'bg-blue-600 hover:bg-blue-500 text-white'
+                }`}
+              >
+                <Camera className="w-3 h-3" />
+                <span>{cameraActive ? 'ปิด' : 'กล้อง'}</span>
+              </button>
+            </div>
+
             <button
               type="button"
-              onClick={() => {
-                setInputMode('SCAN');
-                setCameraActive(false);
-              }}
-              className={`py-1.5 px-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-                inputMode === 'SCAN'
-                  ? 'bg-blue-600 text-white shadow-sm ring-1 ring-blue-400'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-              }`}
+              onClick={() => setShowItemSearchDrawer(!showItemSearchDrawer)}
+              className="h-8 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-bold border border-slate-700 flex items-center gap-1 shrink-0"
+              title="ค้นหารายการชิ้นงานในคลัง"
             >
-              <Camera className="w-3.5 h-3.5" />
-              <span>สแกน QR / บาร์โค้ด</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setInputMode('MANUAL');
-                setCameraActive(false);
-              }}
-              className={`py-1.5 px-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-                inputMode === 'MANUAL'
-                  ? 'bg-amber-500 text-slate-950 font-black shadow-sm ring-1 ring-amber-400'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-              }`}
-            >
-              <Keyboard className="w-3.5 h-3.5" />
-              <span>คีย์ข้อมูล KANBAN</span>
+              <Search className="w-3 h-3 text-cyan-400" />
+              <span className="hidden sm:inline">ค้นหา</span>
             </button>
           </div>
 
-          {/* ========================================================================= */}
-          {/* SCANNER VIEW (WHEN SCAN MODE ACTIVE)                                      */}
-          {/* ========================================================================= */}
-          {inputMode === 'SCAN' && (
-            <div className="space-y-2 bg-slate-950/70 p-3 rounded-xl border border-slate-800 animate-fadeIn">
-              <div className="flex items-center justify-between text-xs">
-                <label className="font-bold text-slate-200 flex items-center gap-1.5">
-                  <QrCode className="w-3.5 h-3.5 text-blue-400" />
-                  <span>ยิงบาร์โค้ด / สแกน KANBAN:</span>
-                </label>
+          {/* Camera Scanner Viewport if active */}
+          {cameraActive && (
+            <div className="p-2 bg-slate-950 rounded-xl border border-blue-500 shadow-lg">
+              <div className="flex items-center justify-between pb-1 text-white text-[11px]">
+                <span className="font-bold flex items-center gap-1 text-blue-400">
+                  <Camera className="w-3 h-3 animate-pulse" />
+                  <span>กำลังสแกนผ่านกล้อง...</span>
+                </span>
                 <button
                   type="button"
-                  onClick={() => setShowItemSearchDrawer(!showItemSearchDrawer)}
-                  className="text-xs text-blue-400 hover:text-blue-300 font-bold flex items-center gap-1"
+                  onClick={() => setCameraActive(false)}
+                  className="p-0.5 text-slate-400 hover:text-white"
                 >
-                  <Search className="w-3 h-3" />
-                  <span>ค้นหาชิ้นงาน</span>
+                  <X className="w-3 h-3" />
                 </button>
               </div>
-
-              <div className="relative flex items-center">
-                <input
-                  type="text"
-                  value={scanInput}
-                  onChange={(e) => handleRawScanInput(e.target.value)}
-                  placeholder="ยิงบาร์โค้ดชิ้นงาน หรือ พิกัดเสา เช่น E6-L1..."
-                  className="w-full h-10 bg-slate-900 border border-slate-700 focus:border-blue-500 rounded-lg pl-3 pr-20 text-xs sm:text-sm font-mono font-bold text-blue-300 placeholder-slate-500 focus:outline-none"
-                  autoFocus
-                />
-                <button
-                  type="button"
-                  onClick={() => setCameraActive(!cameraActive)}
-                  className={`absolute right-1 h-8 px-2.5 rounded-md text-xs font-bold flex items-center gap-1 shadow-xs ${
-                    cameraActive 
-                      ? 'bg-rose-600 hover:bg-rose-500 text-white' 
-                      : 'bg-blue-600 hover:bg-blue-500 text-white'
-                  }`}
-                >
-                  <Camera className="w-3.5 h-3.5" />
-                  <span>{cameraActive ? 'ปิด' : 'กล้อง'}</span>
-                </button>
-              </div>
-
-              {/* Camera Scanner Viewport */}
-              {cameraActive && (
-                <div className="space-y-1.5 p-2 bg-slate-950 rounded-xl border border-blue-500 shadow-lg mt-2">
-                  <div className="flex items-center justify-between px-1 text-white text-xs">
-                    <span className="font-bold flex items-center gap-1.5">
-                      <Camera className="w-3.5 h-3.5 text-blue-400 animate-pulse" />
-                      <span>กำลังเปิดกล้องสแกน...</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setCameraActive(false)}
-                      className="p-1 text-slate-400 hover:text-white"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <QRScanner onScan={handleQRScanDecoded} onClose={() => setCameraActive(false)} />
-                </div>
-              )}
-
-              {/* Quick Item Search Drawer */}
-              {showItemSearchDrawer && (
-                <div className="bg-slate-900 border border-blue-500/40 rounded-xl p-2.5 space-y-2 animate-fadeIn mt-2">
-                  <div className="relative">
-                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      value={itemFilterQuery}
-                      onChange={(e) => setItemFilterQuery(e.target.value)}
-                      placeholder="ค้นหา Model, Zone หรือ Line..."
-                      className="w-full bg-slate-950 border border-slate-700 rounded-lg pl-8 pr-2 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
-                  <div className="max-h-36 overflow-y-auto space-y-1 text-xs pr-1">
-                    {filteredExistingItems.map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => {
-                          handleSelectModel(item.modelHE, item.quantity);
-                          setZone(item.zone);
-                          setBayNumber(item.bayNumber);
-                          setLevel(item.level);
-                          setUseLine(item.useLine);
-                          setShowItemSearchDrawer(false);
-                        }}
-                        className="w-full text-left p-1.5 rounded-lg bg-slate-950/80 hover:bg-blue-950/60 border border-slate-800 hover:border-blue-500/50 flex items-center justify-between"
-                      >
-                        <div className="truncate mr-2">
-                          <span className="font-mono font-bold text-blue-400">{item.modelHE}</span>
-                          <span className="text-[10px] text-slate-400 ml-1.5">Line {item.useLine}</span>
-                        </div>
-                        <span className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono font-bold text-[10px]">
-                          {item.locatorCode} ({item.quantity} ชิ้น)
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <QRScanner onScan={handleQRScanDecoded} onClose={() => setCameraActive(false)} />
             </div>
           )}
 
-          {/* ========================================================================= */}
-          {/* 4. PARTS NO WITH AUTOCOMPLETE & SMART MEMORY                              */}
-          {/* ========================================================================= */}
-          <div className="space-y-1.5 bg-slate-950/70 p-3 rounded-xl border border-slate-800 relative" ref={modelDropdownRef}>
-            <div className="flex items-center justify-between text-xs">
-              <label className="font-bold text-slate-200 flex items-center gap-1.5">
+          {/* Search Drawer if active */}
+          {showItemSearchDrawer && (
+            <div className="bg-slate-950 border border-blue-500/40 rounded-xl p-2 space-y-1.5 animate-fadeIn">
+              <input
+                type="text"
+                value={itemFilterQuery}
+                onChange={(e) => setItemFilterQuery(e.target.value)}
+                placeholder="ค้นหา Model, Zone หรือ Line..."
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                autoFocus
+              />
+              <div className="max-h-28 overflow-y-auto space-y-1 pr-1">
+                {filteredExistingItems.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      handleSelectModel(item.modelHE, item.quantity);
+                      setZone(item.zone);
+                      setBayNumber(item.bayNumber);
+                      setLevel(item.level);
+                      setUseLine(item.useLine);
+                      setShowItemSearchDrawer(false);
+                    }}
+                    className="w-full text-left p-1.5 rounded bg-slate-900 hover:bg-blue-950/60 border border-slate-800 flex items-center justify-between"
+                  >
+                    <div className="truncate mr-2">
+                      <span className="font-mono font-bold text-blue-400">{item.modelHE}</span>
+                      <span className="text-[10px] text-slate-400 ml-1.5">{item.partName} (Line {item.useLine})</span>
+                    </div>
+                    <span className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono font-bold text-[10px]">
+                      {item.locatorCode} ({item.quantity} ชิ้น)
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* FIELD 1: MODEL HE / PART NO */}
+          <div className="bg-slate-950/70 p-2.5 rounded-xl border border-slate-800 relative" ref={modelDropdownRef}>
+            <div className="flex items-center justify-between mb-1">
+              <label className="font-bold text-slate-300 flex items-center gap-1 text-[11px]">
                 <Box className="w-3.5 h-3.5 text-cyan-400" />
-                <span>รหัสสินค้า (Parts No / Model):</span>
+                <span>รหัสสินค้า (Parts No / Model HE):</span>
               </label>
-              
-              {matchedPart ? (
-                <span className="text-[10px] font-bold text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-800 truncate max-w-[190px]">
-                  {matchedPart.partName || 'พบในแคตตาล็อก'}
+              {matchedPart?.partName && (
+                <span className="text-[10px] text-cyan-300 font-bold truncate max-w-[200px]">
+                  {matchedPart.partName}
                 </span>
-              ) : isCurrentModelNew ? (
-                <button
-                  type="button"
-                  onClick={() => handleLearnNewPart(modelHE)}
-                  className="text-[10px] font-bold text-amber-300 bg-amber-500/20 hover:bg-amber-500/30 px-2 py-0.5 rounded border border-amber-500/40 flex items-center gap-1"
-                >
-                  <Sparkles className="w-3 h-3 text-amber-400" />
-                  <span>จดจำ Parts No นี้</span>
-                </button>
-              ) : null}
+              )}
             </div>
 
-            {/* Input with interactive autocomplete dropdown */}
             <div className="relative">
               <input
                 type="text"
@@ -929,319 +860,121 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
                   setModelHE(val);
                   setModelSearchQuery(val);
                   setIsModelDropdownOpen(true);
-
                   const match = availableModels.find(m => m.modelHE.toUpperCase() === val);
                   if (match) {
                     setActualQty(match.stdQty);
                     setLabelQty(match.stdQty);
                   }
                 }}
-                placeholder="พิมพ์บางส่วนของ Parts No เช่น ADL, 749..."
-                className="w-full h-10 bg-slate-900 border border-slate-700 focus:border-cyan-400 rounded-lg pl-3 pr-9 font-mono font-black text-sm text-cyan-300 placeholder-slate-500 focus:outline-none"
+                placeholder="กรอก Parts No..."
+                className="w-full h-8 bg-slate-900 border border-slate-700 focus:border-cyan-400 rounded-lg pl-2.5 pr-8 font-mono font-black text-xs text-cyan-300 placeholder-slate-500 focus:outline-none"
                 required
               />
-
               <button
                 type="button"
                 onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-0.5"
               >
-                <ChevronDown className={`w-4 h-4 transition-transform ${isModelDropdownOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isModelDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
 
-              {/* Dynamic Suggestions Dropdown Menu */}
+              {/* Suggestions Dropdown */}
               {isModelDropdownOpen && (
-                <div className="absolute left-0 right-0 top-full mt-1 bg-slate-900 border border-cyan-500/40 rounded-xl shadow-2xl z-40 max-h-56 overflow-y-auto p-1.5 space-y-1 animate-fadeIn">
-                  {/* Create New Part Button if not in list */}
-                  {isCurrentModelNew && (
-                    <button
-                      type="button"
-                      onClick={() => handleLearnNewPart(modelHE)}
-                      className="w-full text-left p-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-xs flex items-center justify-between text-amber-300 font-bold transition-colors group"
+                <div className="absolute left-0 right-0 top-full mt-1 bg-slate-900 border border-cyan-500/50 rounded-xl shadow-2xl z-40 max-h-40 overflow-y-auto p-1 space-y-1 animate-fadeIn">
+                  {filteredModels.map((m) => (
+                    <div
+                      key={m.modelHE}
+                      onClick={() => handleSelectModel(m.modelHE, m.stdQty)}
+                      className="w-full text-left p-1.5 rounded-lg bg-slate-950/70 hover:bg-slate-800 border border-slate-800 text-xs flex items-center justify-between cursor-pointer"
                     >
-                      <div className="flex items-center gap-1.5">
-                        <Plus className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
-                        <span>จดจำ <span className="font-mono font-black text-white">{modelHE}</span> เป็น Parts No ใหม่</span>
+                      <div className="truncate mr-2">
+                        <span className="font-mono font-black text-white">{m.modelHE}</span>
+                        {m.partName && <span className="text-[10px] text-slate-400 ml-1.5 truncate">{m.partName}</span>}
                       </div>
-                      <span className="text-[10px] bg-amber-500 text-slate-950 font-black px-1.5 py-0.5 rounded">
-                        จำเข้าระบบ
+                      <span className="px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-300 font-mono font-bold text-[10px]">
+                        {m.stdQty} ชิ้น
                       </span>
-                    </button>
-                  )}
-
-                  {/* Filtered Available Models */}
-                  {filteredModels.length > 0 ? (
-                    filteredModels.map((m) => {
-                      const isSelected = modelHE.toUpperCase() === m.modelHE.toUpperCase();
-                      return (
-                        <div
-                          key={m.modelHE}
-                          onClick={() => handleSelectModel(m.modelHE, m.stdQty)}
-                          className={`w-full text-left p-2 rounded-lg border text-xs flex items-center justify-between cursor-pointer transition-colors ${
-                            isSelected
-                              ? 'bg-cyan-950/90 border-cyan-500 text-cyan-200 font-bold'
-                              : 'bg-slate-950/50 border-slate-800 text-slate-300 hover:bg-slate-800 hover:border-slate-700'
-                          }`}
-                        >
-                          <div className="truncate mr-2">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-mono font-black text-white">{m.modelHE}</span>
-                              {m.isLearned && (
-                                <span className="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1 py-0.2 rounded font-bold">
-                                  จดจำแล้ว
-                                </span>
-                              )}
-                            </div>
-                            {m.partName && (
-                              <div className="text-[10.5px] text-slate-400 truncate">
-                                {m.partName}
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <span className="px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-300 font-mono font-bold text-[10px]">
-                              {m.stdQty} ชิ้น/พาเลท
-                            </span>
-                            {m.isLearned && (
-                              <button
-                                type="button"
-                                onClick={(e) => handleDeleteLearnedPart(m.modelHE, e)}
-                                className="p-1 text-slate-500 hover:text-rose-400 hover:bg-rose-950/40 rounded transition-colors"
-                                title="ลบออกจากที่จดจำ"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })
-                  ) : !isCurrentModelNew && (
-                    <div className="text-center py-2 text-slate-500 text-xs">
-                      ไม่พบ Parts No ที่ตรงกับการค้นหา
                     </div>
-                  )}
+                  ))}
                 </div>
               )}
             </div>
 
-            {/* Quick Chips for Top & Learned Models */}
-            <div className="flex items-center gap-1 overflow-x-auto pt-1 no-scrollbar">
-              <span className="text-[10px] text-slate-400 shrink-0 flex items-center gap-0.5">
-                <Bookmark className="w-2.5 h-2.5 text-slate-500" /> แนะนำ:
-              </span>
-              {availableModels.slice(0, 5).map((m) => (
+            {/* Quick Chips for Models */}
+            <div className="flex items-center gap-1 overflow-x-auto pt-1.5 no-scrollbar">
+              <span className="text-[9.5px] text-slate-500 shrink-0">แนะนำ:</span>
+              {availableModels.slice(0, 4).map((m) => (
                 <button
                   key={m.modelHE}
                   type="button"
                   onClick={() => handleSelectModel(m.modelHE, m.stdQty)}
-                  className={`h-6 px-2 rounded-md font-mono text-[10.5px] font-bold border transition-colors shrink-0 flex items-center gap-1 ${
+                  className={`h-5 px-1.5 rounded font-mono text-[10px] font-bold border transition-colors shrink-0 ${
                     modelHE.toUpperCase() === m.modelHE.toUpperCase()
                       ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500'
-                      : 'bg-slate-900 text-slate-400 border-slate-800 hover:border-slate-600 hover:text-white'
+                      : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
                   }`}
                 >
-                  <span>{m.modelHE}</span>
-                  {m.isLearned && <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>}
+                  {m.modelHE}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* ========================================================================= */}
-          {/* 5. LOCATOR SECTION (DIFFERENTIATED FOR IN vs OUT vs TRANSFER)             */}
-          {/* ========================================================================= */}
-
-          {/* MODE: STOCK OUT (LOCATOR IS LOCKED & DIRECTLY CONNECTED FROM LAYOUT CLICK) */}
-          {type === 'OUT' && (
-            <div className="bg-slate-950/80 p-3 rounded-xl border border-blue-500/40 space-y-2 shrink-0">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-200 flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-blue-400" />
-                  <span>พิกัดเบิกจ่าย (เชื่อมโยงจากจุดที่คลิกในผัง):</span>
-                </span>
-                <span className="font-mono font-black text-amber-300 text-sm">
-                  {formatLocatorCode(zone, bayNumber, level)}
-                </span>
-              </div>
-
-              <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-between text-xs">
-                <div>
-                  <div className="text-[10px] text-slate-400">ตำแหน่งที่เลือก:</div>
-                  <div className="font-bold text-white">
-                    Zone {zone} &bull; Bay {bayNumber} &bull; ชั้น {level} ({level === 4 ? '5.5m' : level === 3 ? '3.8m' : level === 2 ? '2.1m' : 'พื้น'})
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[10px] text-slate-400">สต็อกคงเหลือในช่องนี้:</div>
-                  <div className="font-mono font-black text-emerald-400 text-sm">
-                    {currentSlotItem ? `${currentSlotItem.quantity.toLocaleString()} ชิ้น` : 'ว่าง (0 ชิ้น)'}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* MODE: TRANSFER (SOURCE LOCKED + TARGET SELECTOR) */}
-          {type === 'TRANSFER' && (
-            <div className="bg-slate-950/80 p-3 rounded-xl border border-purple-500/40 space-y-2.5 shrink-0">
-              <div className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
-                <ArrowRightLeft className="w-3.5 h-3.5 text-purple-400" />
-                <span>การย้ายงานไป Locator อื่นๆ (Transfer Location):</span>
-              </div>
-
-              {/* Source & Target Grid */}
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                {/* Source Locator (Locked from layout click) */}
-                <div className="p-2 bg-slate-900 rounded-lg border border-slate-800">
-                  <div className="text-[10px] text-slate-400 mb-0.5">พิกัดต้นทาง (จุดที่เลือก):</div>
-                  <div className="font-mono font-bold text-amber-300 text-xs">
-                    {formatLocatorCode(zone, bayNumber, level)}
-                  </div>
-                  <div className="text-[10px] text-slate-400 mt-1">
-                    คงเหลือ: <span className="font-mono font-bold text-white">{currentSlotItem?.quantity || 0} ชิ้น</span>
-                  </div>
-                </div>
-
-                {/* Target Locator (User Selects) */}
-                <div className="p-2 bg-purple-950/30 rounded-lg border border-purple-500/30">
-                  <div className="text-[10px] text-purple-300 font-bold mb-0.5 flex items-center gap-1">
-                    <ArrowRight className="w-3 h-3 text-purple-400" />
-                    <span>พิกัดปลายทางที่ต้องการย้าย:</span>
-                  </div>
-                  <div className="font-mono font-bold text-emerald-300 text-xs mb-1">
-                    {formatLocatorCode(targetZone, targetBayNumber, targetLevel)}
-                  </div>
-                  <div className="text-[10px] text-slate-400">
-                    {targetSlotItem ? (
-                      <span className="text-amber-400 font-medium">มีสินค้าเดิม {targetSlotItem.quantity} ชิ้น</span>
-                    ) : (
-                      <span className="text-emerald-400 font-medium">🟢 ช่องว่างพร้อมย้ายเข้า</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Target Location Selectors */}
-              <div className="grid grid-cols-3 gap-1.5 text-xs pt-0.5">
-                <div>
-                  <label className="block text-[10px] text-slate-400 mb-0.5">โซนปลายทาง:</label>
-                  <select
-                    value={targetZone}
-                    onChange={(e) => {
-                      const newZ = e.target.value as StorageZone;
-                      setTargetZone(newZ);
-                      const maxB = getMaxBaysForZone(newZ);
-                      if (targetBayNumber > maxB) setTargetBayNumber(1);
-                    }}
-                    className="w-full h-8 bg-slate-900 border border-slate-700 text-white rounded-lg px-1.5 text-xs font-bold focus:outline-none"
-                  >
-                    {['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'CY3-A', 'CY3-B', 'X1', 'X2', 'R1', 'R2', 'T1'].map(z => (
-                      <option key={z} value={z}>{z}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] text-slate-400 mb-0.5">Bay ปลายทาง:</label>
-                  <select
-                    value={targetBayNumber}
-                    onChange={(e) => setTargetBayNumber(Number(e.target.value))}
-                    className="w-full h-8 bg-slate-900 border border-slate-700 text-white rounded-lg px-1.5 text-xs font-mono font-bold focus:outline-none"
-                  >
-                    {Array.from({ length: getMaxBaysForZone(targetZone as string) }, (_, i) => i + 1).map((b) => (
-                      <option key={b} value={b}>Bay {b}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] text-slate-400 mb-0.5">ชั้นปลายทาง:</label>
-                  <select
-                    value={targetLevel}
-                    onChange={(e) => setTargetLevel(Number(e.target.value) as ShelfLevel)}
-                    className="w-full h-8 bg-slate-900 border border-slate-700 text-white rounded-lg px-1.5 text-xs font-mono font-bold focus:outline-none"
-                  >
-                    <option value={1}>L1 (พื้น)</option>
-                    <option value={2}>L2 (2.1m)</option>
-                    <option value={3}>L3 (3.8m)</option>
-                    <option value={4}>L4 (5.5m)</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* MODE: STOCK IN (ALLOW CHOOSING / ADJUSTING LOCATOR) */}
+          {/* FIELD 2: LOCATOR (IN / OUT / TRANSFER) */}
           {type === 'IN' && (
-            <div className="bg-slate-950/70 p-3 rounded-xl border border-slate-800 space-y-2 shrink-0">
-              <div className="flex items-center justify-between text-xs">
-                <label className="font-bold text-slate-200 flex items-center gap-1">
+            <div className="bg-slate-950/70 p-2.5 rounded-xl border border-slate-800 space-y-1.5">
+              <div className="flex items-center justify-between text-[11px]">
+                <label className="font-bold text-slate-300 flex items-center gap-1">
                   <MapPin className="w-3.5 h-3.5 text-amber-400" />
                   <span>พิกัดจัดเก็บ (Storage Locator):</span>
                 </label>
-                <span className="font-mono font-bold text-amber-300 text-xs">
+                <span className="font-mono font-black text-amber-300 text-xs">
                   {formatLocatorCode(zone, bayNumber, level)}
                 </span>
               </div>
 
-              {/* Zone & Bay Selectors */}
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
-                  <label className="block text-[10px] text-slate-400 mb-0.5">โซนจัดเก็บ:</label>
+                  <label className="block text-[10px] text-slate-400 mb-0.5">โซน:</label>
                   <select
                     value={zone}
                     onChange={(e) => {
                       const newZ = e.target.value as StorageZone;
                       setZone(newZ);
                       const maxB = getMaxBaysForZone(newZ);
-                      const newB = Math.min(bayNumber, maxB);
-                      setBayNumber(newB);
+                      setBayNumber(Math.min(bayNumber, maxB));
                       const newL = (newZ.startsWith('X') || newZ.startsWith('R') || newZ.startsWith('T') || newZ.startsWith('FR')) ? 1 : level;
                       setLevel(newL as ShelfLevel);
                     }}
-                    className="w-full h-8 bg-slate-900 border border-slate-700 text-white rounded-lg px-2 text-xs font-bold focus:outline-none"
+                    className="w-full h-7 bg-slate-900 border border-slate-700 text-white rounded-lg px-1.5 text-xs font-bold focus:outline-none"
                   >
                     <optgroup label="A4 แร็คมาตรฐาน (B-F)">
-                      {['B', 'C', 'D', 'E', 'F'].map(z => (
-                        <option key={z} value={z}>แร็ค Zone {z}</option>
-                      ))}
+                      {['B', 'C', 'D', 'E', 'F'].map(z => <option key={z} value={z}>แร็ค Zone {z}</option>)}
                     </optgroup>
                     <optgroup label="A4 แร็คสูง (G-K)">
-                      {['G', 'H', 'I', 'J', 'K'].map(z => (
-                        <option key={z} value={z}>แร็คสูง Zone {z}</option>
-                      ))}
+                      {['G', 'H', 'I', 'J', 'K'].map(z => <option key={z} value={z}>แร็คสูง Zone {z}</option>)}
                     </optgroup>
-                    <optgroup label="CY3 เต็นท์ (A-D)">
-                      {['CY3-A', 'CY3-B', 'CY3-C', 'CY3-D'].map(c => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
+                    <optgroup label="CY3 เต็นท์">
+                      {['CY3-A', 'CY3-B', 'CY3-C', 'CY3-D'].map(c => <option key={c} value={c}>{c}</option>)}
                     </optgroup>
                     <optgroup label="A4 ลานวางพื้น (X1-X8)">
-                      {['X1','X2','X3','X4','X5','X6','X7','X8'].map(x => (
-                        <option key={x} value={x}>{x} ลานกองพื้น</option>
-                      ))}
+                      {['X1','X2','X3','X4','X5','X6','X7','X8'].map(x => <option key={x} value={x}>{x} ลานกองพื้น</option>)}
                     </optgroup>
                     <optgroup label="A2 รางเลื่อน (R1-R13)">
-                      {Array.from({ length: 13 }, (_, idx) => `R${idx + 1}`).map(r => (
-                        <option key={r} value={r}>รางเลื่อน {r}</option>
-                      ))}
+                      {Array.from({ length: 13 }, (_, idx) => `R${idx + 1}`).map(r => <option key={r} value={r}>รางเลื่อน {r}</option>)}
                     </optgroup>
                     <optgroup label="A5 เต็นท์วางพื้น (T1-T4)">
-                      {['T1', 'T2', 'T3', 'T4'].map(t => (
-                        <option key={t} value={t}>เต็นท์ {t}</option>
-                      ))}
+                      {['T1', 'T2', 'T3', 'T4'].map(t => <option key={t} value={t}>เต็นท์ {t}</option>)}
                     </optgroup>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-[10px] text-slate-400 mb-0.5">ช่วงเสา / ช่องวาง (Bay):</label>
+                  <label className="block text-[10px] text-slate-400 mb-0.5">ช่วงเสา / Bay:</label>
                   <select
                     value={bayNumber}
                     onChange={(e) => setBayNumber(Number(e.target.value))}
-                    className="w-full h-8 bg-slate-900 border border-slate-700 text-white rounded-lg px-2 text-xs font-mono font-bold focus:outline-none"
+                    className="w-full h-7 bg-slate-900 border border-slate-700 text-white rounded-lg px-1.5 text-xs font-mono font-bold focus:outline-none"
                   >
                     {Array.from({ length: getMaxBaysForZone(zone as string) }, (_, i) => i + 1).map((b) => (
                       <option key={b} value={b}>Bay {b}</option>
@@ -1251,104 +984,199 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
               </div>
 
               {/* Level Selector Buttons */}
-              {isRackZone ? (
+              {isRackZone && (
                 <div className="pt-1">
-                  <div className="flex items-center justify-between text-[11px] mb-1">
-                    <span className="text-slate-400 font-bold">เลือกระดับชั้น (Level):</span>
-                    {(level === 3 || level === 4) && (
-                      <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/30">
-                        ชั้นสูง L{level}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-4 gap-1.5">
+                  <div className="grid grid-cols-4 gap-1">
                     {([4, 3, 2, 1] as ShelfLevel[]).map((lvl) => {
                       const item = currentBayItems.find((it) => it.level === lvl);
                       const isSelected = level === lvl;
-                      const lvlLabel = lvl === 4 ? 'L4 (5.5m)' : lvl === 3 ? 'L3 (3.8m)' : lvl === 2 ? 'L2 (2.1m)' : 'L1 (พื้น)';
-
                       return (
                         <button
                           key={lvl}
                           type="button"
                           onClick={() => setLevel(lvl)}
-                          className={`p-1.5 rounded-lg border text-center transition-all flex flex-col items-center justify-center relative ${
+                          className={`py-1 rounded-md text-center transition-all text-xs font-bold border ${
                             isSelected
-                              ? 'bg-emerald-500/20 border-emerald-400 text-white ring-1 ring-emerald-400'
+                              ? 'bg-emerald-600 text-white border-emerald-400 shadow-xs'
                               : item
-                              ? 'bg-slate-900 border-slate-700 text-slate-300'
-                              : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:border-slate-700'
+                              ? 'bg-slate-900 border-slate-700 text-amber-300'
+                              : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
                           }`}
                         >
-                          <span className={`text-xs font-mono font-black ${isSelected ? 'text-white' : 'text-slate-200'}`}>
-                            {lvlLabel}
-                          </span>
-                          <div className="text-[9.5px] truncate w-full mt-0.5">
-                            {item ? (
-                              <span className="text-amber-300 font-bold truncate block">
-                                📦 {item.quantity}
-                              </span>
-                            ) : (
-                              <span className="text-emerald-400 font-medium truncate block">
-                                🟢 ว่าง
-                              </span>
-                            )}
-                          </div>
+                          L{lvl} {item ? `(${item.quantity})` : '• ว่าง'}
                         </button>
                       );
                     })}
                   </div>
                 </div>
-              ) : (
-                <div className="text-xs text-emerald-400 flex items-center gap-1.5 bg-emerald-950/40 px-2.5 py-1.5 rounded-lg border border-emerald-800/50">
-                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">พิกัดระดับพื้นราบ: Zone {zone} Bay {bayNumber}</span>
-                </div>
               )}
             </div>
           )}
 
-          {/* ========================================================================= */}
-          {/* 6. QUANTITY (CONFIRMATION, "เบิกทั้งหมด", PRESETS: 80 - 300)               */}
-          {/* ========================================================================= */}
-          <div className="bg-slate-950/70 p-3 rounded-xl border border-slate-800 space-y-2.5 shrink-0">
-            <div className="flex items-center justify-between text-xs">
-              <label className="font-bold text-slate-200 flex items-center gap-1">
+          {type === 'OUT' && (
+            <div className="bg-slate-950/70 p-2.5 rounded-xl border border-blue-500/40 flex items-center justify-between text-xs">
+              <div>
+                <span className="text-[10px] text-slate-400 block">พิกัดเบิกออก (ต้นทาง):</span>
+                <span className="font-mono font-black text-amber-300 text-sm">
+                  {formatLocatorCode(zone, bayNumber, level)}
+                </span>
+                <span className="text-[10.5px] text-slate-400 ml-1.5">
+                  (Zone {zone} &bull; Bay {bayNumber} &bull; ชั้น {level})
+                </span>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] text-slate-400 block">สต็อกในช่อง:</span>
+                <span className="font-mono font-black text-emerald-400 text-sm">
+                  {currentSlotItem ? `${currentSlotItem.quantity.toLocaleString()} ชิ้น` : 'ว่าง (0)'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {type === 'TRANSFER' && (
+            <div className="bg-slate-950/70 p-3 rounded-xl border border-purple-500/40 space-y-2.5 text-xs">
+              <div className="flex items-center justify-between pb-1 border-b border-purple-900/40">
+                <div>
+                  <span className="text-[10px] text-slate-400 block">พิกัดต้นทาง (Origin):</span>
+                  <span className="font-mono font-bold text-amber-300">
+                    {formatLocatorCode(zone, bayNumber, level)}
+                  </span>
+                  <span className="text-[10px] text-slate-400 ml-1">
+                    ({currentSlotItem?.quantity || 0} ชิ้น)
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 text-purple-300 font-bold">
+                  <span>➔ ย้ายไป</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] text-purple-300 block font-bold">พิกัดปลายทางใหม่ (Destination):</span>
+                  <span className="font-mono font-black text-emerald-300 text-sm">
+                    {formatLocatorCode(targetZone, targetBayNumber, targetLevel)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Quick Zone Selector Pills */}
+              <div>
+                <label className="block text-[10px] font-bold text-slate-300 mb-1">1. เลือกโซนปลายทาง (Zone):</label>
+                <div className="flex flex-wrap gap-1">
+                  {['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'CY3-A', 'CY3-B', 'X1'].map((z) => {
+                    const isSel = targetZone === z;
+                    return (
+                      <button
+                        key={z}
+                        type="button"
+                        onClick={() => {
+                          setTargetZone(z as StorageZone);
+                          const maxB = getMaxBaysForZone(z as StorageZone);
+                          if (targetBayNumber > maxB) setTargetBayNumber(1);
+                        }}
+                        className={`h-7 px-2.5 rounded-lg text-xs font-black transition-all border ${
+                          isSel
+                            ? 'bg-purple-600 text-white border-purple-400 shadow-sm ring-1 ring-purple-400'
+                            : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
+                        }`}
+                      >
+                        {z}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Bay & Level Selection in a clean row */}
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                {/* Bay Number Selection */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[10px] font-bold text-slate-300">2. เลือก Bay ปลายทาง:</label>
+                    <span className="text-[10px] font-mono text-purple-300 font-bold">Bay {targetBayNumber}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setTargetBayNumber(prev => Math.max(1, prev - 1))}
+                      className="w-7 h-7 bg-slate-900 border border-slate-700 hover:bg-slate-800 text-white font-bold rounded-lg flex items-center justify-center shrink-0"
+                    >
+                      -
+                    </button>
+                    <select
+                      value={targetBayNumber}
+                      onChange={(e) => setTargetBayNumber(Number(e.target.value))}
+                      className="flex-1 h-7 bg-slate-900 border border-slate-700 text-white rounded-lg px-2 text-xs font-mono font-bold focus:outline-none"
+                    >
+                      {Array.from({ length: getMaxBaysForZone(targetZone as string) }, (_, i) => i + 1).map((b) => (
+                        <option key={b} value={b}>Bay {b}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const maxB = getMaxBaysForZone(targetZone as string);
+                        setTargetBayNumber(prev => Math.min(maxB, prev + 1));
+                      }}
+                      className="w-7 h-7 bg-slate-900 border border-slate-700 hover:bg-slate-800 text-white font-bold rounded-lg flex items-center justify-center shrink-0"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                {/* Level Selection */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[10px] font-bold text-slate-300">3. เลือกระดับชั้น:</label>
+                    <span className="text-[10px] font-mono text-purple-300 font-bold">L{targetLevel}</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-1">
+                    {([1, 2, 3, 4] as ShelfLevel[]).map((lvl) => {
+                      const isSel = targetLevel === lvl;
+                      return (
+                        <button
+                          key={lvl}
+                          type="button"
+                          onClick={() => setTargetLevel(lvl)}
+                          className={`h-7 rounded-lg text-xs font-mono font-black border transition-all ${
+                            isSel
+                              ? 'bg-purple-600 text-white border-purple-400 shadow-sm'
+                              : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
+                          }`}
+                        >
+                          L{lvl}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* FIELD 3: QUANTITY (STEPPER + COMPACT PRESETS + ALL BUTTON) */}
+          <div className="bg-slate-950/70 p-2.5 rounded-xl border border-slate-800 space-y-2">
+            <div className="flex items-center justify-between text-[11px]">
+              <label className="font-bold text-slate-300 flex items-center gap-1">
                 <CheckCircle2 className={`w-3.5 h-3.5 ${type === 'IN' ? 'text-emerald-400' : type === 'OUT' ? 'text-blue-400' : 'text-purple-400'}`} />
                 <span>จำนวนชิ้นงาน (Quantity):</span>
               </label>
 
-              {/* "เบิกทั้งหมด" or "ย้ายทั้งหมด" Button */}
-              {type === 'OUT' && currentSlotItem && (
+              {(type === 'OUT' || type === 'TRANSFER') && currentSlotItem && (
                 <button
                   type="button"
                   onClick={() => setActualQty(currentSlotItem.quantity)}
-                  className="text-[11px] font-bold text-blue-300 hover:text-white bg-blue-500/20 hover:bg-blue-600 px-2.5 py-0.5 rounded-lg border border-blue-500/40 transition-colors flex items-center gap-1 active:scale-95"
+                  className="text-[10.5px] font-bold text-amber-300 hover:text-white bg-amber-500/20 hover:bg-amber-600 px-2 py-0.5 rounded border border-amber-500/40 transition-colors flex items-center gap-1"
                 >
-                  <Zap className="w-3 h-3 text-blue-400" />
-                  <span>เบิกทั้งหมด ({currentSlotItem.quantity.toLocaleString()} ชิ้น)</span>
-                </button>
-              )}
-
-              {type === 'TRANSFER' && currentSlotItem && (
-                <button
-                  type="button"
-                  onClick={() => setActualQty(currentSlotItem.quantity)}
-                  className="text-[11px] font-bold text-purple-300 hover:text-white bg-purple-500/20 hover:bg-purple-600 px-2.5 py-0.5 rounded-lg border border-purple-500/40 transition-colors flex items-center gap-1 active:scale-95"
-                >
-                  <Zap className="w-3 h-3 text-purple-400" />
-                  <span>ย้ายทั้งหมด ({currentSlotItem.quantity.toLocaleString()} ชิ้น)</span>
+                  <Zap className="w-3 h-3 text-amber-400" />
+                  <span>{type === 'OUT' ? 'เบิกทั้งหมด' : 'ย้ายทั้งหมด'} ({currentSlotItem.quantity.toLocaleString()} ชิ้น)</span>
                 </button>
               )}
             </div>
 
-            {/* Stepper Input */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <button
                 type="button"
                 onClick={() => setActualQty(prev => Math.max(0, prev - 10))}
-                className="w-10 h-10 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 font-black text-lg border border-slate-700 flex items-center justify-center shrink-0 active:scale-95"
+                className="w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 font-black text-base border border-slate-700 flex items-center justify-center shrink-0 active:scale-95"
               >
                 -
               </button>
@@ -1364,12 +1192,12 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
                     setValidationError(null);
                   }}
                   placeholder="กรอกจำนวน..."
-                  className={`w-full h-10 bg-slate-900 border rounded-lg text-center text-lg font-mono font-black text-white focus:outline-none ${
+                  className={`w-full h-8 bg-slate-900 border rounded-lg text-center text-base font-mono font-black text-white focus:outline-none ${
                     type === 'IN' ? 'border-slate-700 focus:border-emerald-400' : type === 'OUT' ? 'border-slate-700 focus:border-blue-400' : 'border-slate-700 focus:border-purple-400'
                   }`}
                   required
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 pointer-events-none">
+                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 pointer-events-none">
                   ชิ้น
                 </span>
               </div>
@@ -1377,26 +1205,14 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
               <button
                 type="button"
                 onClick={() => setActualQty(prev => prev + 10)}
-                className="w-10 h-10 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 font-black text-lg border border-slate-700 flex items-center justify-center shrink-0 active:scale-95"
+                className="w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 font-black text-base border border-slate-700 flex items-center justify-center shrink-0 active:scale-95"
               >
                 +
               </button>
-            </div>
 
-            {/* Standard Presets (80 100 120 150 180 200 220 250 300) per user exact request */}
-            <div className="space-y-1">
-              <div className="text-[10.5px] text-slate-400 font-bold flex items-center justify-between">
-                <span>จำนวนมาตรฐานที่กำหนด (Standard Lots):</span>
-                <button
-                  type="button"
-                  onClick={() => setActualQty(0)}
-                  className="text-[10px] text-slate-500 hover:text-rose-400"
-                >
-                  ล้างค่า
-                </button>
-              </div>
-              <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 no-scrollbar">
-                {STANDARD_QTY_PRESETS.map((preset) => (
+              {/* Quick Lots */}
+              <div className="flex items-center gap-1 overflow-x-auto no-scrollbar shrink-0 pl-1">
+                {[80, 100, 120, 150, 200].map((preset) => (
                   <button
                     key={preset}
                     type="button"
@@ -1404,14 +1220,14 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
                       setActualQty(preset);
                       setValidationError(null);
                     }}
-                    className={`h-7 px-2.5 rounded-lg text-xs font-mono font-bold border transition-all shrink-0 ${
+                    className={`h-8 px-2 rounded-lg text-xs font-mono font-bold border transition-all ${
                       actualQty === preset
                         ? type === 'IN'
-                          ? 'bg-emerald-500 text-slate-950 font-black border-emerald-400 shadow-sm'
+                          ? 'bg-emerald-500 text-slate-950 font-black border-emerald-400'
                           : type === 'OUT'
-                          ? 'bg-blue-500 text-white font-black border-blue-400 shadow-sm'
-                          : 'bg-purple-500 text-white font-black border-purple-400 shadow-sm'
-                        : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-700'
+                          ? 'bg-blue-500 text-white font-black border-blue-400'
+                          : 'bg-purple-500 text-white font-black border-purple-400'
+                        : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
                     }`}
                   >
                     {preset}
@@ -1419,84 +1235,43 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
                 ))}
               </div>
             </div>
-
-            {/* Confirmation Summary Card Before Executing */}
-            <div className={`p-2.5 rounded-xl border text-xs space-y-1 ${
-              type === 'OUT'
-                ? 'bg-blue-950/40 border-blue-500/30 text-blue-200'
-                : type === 'TRANSFER'
-                ? 'bg-purple-950/40 border-purple-500/30 text-purple-200'
-                : 'bg-emerald-950/40 border-emerald-500/30 text-emerald-200'
-            }`}>
-              <div className="font-bold flex items-center justify-between text-white">
-                <span>
-                  {type === 'OUT' && '📋 สรุปการเบิกจ่าย (Confirmation):'}
-                  {type === 'TRANSFER' && '🔄 สรุปการย้ายพิกัด (Confirmation):'}
-                  {type === 'IN' && '📥 สรุปการรับเข้าจัดเก็บ (Confirmation):'}
-                </span>
-                <span className="font-mono text-sm font-black text-amber-300">
-                  {actualQty.toLocaleString()} ชิ้น
-                </span>
-              </div>
-
-              <div className="text-[11px] text-slate-300 space-y-0.5">
-                <div>• รหัสสินค้า: <span className="font-mono font-bold text-white">{modelHE}</span></div>
-                <div>• พิกัด: <span className="font-mono font-bold text-amber-300">{formatLocatorCode(zone, bayNumber, level)}</span> {type === 'TRANSFER' ? `➔ ${formatLocatorCode(targetZone, targetBayNumber, targetLevel)}` : `(Line ${useLine})`}</div>
-                {type === 'OUT' && currentSlotItem && (
-                  <div>
-                    • ยอดคงเหลือในช่อง: 
-                    <span className={`font-mono font-bold ml-1 ${currentSlotItem.quantity - actualQty === 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
-                      {(currentSlotItem.quantity - actualQty).toLocaleString()} ชิ้น
-                      {currentSlotItem.quantity - actualQty === 0 && ' (เบิกหมดช่อง/ช่องจะว่าง)'}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
 
-          {/* ========================================================================= */}
-          {/* 7. PRODUCTION INFO: LINE, DATE, TIME                                      */}
-          {/* ========================================================================= */}
-          <div className="bg-slate-950/70 p-3 rounded-xl border border-slate-800 space-y-2 shrink-0">
-            {/* Production Line Chips */}
-            <div>
-              <label className="block text-[11px] font-bold text-slate-300 mb-1 flex items-center gap-1">
-                <Building2 className="w-3 h-3 text-amber-400" />
-                <span>ไลน์ผลิตที่เบิก/รับ (Line):</span>
-              </label>
-              <div className="grid grid-cols-5 gap-1.5">
-                {useLines.map((line) => {
-                  const isActive = useLine === line.id;
-                  return (
-                    <button
-                      key={line.id}
-                      type="button"
-                      onClick={() => setUseLine(line.id)}
-                      className={`h-8 rounded-lg text-xs font-bold transition-all border ${
-                        isActive
-                          ? 'bg-amber-500 text-slate-950 font-black border-amber-400 shadow-sm'
-                          : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-600'
-                      }`}
-                    >
-                      {line.name?.replace('Line ', '') || line.id}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Date & Time Row */}
-            <div className="grid grid-cols-2 gap-2 pt-0.5">
+          {/* FIELD 4: PRODUCTION LINE & DATE (ONE COMPACT ROW) */}
+          <div className="bg-slate-950/70 p-2.5 rounded-xl border border-slate-800 space-y-1.5">
+            <div className="grid grid-cols-2 gap-2">
               <div>
-                <div className="flex items-center justify-between text-[11px] mb-0.5">
-                  <span className="text-slate-300 font-bold flex items-center gap-1">
-                    <Calendar className="w-3 h-3 text-slate-400" /> วันที่:
-                  </span>
+                <label className="block text-[10px] text-slate-400 mb-0.5 font-bold">
+                  {type === 'OUT' ? 'ไลน์ที่นำไปใช้ (Usage Line):' : 'ไลน์ผลิต (Use Line):'}
+                </label>
+                <div className="grid grid-cols-5 gap-1">
+                  {useLines.map((line) => {
+                    const isActive = useLine === line.id;
+                    return (
+                      <button
+                        key={line.id}
+                        type="button"
+                        onClick={() => setUseLine(line.id)}
+                        className={`h-7 rounded text-[11px] font-bold border transition-all ${
+                          isActive
+                            ? 'bg-amber-500 text-slate-950 font-black border-amber-400'
+                            : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700'
+                        }`}
+                      >
+                        {line.name?.replace('Line ', '') || line.id}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between text-[10px] text-slate-400 mb-0.5">
+                  <span className="font-bold">วันที่บันทึก:</span>
                   <button
                     type="button"
                     onClick={setDateToToday}
-                    className="text-[9.5px] px-1.5 py-0.5 bg-slate-800 hover:bg-slate-700 text-amber-300 rounded font-bold"
+                    className="text-[9px] text-amber-400 hover:underline"
                   >
                     วันนี้
                   </button>
@@ -1505,137 +1280,64 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
                   type="date"
                   value={manualDate}
                   onChange={(e) => setManualDate(e.target.value)}
-                  className="w-full h-8 bg-slate-900 border border-slate-700 focus:border-amber-400 rounded-lg px-2 font-mono text-xs text-white focus:outline-none"
-                  required
-                />
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between text-[11px] mb-0.5">
-                  <span className="text-slate-300 font-bold flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-slate-400" /> เวลา:
-                  </span>
-                  <button
-                    type="button"
-                    onClick={setTimeToNow}
-                    className="text-[9.5px] px-1.5 py-0.5 bg-slate-800 hover:bg-slate-700 text-amber-300 rounded font-bold"
-                  >
-                    ตอนนี้
-                  </button>
-                </div>
-                <input
-                  type="time"
-                  value={manualTime}
-                  onChange={(e) => setManualTime(e.target.value)}
-                  className="w-full h-8 bg-slate-900 border border-slate-700 focus:border-amber-400 rounded-lg px-2 font-mono text-xs text-white focus:outline-none"
+                  className="w-full h-7 bg-slate-900 border border-slate-700 focus:border-amber-400 rounded px-2 font-mono text-xs text-white focus:outline-none"
                   required
                 />
               </div>
             </div>
 
-            {/* Compact Live QR Preview */}
-            <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900/90 border border-slate-800 gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="bg-white p-0.5 rounded shrink-0">
-                  <QRCodeSVG value={composedQRString} size={28} level="M" marginSize={0} />
-                </div>
-                <div className="truncate">
-                  <div className="text-[9.5px] text-slate-400">ชุดข้อมูล KANBAN (QR):</div>
-                  <div className="font-mono text-[11px] font-black text-cyan-300 truncate">
-                    {composedQRString}
-                  </div>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleCopyQRString}
-                className="text-[10px] text-slate-400 hover:text-white px-2 py-1 rounded bg-slate-800 border border-slate-700 flex items-center gap-1 shrink-0"
-                title="คัดลอกข้อความ KANBAN"
-              >
-                <Copy className="w-3 h-3" />
-                <span>{copiedQR ? 'คัดลอกแล้ว' : 'คัดลอก'}</span>
-              </button>
+            {/* Optional Remark Input */}
+            <div className="pt-1">
+              <input
+                type="text"
+                value={remark}
+                onChange={(e) => setRemark(e.target.value)}
+                placeholder="หมายเหตุเพิ่มเติม (ถ้ามี เช่น Lot พิเศษ, งานด่วน)..."
+                className="w-full h-7 bg-slate-900 border border-slate-800 focus:border-slate-600 rounded px-2 text-[11px] text-white placeholder-slate-500 focus:outline-none"
+              />
             </div>
-          </div>
-
-          {/* ========================================================================= */}
-          {/* 8. OPTIONAL REMARK & BATCH MODE (PALLET DETAILS COMPLETELY REMOVED)       */}
-          {/* ========================================================================= */}
-          <div className="border border-slate-800 rounded-xl overflow-hidden shrink-0">
-            <button
-              type="button"
-              onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
-              className="w-full px-3 py-2 bg-slate-950/40 hover:bg-slate-900 text-slate-400 flex items-center justify-between text-xs font-medium transition-colors"
-            >
-              <span>หมายเหตุเพิ่มเติม & โหมดการทำงาน</span>
-              <div className="flex items-center gap-1 text-[10px]">
-                {showAdvancedSettings ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              </div>
-            </button>
-
-            {showAdvancedSettings && (
-              <div className="p-3 bg-slate-950 space-y-2 border-t border-slate-800 animate-fadeIn text-xs">
-                {/* Remark Input */}
-                <div>
-                  <label className="block text-[10px] text-slate-400 mb-0.5">หมายเหตุการดำเนินงาน:</label>
-                  <input
-                    type="text"
-                    value={remark}
-                    onChange={(e) => setRemark(e.target.value)}
-                    placeholder="ระบุหมายเหตุ เช่น งานเร่งด่วน, ย้ายจุดวาง, Lot พิเศษ..."
-                    className="w-full h-8 bg-slate-900 border border-slate-700 rounded-lg px-2.5 text-xs text-white placeholder-slate-500"
-                  />
-                </div>
-
-                {/* Continuous Batch Mode */}
-                <div className="flex items-center gap-2 pt-0.5">
-                  <input 
-                    type="checkbox" 
-                    id="batchModeToggle"
-                    checked={batchMode}
-                    onChange={(e) => setBatchMode(e.target.checked)}
-                    className="w-3.5 h-3.5 rounded bg-slate-900 border-slate-700"
-                  />
-                  <label htmlFor="batchModeToggle" className="text-xs text-slate-300 cursor-pointer">
-                    บันทึกแบบต่อเนื่อง (Batch Mode - ไม่ปิดหน้าต่างอัตโนมัติ)
-                  </label>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* ========================================================================= */}
-          {/* 9. SUBMIT CONFIRM BUTTON                                                  */}
-          {/* ========================================================================= */}
-          <div className="pt-1 mt-auto shrink-0">
-            <button
-              type="submit"
-              disabled={!actualQty || actualQty <= 0}
-              className={`w-full h-11 rounded-xl font-black text-sm text-white shadow-md flex items-center justify-center gap-2 transition-all active:scale-[0.99] ${
-                !actualQty || actualQty <= 0
-                  ? 'bg-slate-800 cursor-not-allowed text-slate-500'
-                  : type === 'IN'
-                  ? 'bg-emerald-600 hover:bg-emerald-500 ring-1 ring-emerald-400'
-                  : type === 'OUT'
-                  ? 'bg-blue-600 hover:bg-blue-500 ring-1 ring-blue-400'
-                  : 'bg-purple-600 hover:bg-purple-500 ring-1 ring-purple-400'
-              }`}
-            >
-              <Zap className="w-4 h-4" />
-              <span>
-                {actualQty > 0
-                  ? type === 'IN'
-                    ? `ยืนยันรับเข้า ${modelHE} (${actualQty.toLocaleString()} ชิ้น)`
-                    : type === 'OUT'
-                    ? `ยืนยันเบิกจ่าย ${modelHE} (${actualQty.toLocaleString()} ชิ้น)`
-                    : `ยืนยันย้าย ${modelHE} (${actualQty.toLocaleString()} ชิ้น) ➔ ${formatLocatorCode(targetZone, targetBayNumber, targetLevel)}`
-                  : 'กรุณาระบุจำนวนสินค้า'}
-              </span>
-            </button>
           </div>
 
         </form>
+
+        {/* ========================================================================= */}
+        {/* 4. FIXED FOOTER (VISIBLE FRAME, CLEAR CANCEL & CONFIRM BUTTONS)            */}
+        {/* ========================================================================= */}
+        <div className="p-3 bg-slate-950 border-t border-slate-800 flex items-center justify-between gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-10 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-xs transition-colors shrink-0"
+          >
+            ยกเลิก
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={!actualQty || actualQty <= 0}
+            className={`flex-1 h-10 rounded-xl font-black text-xs sm:text-sm text-white shadow-md flex items-center justify-center gap-1.5 transition-all active:scale-[0.99] ${
+              !actualQty || actualQty <= 0
+                ? 'bg-slate-800 cursor-not-allowed text-slate-500'
+                : type === 'IN'
+                ? 'bg-emerald-600 hover:bg-emerald-500 ring-1 ring-emerald-400'
+                : type === 'OUT'
+                ? 'bg-blue-600 hover:bg-blue-500 ring-1 ring-blue-400'
+                : 'bg-purple-600 hover:bg-purple-500 ring-1 ring-purple-400'
+            }`}
+          >
+            <Zap className="w-3.5 h-3.5" />
+            <span>
+              {actualQty > 0
+                ? type === 'IN'
+                  ? `ยืนยันรับเข้า (${actualQty.toLocaleString()} ชิ้น)`
+                  : type === 'OUT'
+                  ? `ยืนยันเบิกออก (${actualQty.toLocaleString()} ชิ้น)`
+                  : `ยืนยันย้าย (${actualQty.toLocaleString()} ชิ้น) ➔ ${formatLocatorCode(targetZone, targetBayNumber, targetLevel)}`
+                : 'กรุณาระบุจำนวน'}
+            </span>
+          </button>
+        </div>
 
       </div>
     </div>

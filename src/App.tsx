@@ -18,6 +18,7 @@ import { A5TentFloorStagingMap } from './components/A5TentFloorStagingMap';
 import { CY3TentRackMap } from './components/CY3TentRackMap';
 import { DA4D1FloorStagingMap } from './components/DA4D1FloorStagingMap';
 import { Campus3DCockpitView } from './components/Campus3DCockpitView';
+import { CampusMasterOverview } from './components/CampusMasterOverview';
 import { GlobalSearchZoneLookup } from './components/GlobalSearchZoneLookup';
 import { calculateVinylWrappingStatus, getBangkokDateString } from './utils/vinylWrappingRule';
 import { Search, X } from 'lucide-react';
@@ -718,9 +719,9 @@ export default function App() {
         <main className={`w-full flex-1 ${isZoneTab ? 'overflow-hidden p-1 sm:p-1.5' : 'overflow-y-auto px-2 sm:px-3 lg:px-4 py-2 sm:py-2.5 space-y-3'} transition-all flex flex-col min-h-0`}>
 
           {/* Dynamic Tab Views: Unified Master Map ("ผังรวม") - Pure 3D Digital Twin Layout */}
-          {(activeTab === 'blueprint' || activeTab === 'dashboard' || activeTab === 'campus_overview') && (
+          {activeTab === 'campus_overview' && (
             <div className="w-full h-full flex-1 min-h-0 flex flex-col overflow-hidden animate-fadeIn">
-              <Campus3DCockpitView
+              <CampusMasterOverview
                 items={displayedItems}
                 facilities={facilities}
                 stats={stats}
@@ -729,9 +730,11 @@ export default function App() {
                 agingConfig={agingConfig}
                 onNavigateToZone={handleCampusZoneNavigation}
                 onOpenScanner={(z, b, l, m) => handleOpenScanner(z as any, b, l as any, m || 'IN')}
+                onOpen3D={(z, b) => handleOpen3DForBay(z as any, b)}
               />
             </div>
           )}
+
 
           {/* 🟨 SEPARATE VIEW 1: A4 FLOOR STAGING (DA4D-1 432 Pallets) */}
           {activeTab === 'a4_floor' && (
@@ -742,7 +745,7 @@ export default function App() {
                 searchQuery={globalSearchQuery}
                 onOpenScanner={(z, b, l, m) => handleOpenScanner(z, b, l, m)}
                 onRelocateItem={(item) => {
-                  setActiveTab('master');
+                  handleOpenScanner(item.zone, item.bayNumber, item.level, 'TRANSFER');
                 }}
                 onNavigateToRack={() => setActiveTab('a4_rack')}
                 onNavigateToCampus={() => setActiveTab('blueprint')}
@@ -764,7 +767,7 @@ export default function App() {
                 onOpen3D={(z, b) => handleOpen3DForBay(z, b)}
                 onOpenScanner={(z, b, l, m) => handleOpenScanner(z, b, l, m)}
                 onRelocateItem={(item) => {
-                  setActiveTab('master');
+                  handleOpenScanner(item.zone, item.bayNumber, item.level, 'TRANSFER');
                 }}
                 onNavigateToFloor={() => setActiveTab('a4_floor')}
                 onNavigateToCampus={() => setActiveTab('blueprint')}
@@ -786,7 +789,7 @@ export default function App() {
                 }}
                 onOpenScanner={(z, b, l, m) => handleOpenScanner(z, b, l, m)}
                 onRelocateItem={(item) => {
-                  setActiveTab('master');
+                  handleOpenScanner(item.zone, item.bayNumber, item.level, 'TRANSFER');
                 }}
                 onNavigateToCampus={() => setActiveTab('blueprint')}
               />
@@ -808,7 +811,7 @@ export default function App() {
                 }}
                 onOpenScanner={(z, b, l, m) => handleOpenScanner(z, b, l, m)}
                 onRelocateItem={(item) => {
-                  setActiveTab('master');
+                  handleOpenScanner(item.zone, item.bayNumber, item.level, 'TRANSFER');
                 }}
                 onNavigateToCampus={() => setActiveTab('blueprint')}
               />
@@ -823,7 +826,7 @@ export default function App() {
                 searchQuery={globalSearchQuery}
                 onOpenScanner={(z, b, l, m) => handleOpenScanner(z, b, l, m)}
                 onRelocateItem={(item) => {
-                  setActiveTab('master');
+                  handleOpenScanner(item.zone, item.bayNumber, item.level, 'TRANSFER');
                 }}
                 onNavigateToCampus={() => setActiveTab('blueprint')}
                 onPrintLabel={(item) => {
@@ -891,6 +894,7 @@ export default function App() {
                 facilities={facilities}
                 customSlots={customSlots}
                 masterData={masterData}
+                useLines={useLines}
                 initialSelectedItemId={selectedPrintItemId}
                 onOpenScanner={(z, b, l, m) => handleOpenScanner(z, b, l, m)}
               />

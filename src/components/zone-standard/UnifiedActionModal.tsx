@@ -94,9 +94,9 @@ export const UnifiedActionModal: React.FC<UnifiedActionModalProps> = ({
   const agingStyle = AGING_STYLES[agingCategory];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-xs animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-xs animate-fadeIn">
       <div 
-        className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl transform transition-all text-slate-100"
+        className="bg-slate-900 border-2 border-slate-700 rounded-2xl w-full max-w-md max-h-[85vh] overflow-hidden shadow-2xl flex flex-col text-slate-100"
         onClick={(e) => e.stopPropagation()}
       >
         {/* ========================================================================= */}

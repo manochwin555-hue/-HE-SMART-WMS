@@ -2,7 +2,6 @@ import React, { useState, useMemo } from 'react';
 import { InventoryItem, MovementType, StorageZone, ShelfLevel, MovementLog } from '../types';
 import { UnifiedSlotModal, UnifiedSlotData } from './UnifiedSlotModal';
 import { SlotMiniStatsOverlay, MiniStatsSlotData } from './SlotMiniStatsOverlay';
-import { WarehouseSlotFilter, WarehouseFilterType } from './common/WarehouseSlotFilter';
 import { A2FlowRail3DView } from './zone-3d/A2FlowRail3DView';
 import { ZoneKpiFormalDashboard } from './ZoneKpiFormalDashboard';
 import { useTranslation } from '../i18n/i18nContext';
@@ -211,20 +210,7 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
             </button>
           </div>
 
-          {/* 2. Global Status Filter Pills */}
-          <WarehouseSlotFilter
-            activeFilter={statusFilter}
-            onFilterChange={setStatusFilter}
-            counts={{
-              total: stats.totalSlots,
-              occupied: stats.occupiedSlots,
-              empty: stats.emptySlots,
-              aging: stats.agingCount,
-            }}
-            compact
-          />
-
-          {/* 3. Sub-Zone Selector: ราง R1-R13 */}
+          {/* 2. Sub-Zone Selector: ราง R1-R13 */}
           <div className="inline-flex items-center bg-slate-950 p-0.5 rounded-xl border border-slate-800 text-xs font-bold shrink-0">
             <button
               onClick={() => setSelectedRailFilter('ALL')}

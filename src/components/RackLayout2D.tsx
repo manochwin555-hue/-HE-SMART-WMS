@@ -256,7 +256,7 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
             <A4UnifiedFactory3DView
               items={items}
               searchQuery={localSearch}
-              initialFocus="RACK"
+              initialFocus="RACKS"
               onSelectSlot={(type, locator, item) => {
                 if (type === 'RACK') {
                   const match = locator.match(/DA4D-2-([B-F])(\d+)-L(\d+)/i) || locator.match(/DA4D-3-([G-K])(\d+)-L(\d+)/i);

@@ -41,10 +41,10 @@
   --border-default: #273244;
   --border-strong: #344156;
 
-  --text-primary: #F4F7FB;
-  --text-secondary: #B7C0CE;
-  --text-muted: #788497;
-  --text-disabled: #4D5868;
+  --text-primary: #FFFFFF;
+  --text-secondary: #E0E6EF;
+  --text-muted: #A0ABC0;
+  --text-disabled: #788497;
 
   --accent-blue: #2563EB;
   --accent-blue-light: #3B82F6;
@@ -157,6 +157,7 @@ html, body, #root {
 .text-muted { color: var(--text-muted) !important; }
 .text-disabled { color: var(--text-disabled) !important; }
 
+.text-slate-950,
 .text-slate-900,
 .text-slate-800,
 .text-slate-700,
