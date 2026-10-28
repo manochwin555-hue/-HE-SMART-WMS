@@ -3,6 +3,7 @@ import {
   InventoryItem, 
   AgingThresholdConfig 
 } from '../types';
+import { filterItemsByZone } from '../utils/zoneKpiHelper';
 import { useTranslation } from '../i18n/i18nContext';
 import { 
   Maximize2, 
@@ -103,38 +104,26 @@ export const MasterBlueprintLayout: React.FC<MasterBlueprintLayoutProps> = ({
 
   // Filtered items by zone for live calculation
   const liveStats = useMemo(() => {
-    // A2 items: zone starts with R or FR or locator contains DA2D
-    const a2Items = items.filter(it => 
-      it.zone.startsWith('R') || it.zone.startsWith('FR') || (it.locatorCode && it.locatorCode.includes('DA2D-1'))
-    );
-    // A4 items: RACK B-K or FLOOR X1-X8
-    const a4Items = items.filter(it => 
-      ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'X1', 'X2', 'X3', 'X4', 'X5', 'X6', 'X7', 'X8'].includes(it.zone) ||
-      (it.locatorCode && (it.locatorCode.includes('DA4D') || it.locatorCode.includes('DA4R')))
-    );
-    // A5 items: zone A or DAST
-    const a5Items = items.filter(it => 
-      it.zone === 'A' || it.zone.startsWith('TENT') || (it.locatorCode && it.locatorCode.includes('DAST'))
-    );
-    // CY3 items: zone CY3 or DY3T
-    const cy3Items = items.filter(it => 
-      it.zone.startsWith('CY3') || (it.locatorCode && it.locatorCode.includes('DY3T'))
-    );
+    const safeItems = items || [];
+    const a2Items = filterItemsByZone(safeItems, 'A2');
+    const a4Items = filterItemsByZone(safeItems, 'A4');
+    const a5Items = filterItemsByZone(safeItems, 'A5');
+    const cy3Items = filterItemsByZone(safeItems, 'CY3');
 
     const a2PL = a2Items.length;
-    const a2EA = a2Items.reduce((sum, it) => sum + (it.quantity || 0), 0);
+    const a2EA = a2Items.reduce((sum, it) => sum + (Number(it.quantity) || 0), 0);
     const a4PL = a4Items.length;
-    const a4EA = a4Items.reduce((sum, it) => sum + (it.quantity || 0), 0);
+    const a4EA = a4Items.reduce((sum, it) => sum + (Number(it.quantity) || 0), 0);
     const a5PL = a5Items.length;
-    const a5EA = a5Items.reduce((sum, it) => sum + (it.quantity || 0), 0);
+    const a5EA = a5Items.reduce((sum, it) => sum + (Number(it.quantity) || 0), 0);
     const cy3PL = cy3Items.length;
-    const cy3EA = cy3Items.reduce((sum, it) => sum + (it.quantity || 0), 0);
+    const cy3EA = cy3Items.reduce((sum, it) => sum + (Number(it.quantity) || 0), 0);
 
     return {
-      a2: { pl: a2PL || 94, ea: a2EA || 9309, cap: 104 },
-      a4: { pl: a4PL || 70, ea: a4EA || 7370, cap: 1112 }, // 680 (Rack) + 432 (Floor)
-      a5: { pl: a5PL || 121, ea: a5EA || 15427, cap: 784 },
-      cy3: { pl: cy3PL || 671, ea: cy3EA || 33767, cap: 400 },
+      a2: { pl: a2PL, ea: a2EA, cap: 104 },
+      a4: { pl: a4PL, ea: a4EA, cap: 1112 }, // 680 (Rack) + 432 (Floor)
+      a5: { pl: a5PL, ea: a5EA, cap: 784 },
+      cy3: { pl: cy3PL, ea: cy3EA, cap: 400 },
       a2Items,
       a4Items,
       a5Items,
@@ -469,8 +458,8 @@ export const MasterBlueprintLayout: React.FC<MasterBlueprintLayoutProps> = ({
 
                 {/* Micro Metric Banner */}
                 <div className="flex items-center justify-between text-[7.5px] text-slate-400 font-mono pt-1 border-t border-slate-800">
-                  <span className="text-blue-300 font-bold">จัดเก็บ {liveStats.a2.pl} / 112 PL ({Math.round((liveStats.a2.pl / 112) * 100)}%)</span>
-                  <span className="text-amber-400 font-bold">1 ช่อง = 1 พาเลท &bull; 14 ราง x 8 ช่อง</span>
+                  <span className="text-blue-300 font-bold">จัดเก็บ {liveStats.a2.pl} / {liveStats.a2.cap} PL ({Math.round((liveStats.a2.pl / (liveStats.a2.cap || 1)) * 100)}%)</span>
+                  <span className="text-amber-400 font-bold">1 ช่อง = 1 พาเลท &bull; 13 ราง x 8 ช่อง</span>
                 </div>
               </div>
 

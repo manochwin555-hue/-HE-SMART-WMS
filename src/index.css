@@ -260,22 +260,118 @@ input::placeholder, textarea::placeholder {
   border-color: var(--border-strong) !important;
 }
 
-/* Print Styles */
+/* Printable Label Card Exemption from Dark Theme */
+#printable-label-card,
+#pallet-printable-card,
+.printable-white-sticker {
+  background-color: #ffffff !important;
+  color: #020617 !important;
+  border-color: #020617 !important;
+}
+
+#printable-label-card .text-slate-950,
+#printable-label-card .text-black,
+#pallet-printable-card .text-slate-950,
+#pallet-printable-card .text-black,
+.printable-white-sticker .text-slate-950,
+.printable-white-sticker .text-black {
+  color: #020617 !important;
+}
+
+#printable-label-card .text-slate-500,
+#pallet-printable-card .text-slate-500,
+.printable-white-sticker .text-slate-500 {
+  color: #64748b !important;
+}
+
+/* Print Styles - LANDSCAPE ONLY for A4 and A3 */
 @media print {
   @page {
-    margin: 0;
-    size: 100mm 75mm;
+    margin: 5mm;
+    size: landscape;
   }
+
+  /* Hide entire page UI */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* Show only the printable card and all its contents */
+  #printable-label-card,
+  #printable-label-card *,
+  #pallet-printable-card,
+  #pallet-printable-card *,
+  .printable-white-sticker,
+  .printable-white-sticker * {
+    visibility: visible !important;
+  }
+
+  /* Center the landscape card on the physical printed sheet */
+  #printable-label-card {
+    position: absolute !important;
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: 95% !important;
+    max-width: 95% !important;
+    max-height: 92% !important;
+    aspect-ratio: 297 / 210 !important;
+    margin: 0 !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border: 4px solid #000000 !important;
+    border-radius: 18px !important;
+    box-shadow: none !important;
+    page-break-inside: avoid !important;
+    padding: 24px 32px !important;
+    display: flex !important;
+    align-items: center !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  #pallet-printable-card {
+    position: absolute !important;
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: 95% !important;
+    max-width: 95% !important;
+    max-height: 92% !important;
+    aspect-ratio: 297 / 210 !important;
+    margin: 0 !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border: 4px solid #000000 !important;
+    border-radius: 18px !important;
+    box-shadow: none !important;
+    page-break-inside: avoid !important;
+    padding: 24px 32px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  .printable-white-sticker {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border: 3.5px solid #000000 !important;
+    border-radius: 16px !important;
+    box-shadow: none !important;
+    page-break-inside: avoid !important;
+  }
+
   body {
-    margin: 0;
-    padding: 0;
-    background-color: white !important;
-    color: black !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
   }
-  .page-break-after {
-    page-break-after: always;
-  }
+
   ::-webkit-scrollbar {
-    display: none;
+    display: none !important;
   }
 }
+

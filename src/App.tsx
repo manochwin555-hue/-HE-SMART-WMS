@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { InventoryItem, MovementLog, MovementType, ShelfLevel, StorageZone, WmsStats, MasterDataItem, UseLineMaster, ZoneCapacityMaster, WarehouseFacility, AgingThresholdConfig, CustomRackSlot, ProtectionMethod, ProductType, ProductStorageType } from './types';
-import { INITIAL_ITEMS, INITIAL_LOGS, INITIAL_STATS, INITIAL_FACILITIES } from './data/mockData';
+import { 
+  INITIAL_ITEMS, 
+  INITIAL_LOGS, 
+  INITIAL_STATS, 
+  INITIAL_FACILITIES, 
+  INITIAL_MASTER_DATA,
+  SAMPLE_SIMULATION_ITEMS,
+  SAMPLE_SIMULATION_LOGS,
+  SAMPLE_SIMULATION_STATS
+} from './data/mockData';
 import { useTranslation } from './i18n/i18nContext';
 import { Navbar } from './components/Navbar';
 import { DashboardKPIs } from './components/DashboardKPIs';
@@ -23,16 +32,7 @@ import { GlobalSearchZoneLookup } from './components/GlobalSearchZoneLookup';
 import { calculateVinylWrappingStatus, getBangkokDateString } from './utils/vinylWrappingRule';
 import { Search, X } from 'lucide-react';
 
-// Extract initial master data from INITIAL_ITEMS
-const initialMasterData: MasterDataItem[] = Array.from(new Set(INITIAL_ITEMS.map(i => i.modelHE))).map(modelHE => {
-  const item = INITIAL_ITEMS.find(i => i.modelHE === modelHE)!;
-  return {
-    modelHE,
-    partName: item.partName,
-    safetyStock: item.safetyStock || 300,
-    stdQtyPerPallet: item.stdQtyPerPallet || 80
-  };
-});
+const initialMasterData: MasterDataItem[] = INITIAL_MASTER_DATA;
 
 const initialZoneCapacities: ZoneCapacityMaster[] = [
   { zone: 'B', standardPalletsPerBay: 8, defaultStdQtyPerPallet: 80, description: 'Rack Zone B (8 Pallets / Bay)' },
@@ -81,9 +81,77 @@ export default function App() {
   const [zoneCapacities, setZoneCapacities] = useState<ZoneCapacityMaster[]>(initialZoneCapacities);
   const [facilities, setFacilities] = useState<WarehouseFacility[]>(INITIAL_FACILITIES);
   const [activeFacilityId, setActiveFacilityId] = useState<string>('ALL');
-  const [items, setItems] = useState<InventoryItem[]>(INITIAL_ITEMS);
-  const [logs, setLogs] = useState<MovementLog[]>(INITIAL_LOGS);
+  
+  const [items, setItems] = useState<InventoryItem[]>(() => {
+    const saved = localStorage.getItem('lge_wms_items');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        // ignore
+      }
+    }
+    return INITIAL_ITEMS;
+  });
+
+  const [logs, setLogs] = useState<MovementLog[]>(() => {
+    const saved = localStorage.getItem('lge_wms_logs');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        // ignore
+      }
+    }
+    return INITIAL_LOGS;
+  });
+
   const [stats, setStats] = useState<WmsStats>(INITIAL_STATS);
+
+  // Sync items and logs to localStorage
+  useEffect(() => {
+    localStorage.setItem('lge_wms_items', JSON.stringify(items));
+  }, [items]);
+
+  useEffect(() => {
+    localStorage.setItem('lge_wms_logs', JSON.stringify(logs));
+  }, [logs]);
+
+  // Handler to clear all simulated stock and movement logs
+  const handleClearAllData = () => {
+    if (window.confirm('คุณต้องการล้างข้อมูลสต็อกสินค้าและประวัติการเคลื่อนย้ายทั้งหมดเพื่อเตรียมพร้อมกรอกข้อมูลจริงใช่หรือไม่?')) {
+      setItems([]);
+      setLogs([]);
+      setStats({
+        totalBalanceUnits: 0,
+        todayInScanCount: 0,
+        todayOutScanCount: 0,
+        occupiedRacksCount: 0,
+        totalRackCapacity: 680,
+        agingAlertCount: 0,
+        rackBFOccupied: 0,
+        rackBFCapacity: 480,
+        rackJGOccupied: 0,
+        rackJGCapacity: 200
+      });
+      localStorage.setItem('lge_wms_items', JSON.stringify([]));
+      localStorage.setItem('lge_wms_logs', JSON.stringify([]));
+      alert('🧹 ล้างข้อมูลเรียบร้อยแล้ว! ระบบพร้อมสำหรับการสแกน/กรอกข้อมูลจริง');
+    }
+  };
+
+  // Handler to load sample simulation data
+  const handleLoadSampleData = () => {
+    if (window.confirm('คุณต้องการโหลดข้อมูลจำลองตัวอย่าง (Sample Simulation Data) สำหรับทดสอบระบบใช่หรือไม่?')) {
+      setItems(SAMPLE_SIMULATION_ITEMS);
+      setLogs(SAMPLE_SIMULATION_LOGS);
+      setStats(SAMPLE_SIMULATION_STATS);
+      localStorage.setItem('lge_wms_items', JSON.stringify(SAMPLE_SIMULATION_ITEMS));
+      localStorage.setItem('lge_wms_logs', JSON.stringify(SAMPLE_SIMULATION_LOGS));
+      alert('🔄 โหลดข้อมูลจำลองตัวอย่างเรียบร้อยแล้ว!');
+    }
+  };
+
   const [globalSearchQuery, setGlobalSearchQuery] = useState<string>('');
   const [a4InitialTab, setA4InitialTab] = useState<'FLOOR_DA4D1' | 'RACK_ZONES' | 'FULL3D'>('FULL3D');
   const [a5InitialTent, setA5InitialTent] = useState<number | undefined>(undefined);
@@ -625,7 +693,7 @@ export default function App() {
       {/* Flexible Right Main Content Wrapper */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden w-full relative">
         {/* Floating Quick Search & Tools Pill for Zone Views (When top bar is hidden) */}
-        {isZoneTab && !showZoneTopSearch && !isFullscreen && (
+        {isZoneTab && activeTab !== 'a4_rack' && !showZoneTopSearch && !isFullscreen && (
           <div className="absolute top-2.5 right-4 z-30 animate-fadeIn pointer-events-auto">
             <button
               onClick={() => setShowZoneTopSearch(true)}
@@ -719,7 +787,7 @@ export default function App() {
         <main className={`w-full flex-1 ${isZoneTab ? 'overflow-hidden p-1 sm:p-1.5' : 'overflow-y-auto px-2 sm:px-3 lg:px-4 py-2 sm:py-2.5 space-y-3'} transition-all flex flex-col min-h-0`}>
 
           {/* Dynamic Tab Views: Unified Master Map ("ผังรวม") - Pure 3D Digital Twin Layout */}
-          {activeTab === 'campus_overview' && (
+          {(activeTab === 'campus_overview' || activeTab === 'blueprint') && (
             <div className="w-full h-full flex-1 min-h-0 flex flex-col overflow-hidden animate-fadeIn">
               <CampusMasterOverview
                 items={displayedItems}
@@ -748,7 +816,7 @@ export default function App() {
                   handleOpenScanner(item.zone, item.bayNumber, item.level, 'TRANSFER');
                 }}
                 onNavigateToRack={() => setActiveTab('a4_rack')}
-                onNavigateToCampus={() => setActiveTab('blueprint')}
+                onNavigateToCampus={() => setActiveTab('campus_overview')}
                 onToggleFullscreen={toggleFullscreen}
                 isDashboardFullscreen={isFullscreen}
               />
@@ -770,7 +838,7 @@ export default function App() {
                   handleOpenScanner(item.zone, item.bayNumber, item.level, 'TRANSFER');
                 }}
                 onNavigateToFloor={() => setActiveTab('a4_floor')}
-                onNavigateToCampus={() => setActiveTab('blueprint')}
+                onNavigateToCampus={() => setActiveTab('campus_overview')}
                 isDashboardFullscreen={isFullscreen}
               />
             </div>
@@ -791,7 +859,7 @@ export default function App() {
                 onRelocateItem={(item) => {
                   handleOpenScanner(item.zone, item.bayNumber, item.level, 'TRANSFER');
                 }}
-                onNavigateToCampus={() => setActiveTab('blueprint')}
+                onNavigateToCampus={() => setActiveTab('campus_overview')}
               />
             </div>
           )}
@@ -813,7 +881,7 @@ export default function App() {
                 onRelocateItem={(item) => {
                   handleOpenScanner(item.zone, item.bayNumber, item.level, 'TRANSFER');
                 }}
-                onNavigateToCampus={() => setActiveTab('blueprint')}
+                onNavigateToCampus={() => setActiveTab('campus_overview')}
               />
             </div>
           )}
@@ -828,7 +896,7 @@ export default function App() {
                 onRelocateItem={(item) => {
                   handleOpenScanner(item.zone, item.bayNumber, item.level, 'TRANSFER');
                 }}
-                onNavigateToCampus={() => setActiveTab('blueprint')}
+                onNavigateToCampus={() => setActiveTab('campus_overview')}
                 onPrintLabel={(item) => {
                   setSelectedPrintItemId(item.id);
                   setActiveTab('printer');
@@ -912,7 +980,6 @@ export default function App() {
                 setZoneCapacities={setZoneCapacities}
                 items={items}
                 setItems={setItems}
-                onRelocateItem={handleRelocateItem}
                 facilities={facilities}
                 setFacilities={setFacilities}
                 activeFacilityId={activeFacilityId}
@@ -921,16 +988,8 @@ export default function App() {
                 setAgingConfig={setAgingConfig}
                 customSlots={customSlots}
                 setCustomSlots={setCustomSlots}
-                onNavigateToLayout={(fac) => {
-                  setActiveFacilityId(fac.id);
-                  if (fac.id === 'FAC-A5-TENT' || fac.storageTypes.includes('FLOOR_STAGING') && !fac.storageTypes.includes('RACK') && !fac.storageTypes.includes('FLOW_RAIL')) {
-                    setActiveTab('tent_layout');
-                  } else if (fac.storageTypes.includes('FLOW_RAIL') && !fac.storageTypes.includes('RACK')) {
-                    setActiveTab('flow_floor');
-                  } else {
-                    setActiveTab('layout');
-                  }
-                }}
+                onClearAllData={handleClearAllData}
+                onLoadSampleData={handleLoadSampleData}
               />
             </div>
           )}

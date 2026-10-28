@@ -6,10 +6,12 @@ import {
   calculateZoneKpis
 } from '../utils/zoneKpiHelper';
 import {
-  Layers,
+  Building2,
+  Sparkles,
+  Clock,
+  Palette,
   ArrowDownRight,
   ArrowUpRight,
-  Clock,
   Activity
 } from 'lucide-react';
 
@@ -26,13 +28,11 @@ export interface ZoneKpiFormalDashboardProps {
 }
 
 /**
- * Ultra-compact 3-Card KPI bar located directly beneath the layout:
- * 1. ความจุ (Capacity / Occupancy / Free)
+ * Universal 4-Card bottom footer bar located directly beneath the layout across all zones:
+ * 1. ความจุ (Sci-Fi Neon Level Bar)
  * 2. รับเข้า - รับออก / IN / OUT (Today's IN & OUT scans)
- * 3. Aging (Stock Aging status & FIFO breakdown: <14d, 15-30d, >30d)
- *
- * No Part list table (as pallet colors on layout already represent real-time status).
- * Fits neatly within the viewport without requiring vertical scrolling.
+ * 3. Aging (Stock Aging status & FIFO breakdown)
+ * 4. สถานะสีพาเลท (Color Coding Guide)
  */
 export const ZoneKpiFormalDashboard: React.FC<ZoneKpiFormalDashboardProps> = ({
   zoneKey,
@@ -50,135 +50,123 @@ export const ZoneKpiFormalDashboard: React.FC<ZoneKpiFormalDashboardProps> = ({
   const netMovement = kpiData.todayInScans - kpiData.todayOutScans;
 
   return (
-    <div className={`w-full shrink-0 grid grid-cols-1 sm:grid-cols-3 gap-1.5 sm:gap-2 ${className}`}>
+    <footer className={`py-3.5 sm:py-4 border-t border-slate-800 bg-[#070A0F] px-3 sm:px-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0 z-30 shadow-2xl sticky bottom-0 w-full ${className}`}>
       
-      {/* CARD 1: ความจุ (Capacity & Occupancy) */}
-      <div className="bg-slate-900/95 border border-slate-800 hover:border-slate-700/80 rounded-xl px-3 py-2 shadow-xs flex flex-col justify-between transition-all">
-        <div className="flex items-center justify-between text-[11px] font-bold text-slate-300">
-          <div className="flex items-center gap-1.5">
-            <Layers className="w-3.5 h-3.5 text-blue-400" />
+      {/* คอลัมน์ 1: ความจุ & อัตราจัดเก็บ (Sci-Fi Neon Level Bar ขนาดใหญ่เต็มพื้นที่) */}
+      <div className="flex items-center gap-3.5 min-w-0 pr-3 border-r border-slate-800">
+        <div className="w-11 h-11 rounded-2xl bg-cyan-500/15 border-2 border-cyan-500/50 text-cyan-400 flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(6,182,212,0.3)]">
+          <Building2 className="w-6 h-6" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between text-sm sm:text-base font-black text-slate-100 mb-1.5">
             <span>ความจุ &amp; อัตราจัดเก็บ</span>
-          </div>
-          <span className={`font-mono text-xs font-black px-1.5 py-0.2 rounded border ${
-            kpiData.occupancyRatePercent > 90 
-              ? 'text-rose-400 bg-rose-500/10 border-rose-500/30' 
-              : kpiData.occupancyRatePercent > 75 
-              ? 'text-amber-400 bg-amber-500/10 border-amber-500/30' 
-              : 'text-blue-400 bg-blue-500/10 border-blue-500/30'
-          }`}>
-            {kpiData.occupancyRatePercent}%
-          </span>
-        </div>
-
-        <div className="flex items-baseline justify-between mt-1">
-          <div className="flex items-baseline gap-1">
-            <span className="text-base sm:text-lg font-black text-white font-mono leading-none">
-              {kpiData.occupiedPallets}
-            </span>
-            <span className="text-[10px] text-slate-400 font-mono">
-              / {kpiData.totalCapacityPallets} P
-            </span>
-          </div>
-          <span className="text-[10px] text-emerald-400 font-bold whitespace-nowrap bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
-            ว่าง {kpiData.emptyPallets} ช่อง
-          </span>
-        </div>
-
-        {/* Micro progress bar */}
-        <div className="w-full h-1 bg-slate-800 rounded-full mt-1.5 overflow-hidden">
-          <div 
-            className={`h-full rounded-full transition-all duration-500 ${
-              kpiData.occupancyRatePercent > 90 
-                ? 'bg-rose-500' 
-                : kpiData.occupancyRatePercent > 75 
-                ? 'bg-amber-500' 
-                : 'bg-blue-500'
-            }`}
-            style={{ width: `${Math.min(100, kpiData.occupancyRatePercent)}%` }}
-          />
-        </div>
-      </div>
-
-      {/* CARD 2: รับเข้า - รับออก / IN / OUT */}
-      <div className="bg-slate-900/95 border border-slate-800 hover:border-slate-700/80 rounded-xl px-3 py-2 shadow-xs flex flex-col justify-between transition-all">
-        <div className="flex items-center justify-between text-[11px] font-bold text-slate-300">
-          <div className="flex items-center gap-1.5">
-            <Activity className="w-3.5 h-3.5 text-emerald-400" />
-            <span>รับเข้า - รับออก (IN / OUT วันนี้)</span>
-          </div>
-          <span className="text-[10px] font-mono text-slate-400">
-            สุทธิ {netMovement >= 0 ? `+${netMovement}` : netMovement} P
-          </span>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 mt-1">
-          {/* +IN Badge */}
-          <div className="flex items-center justify-between bg-emerald-500/10 border border-emerald-500/25 px-2 py-1 rounded-lg">
-            <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-400">
-              <ArrowDownRight className="w-3 h-3 shrink-0" />
-              <span>+IN รับเข้า</span>
+            <div className="flex items-center gap-2 font-mono">
+              <span className="text-white text-base sm:text-lg">{kpiData.occupiedPallets} / {kpiData.totalCapacityPallets} P</span>
+              <span className="px-2.5 py-0.5 rounded-lg bg-cyan-500/25 border border-cyan-500/50 text-cyan-300 text-xs sm:text-sm font-black shadow-[0_0_8px_rgba(6,182,212,0.4)]">
+                {kpiData.occupancyRatePercent}%
+              </span>
             </div>
-            <span className="text-xs sm:text-sm font-black text-emerald-300 font-mono">
-              +{kpiData.todayInScans}
-            </span>
           </div>
-
-          {/* -OUT Badge */}
-          <div className="flex items-center justify-between bg-amber-500/10 border border-amber-500/25 px-2 py-1 rounded-lg">
-            <div className="flex items-center gap-1 text-[10px] font-bold text-amber-400">
-              <ArrowUpRight className="w-3 h-3 shrink-0" />
-              <span>-OUT เบิกจ่าย</span>
+          {/* Sci-Fi Neon Level Bar */}
+          <div className="w-full bg-slate-950 border-2 border-cyan-500/60 h-4 sm:h-5 rounded-xl overflow-hidden p-0.5 shadow-[0_0_12px_rgba(6,182,212,0.25)] relative">
+            <div 
+              className="bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 h-full rounded-lg transition-all duration-500 shadow-[0_0_10px_rgba(52,211,153,0.6)] relative" 
+              style={{ width: `${Math.max(4, kpiData.occupancyRatePercent)}%` }}
+            >
+              <div className="absolute right-0 top-0 bottom-0 w-2 bg-white rounded-full shadow-[0_0_8px_#ffffff]"></div>
             </div>
-            <span className="text-xs sm:text-sm font-black text-amber-300 font-mono">
-              -{kpiData.todayOutScans}
+          </div>
+          <div className="flex justify-between items-center text-xs sm:text-sm text-cyan-300 font-mono font-bold mt-1">
+            <span>ว่าง {kpiData.emptyPallets} ช่อง</span>
+            <span>ใช้งาน {kpiData.occupancyRatePercent}%</span>
+          </div>
+        </div>
+      </div>
+
+      {/* คอลัมน์ 2: รับเข้า - รับออก (IN / OUT วันนี้) */}
+      <div className="flex items-center gap-3.5 min-w-0 px-3 border-r border-slate-800">
+        <div className="w-11 h-11 rounded-2xl bg-emerald-500/15 border-2 border-emerald-500/50 text-emerald-400 flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(16,185,129,0.3)]">
+          <Sparkles className="w-6 h-6" />
+        </div>
+        <div className="min-w-0 text-sm flex-1">
+          <div className="font-black text-slate-100 text-sm sm:text-base mb-1">รับเข้า - รับออก (IN/OUT)</div>
+          <div className="flex items-center gap-2 sm:gap-3 font-mono font-bold tabular-nums">
+            <span className="text-emerald-400 flex items-center gap-1 text-xs sm:text-sm">
+              <ArrowDownRight className="w-4 h-4" /> +IN +{kpiData.todayInScans}
+            </span>
+            <span className="text-amber-400 flex items-center gap-1 text-xs sm:text-sm">
+              <ArrowUpRight className="w-4 h-4" /> -OUT -{kpiData.todayOutScans}
+            </span>
+            <span className="text-slate-100 text-xs sm:text-sm ml-auto">
+              สุทธิ <b className="text-white font-black">{netMovement >= 0 ? `+${netMovement}` : netMovement} P</b>
             </span>
           </div>
         </div>
       </div>
 
-      {/* CARD 3: Aging (อายุจัดเก็บสต็อก FIFO) */}
-      <div className="bg-slate-900/95 border border-slate-800 hover:border-slate-700/80 rounded-xl px-3 py-2 shadow-xs flex flex-col justify-between transition-all">
-        <div className="flex items-center justify-between text-[11px] font-bold text-slate-300">
-          <div className="flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5 text-amber-400" />
-            <span>อายุสต็อก (FIFO / Aging)</span>
-          </div>
-          <span className={`text-[9.5px] font-bold px-1.5 py-0.2 rounded border ${
-            kpiData.agingOverdueCount > 0 
-              ? 'text-rose-400 bg-rose-500/10 border-rose-500/30' 
-              : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
-          }`}>
-            {kpiData.agingOverdueCount > 0 ? `เกิน 30 วัน: ${kpiData.agingOverdueCount} P` : 'สต็อกหมุนเวียนปกติ'}
-          </span>
+      {/* คอลัมน์ 3: อายุสต็อก (FIFO / Aging) */}
+      <div className="flex items-center gap-3.5 min-w-0 px-3 border-r border-slate-800">
+        <div className="w-11 h-11 rounded-2xl bg-amber-500/15 border-2 border-amber-500/50 text-amber-400 flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(245,158,11,0.3)]">
+          <Clock className="w-6 h-6" />
         </div>
-
-        <div className="grid grid-cols-3 gap-1.5 mt-1">
-          {/* 0-14 days */}
-          <div className="flex flex-col items-center justify-center bg-slate-950/60 border border-emerald-500/20 px-1 py-0.5 rounded-lg text-center">
-            <span className="text-[9px] text-slate-400 font-medium">&lt; 14 วัน</span>
-            <span className="text-xs font-black text-emerald-400 font-mono">
-              {kpiData.agingSafeCount}
-            </span>
+        <div className="min-w-0 text-sm flex-1">
+          <div className="flex items-center justify-between mb-1">
+            <span className="font-black text-slate-100 text-sm sm:text-base">อายุสต็อก (FIFO/Aging)</span>
+            <span className="text-rose-400 text-xs font-mono font-black">เกิน 30 วัน: {kpiData.agingOverdueCount} P</span>
           </div>
-
-          {/* 15-30 days */}
-          <div className="flex flex-col items-center justify-center bg-slate-950/60 border border-amber-500/20 px-1 py-0.5 rounded-lg text-center">
-            <span className="text-[9px] text-slate-400 font-medium">15-30 วัน</span>
-            <span className="text-xs font-black text-amber-400 font-mono">
-              {kpiData.agingWarningCount}
-            </span>
-          </div>
-
-          {/* >30 days */}
-          <div className="flex flex-col items-center justify-center bg-slate-950/60 border border-rose-500/20 px-1 py-0.5 rounded-lg text-center">
-            <span className="text-[9px] text-slate-400 font-medium">&gt; 30 วัน</span>
-            <span className={`text-xs font-black font-mono ${kpiData.agingOverdueCount > 0 ? 'text-rose-400' : 'text-slate-500'}`}>
-              {kpiData.agingOverdueCount}
-            </span>
+          <div className="grid grid-cols-3 gap-1.5 font-mono text-xs sm:text-sm font-black tabular-nums">
+            <div className="bg-slate-900 border border-emerald-500/40 rounded-lg px-2 py-1 text-center">
+              <span className="text-[10px] text-slate-400 block font-normal">&lt;14วัน</span>
+              <span className="text-emerald-400">{kpiData.agingSafeCount}</span>
+            </div>
+            <div className="bg-slate-900 border border-amber-500/40 rounded-lg px-2 py-1 text-center">
+              <span className="text-[10px] text-slate-400 block font-normal">15-30</span>
+              <span className="text-amber-400">{kpiData.agingWarningCount}</span>
+            </div>
+            <div className="bg-slate-900 border border-rose-500/40 rounded-lg px-2 py-1 text-center">
+              <span className="text-[10px] text-slate-400 block font-normal">&gt;30วัน</span>
+              <span className="text-rose-400">{kpiData.agingOverdueCount}</span>
+            </div>
           </div>
         </div>
       </div>
 
-    </div>
+      {/* คอลัมน์ 4: สถานะสีพาเลท (Color Coding Guide) */}
+      <div className="flex items-center gap-3 min-w-0 pl-2">
+        <div className="w-11 h-11 rounded-2xl bg-purple-500/15 border-2 border-purple-500/50 text-purple-400 flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(168,85,247,0.3)]">
+          <Palette className="w-6 h-6" />
+        </div>
+        <div className="min-w-0 text-xs flex-1">
+          <div className="font-black text-slate-100 text-sm sm:text-base truncate mb-1">สถานะสีพาเลท (Color Guide)</div>
+          <div className="grid grid-cols-3 gap-1.5 text-[11px] font-mono font-black text-slate-100">
+            <div className="flex items-center gap-1.5 bg-slate-900 px-2 py-1 rounded-lg border border-slate-700">
+              <span className="w-3 h-3 rounded-full bg-slate-600 shrink-0 shadow-xs"></span>
+              <span className="truncate">ว่าง</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-slate-900 px-2 py-1 rounded-lg border border-slate-700">
+              <span className="w-3 h-3 rounded-full bg-blue-500 shrink-0 shadow-[0_0_6px_#3b82f6]"></span>
+              <span className="truncate">ปกติ</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-slate-900 px-2 py-1 rounded-lg border border-slate-700">
+              <span className="w-3 h-3 rounded-full bg-amber-400 shrink-0 shadow-[0_0_6px_#fbbf24]"></span>
+              <span className="truncate">Aging</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-slate-900 px-2 py-1 rounded-lg border border-slate-700">
+              <span className="w-3 h-3 rounded-full bg-orange-400 shrink-0 shadow-[0_0_6px_#fb923c]"></span>
+              <span className="truncate">เร่งด่วน</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-slate-900 px-2 py-1 rounded-lg border border-slate-700">
+              <span className="w-3 h-3 rounded-full bg-rose-600 shrink-0 shadow-[0_0_6px_#e11d48]"></span>
+              <span className="truncate">วิกฤต</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-slate-900 px-2 py-1 rounded-lg border border-slate-700">
+              <span className="w-3 h-3 rounded-full bg-emerald-400 shrink-0 shadow-[0_0_6px_#34d399]"></span>
+              <span className="truncate">เลือก</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </footer>
   );
 };

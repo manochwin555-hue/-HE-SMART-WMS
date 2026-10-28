@@ -141,6 +141,48 @@ export function getZoneKeyFromTab(activeTab: string, activeFacilityId?: string):
 }
 
 /**
+ * Canonical check whether an InventoryItem belongs to A2 Flow Rail building/facility.
+ * Safely handles missing or legacy facilityId records without misclassifying items from other buildings.
+ */
+export function isA2InventoryItem(it: InventoryItem): boolean {
+  if (!it) return false;
+
+  const facId = it.facilityId || '';
+  const loc = (it.locatorCode || '').toUpperCase();
+  const zoneStr = (String(it.zone || '')).toUpperCase();
+
+  // 1. Explicit Non-A2 Facility check
+  if (facId && facId !== 'FAC-A2-RAIL') {
+    return false;
+  }
+
+  // 2. Explicit Non-A2 Locator Prefix check (A4, A5, CY3, A1)
+  if (
+    loc.startsWith('DA4D') ||
+    loc.startsWith('DA5T') ||
+    loc.startsWith('DAST') ||
+    loc.startsWith('DY3T') ||
+    loc.startsWith('A1-')
+  ) {
+    return false;
+  }
+
+  // 3. Positive A2 Facility or A2 Locator Prefix match
+  if (facId === 'FAC-A2-RAIL' || loc.startsWith('DA2D')) {
+    return true;
+  }
+
+  // 4. Legacy Record Fallback (when facilityId is missing AND locator code has no other building prefix)
+  // Check if zone matches A2 Flow Rail zones (R1..R13, FR1..FR13, FL-A..FL-D)
+  const isA2ZonePattern = /^(R|FR)(1[0-3]|[1-9])$/i.test(zoneStr) || /^FL-[A-D]$/i.test(zoneStr);
+  if (isA2ZonePattern) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Filter inventory items specifically for a target zone
  */
 export function filterItemsByZone(items: InventoryItem[] = [], zoneKey: ZoneKey): InventoryItem[] {
@@ -153,15 +195,11 @@ export function filterItemsByZone(items: InventoryItem[] = [], zoneKey: ZoneKey)
 
     switch (zoneKey) {
       case 'A2':
-        return (
-          facId === 'FAC-A2-RAIL' ||
-          loc.startsWith('DA2D') ||
-          zoneStr.startsWith('R') ||
-          zoneStr.startsWith('FR') ||
-          zoneStr.startsWith('FL')
-        );
+        return isA2InventoryItem(it);
 
       case 'A4_FLOOR':
+        if (facId && facId !== 'FAC-A4-FLOOR' && facId !== 'FAC-A4-MAIN') return false;
+        if (loc.startsWith('DA2D') || loc.startsWith('DA5T') || loc.startsWith('DY3T')) return false;
         return (
           facId === 'FAC-A4-FLOOR' ||
           (loc.startsWith('DA4D-1') && !['B','C','D','E','F','G','H','I','J','K'].includes(zoneStr)) ||
@@ -169,6 +207,8 @@ export function filterItemsByZone(items: InventoryItem[] = [], zoneKey: ZoneKey)
         );
 
       case 'A4_RACK':
+        if (facId && facId !== 'FAC-A4-RACK' && facId !== 'FAC-A4-MAIN') return false;
+        if (loc.startsWith('DA2D') || loc.startsWith('DA5T') || loc.startsWith('DY3T')) return false;
         return (
           facId === 'FAC-A4-RACK' ||
           loc.startsWith('DA4D-2') ||
@@ -177,14 +217,19 @@ export function filterItemsByZone(items: InventoryItem[] = [], zoneKey: ZoneKey)
         );
 
       case 'A4':
+        if (facId && facId !== 'FAC-A4-RACK' && facId !== 'FAC-A4-FLOOR' && facId !== 'FAC-A4-MAIN') return false;
+        if (loc.startsWith('DA2D') || loc.startsWith('DA5T') || loc.startsWith('DY3T')) return false;
         return (
           facId === 'FAC-A4-RACK' ||
           facId === 'FAC-A4-FLOOR' ||
+          facId === 'FAC-A4-MAIN' ||
           loc.startsWith('DA4D') ||
           ['B','C','D','E','F','G','H','I','J','K','X1','X2','X3','X4','X5','X6','X7','X8'].includes(zoneStr)
         );
 
       case 'A5':
+        if (facId && facId !== 'FAC-A5-TENT') return false;
+        if (loc.startsWith('DA2D') || loc.startsWith('DA4D') || loc.startsWith('DY3T')) return false;
         return (
           facId === 'FAC-A5-TENT' ||
           loc.startsWith('DA5T') ||
@@ -193,6 +238,8 @@ export function filterItemsByZone(items: InventoryItem[] = [], zoneKey: ZoneKey)
         );
 
       case 'CY3':
+        if (facId && facId !== 'FAC-CY3-TENT') return false;
+        if (loc.startsWith('DA2D') || loc.startsWith('DA4D') || loc.startsWith('DA5T')) return false;
         return (
           facId === 'FAC-CY3-TENT' ||
           loc.startsWith('DY3T') ||

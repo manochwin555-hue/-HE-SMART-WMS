@@ -99,7 +99,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'inventory', label: t('navigation.inventory'), icon: PackageSearch, count: lowStockCount },
     { id: 'logs', label: t('navigation.logs'), icon: History },
     { id: 'printer', label: t('navigation.printer'), icon: Printer },
-    { id: 'master', label: t('navigation.master'), icon: Database },
+    { id: 'master', label: 'ตั้งค่าระบบ & Master Data', icon: Database },
   ];
 
 

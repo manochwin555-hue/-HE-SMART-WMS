@@ -24,7 +24,8 @@ import {
   Building2, 
   Sparkles,
   ArrowLeft,
-  ArrowRight
+  ArrowRight,
+  Palette
 } from 'lucide-react';
 
 interface RackLayout2DProps {
@@ -123,22 +124,15 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
       {/* ===================================================================== */}
       <header className="h-11 sm:h-12 border-b border-slate-800 bg-slate-900/95 px-3 sm:px-4 flex items-center justify-between gap-3 shrink-0 backdrop-blur-md z-30">
         
-        {/* ด้านซ้าย: ปุ่มย้อนกลับผังรวมและชื่อโซน */}
+        {/* ด้านซ้าย: ชื่อโซน */}
         <div className="flex items-center gap-2 min-w-0">
-          <button
-            onClick={() => {
-              if (onNavigateToCampus) onNavigateToCampus();
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-bold border border-slate-700/80 transition-all shadow-sm shrink-0 active:scale-95"
-            title="กลับสู่ผังรวมแคมปัส"
-          >
-            <ArrowLeft className="w-3.5 h-3.5 text-blue-400" />
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/90 text-slate-200 rounded-xl text-xs font-bold border border-slate-700/80 shadow-sm shrink-0">
             <span className="hidden sm:inline">โซน A4 แร็ค (DA4D-2 &amp; 3)</span>
             <span className="sm:hidden">A4 แร็ค</span>
             <span className="px-1.5 py-0.2 rounded-full bg-blue-600/30 text-blue-300 font-mono text-[10px] border border-blue-500/30">
               680P
             </span>
-          </button>
+          </div>
         </div>
 
         {/* ตรงกลาง: แท็บเลือกมุมมอง (3D ผัง 3 มิติ, แปลนบน Top 2D, มุมมองหน้าตรง L1-L4) */}
@@ -206,18 +200,6 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
               </button>
             )}
           </div>
-
-          {/* ปุ่มสแกน KANBAN */}
-          {onOpenScanner && (
-            <button
-              onClick={() => onOpenScanner('B', 1, 1, 'IN')}
-              className="h-8 px-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
-              title="เปิดกล้องสแกน KANBAN QR Code (รับเข้า/เบิกออก)"
-            >
-              <QrCode className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">สแกน KANBAN</span>
-            </button>
-          )}
 
           {/* ปุ่มรีเซ็ตมุมมอง */}
           <button
@@ -379,83 +361,121 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
       </div>
 
       {/* ===================================================================== */}
-      {/* FIXED FOOTER (แถบสรุปข้อมูลด้านล่างสุด ตรงกับภาพต้นฉบับ 100%)            */}
+      {/* FIXED FOOTER (แถบสรุปข้อมูลด้านล่างสุด ออกแบบ Level Bar ใหม่แบบ Sci-Fi Neon และตัวหนังสือขนาดใหญ่เต็มพื้นที่) */}
       {/* ===================================================================== */}
-      <footer className="h-12 sm:h-13 border-t border-slate-800 bg-[#090D14] px-3 sm:px-4 flex items-center justify-between gap-3 shrink-0 z-30 shadow-2xl sticky bottom-0">
+      <footer className="py-3.5 sm:py-4 border-t border-slate-800 bg-[#070A0F] px-3 sm:px-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0 z-30 shadow-2xl sticky bottom-0">
         
-        {/* คอลัมน์ 1: ความจุ & อัตราจัดเก็บ */}
-        <div className="flex-1 flex items-center gap-2.5 sm:gap-3 min-w-0 pr-2 sm:pr-3 border-r border-slate-800">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center shrink-0">
-            <Building2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+        {/* คอลัมน์ 1: ความจุ & อัตราจัดเก็บ (Sci-Fi Neon Level Bar ขนาดใหญ่เต็มพื้นที่) */}
+        <div className="flex items-center gap-3.5 min-w-0 pr-3 border-r border-slate-800">
+          <div className="w-11 h-11 rounded-2xl bg-cyan-500/15 border-2 border-cyan-500/50 text-cyan-400 flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(6,182,212,0.3)]">
+            <Building2 className="w-6 h-6" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 sm:gap-2 text-xs truncate">
-              <span className="font-bold text-slate-300 whitespace-nowrap">ความจุ &amp; อัตราจัดเก็บ:</span>
-              <span className="font-mono font-black text-white tabular-nums whitespace-nowrap">
-                {capacityStats.occupied} / {capacityStats.totalCapacity} P
-              </span>
-              <span className="px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300 font-mono font-bold text-[10px] tabular-nums">
-                {capacityStats.percent}%
-              </span>
-              <span className="text-slate-400 text-[10px] font-mono hidden md:inline">
-                ว่าง {capacityStats.emptyCount} ช่อง
-              </span>
+            <div className="flex items-center justify-between text-sm sm:text-base font-black text-slate-100 mb-1.5">
+              <span>ความจุ &amp; อัตราจัดเก็บ</span>
+              <div className="flex items-center gap-2 font-mono">
+                <span className="text-white text-base sm:text-lg">{capacityStats.occupied} / {capacityStats.totalCapacity} P</span>
+                <span className="px-2.5 py-0.5 rounded-lg bg-cyan-500/25 border border-cyan-500/50 text-cyan-300 text-xs sm:text-sm font-black shadow-[0_0_8px_rgba(6,182,212,0.4)]">
+                  {capacityStats.percent}%
+                </span>
+              </div>
             </div>
-            {/* Visual Mini Progress Bar */}
-            <div className="w-full bg-slate-800 h-1 sm:h-1.5 rounded-full overflow-hidden mt-1">
+            {/* Sci-Fi Neon Level Bar */}
+            <div className="w-full bg-slate-950 border-2 border-cyan-500/60 h-4 sm:h-5 rounded-xl overflow-hidden p-0.5 shadow-[0_0_12px_rgba(6,182,212,0.25)] relative">
               <div 
-                className="bg-blue-500 h-full rounded-full transition-all duration-500" 
-                style={{ width: `${capacityStats.percent}%` }}
-              />
+                className="bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 h-full rounded-lg transition-all duration-500 shadow-[0_0_10px_rgba(52,211,153,0.6)] relative" 
+                style={{ width: `${Math.max(4, capacityStats.percent)}%` }}
+              >
+                <div className="absolute right-0 top-0 bottom-0 w-2 bg-white rounded-full shadow-[0_0_8px_#ffffff]"></div>
+              </div>
+            </div>
+            <div className="flex justify-between items-center text-xs sm:text-sm text-cyan-300 font-mono font-bold mt-1">
+              <span>ว่าง {capacityStats.emptyCount} ช่อง</span>
+              <span>ใช้งาน {capacityStats.percent}%</span>
             </div>
           </div>
         </div>
 
         {/* คอลัมน์ 2: รับเข้า - รับออก (IN / OUT วันนี้) */}
-        <div className="flex-1 flex items-center gap-2.5 sm:gap-3 min-w-0 px-2 sm:px-3 border-r border-slate-800">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
-            <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+        <div className="flex items-center gap-3.5 min-w-0 px-3 border-r border-slate-800">
+          <div className="w-11 h-11 rounded-2xl bg-emerald-500/15 border-2 border-emerald-500/50 text-emerald-400 flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(16,185,129,0.3)]">
+            <Sparkles className="w-6 h-6" />
           </div>
-          <div className="min-w-0 text-xs truncate">
-            <div className="font-bold text-slate-300 whitespace-nowrap">รับเข้า - รับออก (IN / OUT วันนี้):</div>
-            <div className="flex items-center gap-2 sm:gap-3 font-mono font-bold mt-0.5 truncate tabular-nums">
-              <span className="text-emerald-400 flex items-center gap-0.5 whitespace-nowrap">
-                <ArrowDownRight className="w-3 h-3" /> +IN รับเข้า +{capacityStats.todayIn}
+          <div className="min-w-0 text-sm flex-1">
+            <div className="font-black text-slate-100 text-sm sm:text-base mb-1">รับเข้า - รับออก (IN/OUT)</div>
+            <div className="flex items-center gap-2 sm:gap-3 font-mono font-bold tabular-nums">
+              <span className="text-emerald-400 flex items-center gap-1 text-xs sm:text-sm">
+                <ArrowDownRight className="w-4 h-4" /> +IN +{capacityStats.todayIn}
               </span>
-              <span className="text-amber-400 flex items-center gap-0.5 whitespace-nowrap">
-                <ArrowUpRight className="w-3 h-3" /> -OUT เบิกจ่าย -{capacityStats.todayOut}
+              <span className="text-amber-400 flex items-center gap-1 text-xs sm:text-sm">
+                <ArrowUpRight className="w-4 h-4" /> -OUT -{capacityStats.todayOut}
               </span>
-              <span className="text-slate-300 text-[10px] hidden md:inline whitespace-nowrap">
-                สุทธิ: <b className="text-white">+{capacityStats.net} P</b>
+              <span className="text-slate-100 text-xs sm:text-sm ml-auto">
+                สุทธิ <b className="text-white font-black">+{capacityStats.net} P</b>
               </span>
             </div>
           </div>
         </div>
 
         {/* คอลัมน์ 3: อายุสต็อก (FIFO / Aging) */}
-        <div className="flex-1 flex items-center gap-2.5 sm:gap-3 min-w-0 pl-2 sm:pl-3">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
-            <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+        <div className="flex items-center gap-3.5 min-w-0 px-3 border-r border-slate-800">
+          <div className="w-11 h-11 rounded-2xl bg-amber-500/15 border-2 border-amber-500/50 text-amber-400 flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(245,158,11,0.3)]">
+            <Clock className="w-6 h-6" />
           </div>
-          <div className="min-w-0 text-xs truncate">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-slate-300 whitespace-nowrap">อายุสต็อก (FIFO / Aging):</span>
-              <span className="text-rose-400 text-[10px] font-mono hidden lg:inline">
-                เกิน 30 วัน {agingBreakdown.critical} P
-              </span>
+          <div className="min-w-0 text-sm flex-1">
+            <div className="flex items-center justify-between mb-1">
+              <span className="font-black text-slate-100 text-sm sm:text-base">อายุสต็อก (FIFO/Aging)</span>
+              <span className="text-rose-400 text-xs font-mono font-black">เกิน 30 วัน: {agingBreakdown.critical} P</span>
             </div>
-            <div className="flex items-center gap-2 font-mono text-[11px] font-bold mt-0.5 tabular-nums whitespace-nowrap">
-              <span className="text-emerald-400" title="สต็อกใหม่ปกติ">
-                &lt; 14 วัน: <b>{agingBreakdown.safe}</b>
-              </span>
-              <span className="text-slate-600">&bull;</span>
-              <span className="text-amber-400" title="สต็อกเริ่มเตือน">
-                15-30 วัน: <b>{agingBreakdown.warning}</b>
-              </span>
-              <span className="text-slate-600">&bull;</span>
-              <span className="text-rose-400" title="สต็อกเกินกำหนด">
-                &gt; 30 วัน: <b>{agingBreakdown.critical}</b>
-              </span>
+            <div className="grid grid-cols-3 gap-1.5 font-mono text-xs sm:text-sm font-black tabular-nums">
+              <div className="bg-slate-900 border border-emerald-500/40 rounded-lg px-2 py-1 text-center">
+                <span className="text-[10px] text-slate-400 block font-normal">&lt;14วัน</span>
+                <span className="text-emerald-400">{agingBreakdown.safe}</span>
+              </div>
+              <div className="bg-slate-900 border border-amber-500/40 rounded-lg px-2 py-1 text-center">
+                <span className="text-[10px] text-slate-400 block font-normal">15-30</span>
+                <span className="text-amber-400">{agingBreakdown.warning}</span>
+              </div>
+              <div className="bg-slate-900 border border-rose-500/40 rounded-lg px-2 py-1 text-center">
+                <span className="text-[10px] text-slate-400 block font-normal">&gt;30วัน</span>
+                <span className="text-rose-400">{agingBreakdown.critical}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* คอลัมน์ 4: สถานะสีพาเลท (Color Coding Guide) */}
+        <div className="flex items-center gap-3 min-w-0 pl-2">
+          <div className="w-11 h-11 rounded-2xl bg-purple-500/15 border-2 border-purple-500/50 text-purple-400 flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(168,85,247,0.3)]">
+            <Palette className="w-6 h-6" />
+          </div>
+          <div className="min-w-0 text-xs flex-1">
+            <div className="font-black text-slate-100 text-sm sm:text-base truncate mb-1">สถานะสีพาเลท (Color Guide)</div>
+            <div className="grid grid-cols-3 gap-1.5 text-[11px] font-mono font-black text-slate-100">
+              <div className="flex items-center gap-1.5 bg-slate-900 px-2 py-1 rounded-lg border border-slate-700">
+                <span className="w-3 h-3 rounded-full bg-slate-600 shrink-0 shadow-xs"></span>
+                <span className="truncate">ว่าง</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-slate-900 px-2 py-1 rounded-lg border border-slate-700">
+                <span className="w-3 h-3 rounded-full bg-blue-500 shrink-0 shadow-[0_0_6px_#3b82f6]"></span>
+                <span className="truncate">ปกติ</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-slate-900 px-2 py-1 rounded-lg border border-slate-700">
+                <span className="w-3 h-3 rounded-full bg-amber-400 shrink-0 shadow-[0_0_6px_#fbbf24]"></span>
+                <span className="truncate">Aging</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-slate-900 px-2 py-1 rounded-lg border border-slate-700">
+                <span className="w-3 h-3 rounded-full bg-orange-400 shrink-0 shadow-[0_0_6px_#fb923c]"></span>
+                <span className="truncate">เร่งด่วน</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-slate-900 px-2 py-1 rounded-lg border border-slate-700">
+                <span className="w-3 h-3 rounded-full bg-rose-600 shrink-0 shadow-[0_0_6px_#e11d48]"></span>
+                <span className="truncate">วิกฤต</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-slate-900 px-2 py-1 rounded-lg border border-slate-700">
+                <span className="w-3 h-3 rounded-full bg-emerald-400 shrink-0 shadow-[0_0_6px_#34d399]"></span>
+                <span className="truncate">เลือก</span>
+              </div>
             </div>
           </div>
         </div>

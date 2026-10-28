@@ -217,22 +217,22 @@ export const AgingFifoPanel: React.FC<AgingFifoPanelProps> = ({
   }, [items, safeDaysMax, warningDaysMin, warningDaysMax, urgentDaysMin, urgentDaysMax, dueDay, criticalDays, indoorRubberCapDays]);
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-6 animate-fadeIn text-slate-100">
       {/* Top Info Banner */}
-      <div className="bg-amber-500/10 border-2 border-amber-500/30 rounded-2xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
+      <div className="bg-amber-950/30 border border-amber-500/30 rounded-2xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
         <div className="flex items-center space-x-3.5">
           <div className="p-3 bg-amber-500 text-slate-950 rounded-xl font-bold shadow-sm">
             <Flame className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="text-base font-black text-slate-900 tracking-tight flex items-center space-x-2">
-              <span>กำหนดเกณฑ์อายุสินค้า (Custom Aging & FIFO Thresholds)</span>
-              <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-100 text-amber-900 rounded-full border border-amber-300">
+            <h3 className="text-base font-black text-white tracking-tight flex items-center space-x-2">
+              <span>กำหนดเกณฑ์อายุสินค้า (Custom Aging &amp; FIFO Thresholds)</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded-full border border-amber-500/30">
                 Vinyl Wrapping 28 วัน
               </span>
             </h3>
-            <p className="text-xs text-slate-600 mt-0.5">
-              จัดการเกณฑ์จำแนกอายุสินค้า 5 ระดับ พร้อมเงื่อนไขการใส่จุกยาง (Rubber Cap) ตามพื้นที่จัดเก็บ ระบบซิงก์ผลลัพธ์คำนวณในหน้าผังรวม, หน้าสต็อก & Safety Stock และหน้าพิมพ์ฉลาก QR Code ทันที
+            <p className="text-xs text-slate-400 mt-0.5">
+              จัดการเกณฑ์จำแนกอายุสินค้า 5 ระดับ พร้อมเงื่อนไขการใส่จุกยาง (Rubber Cap) ตามพื้นที่จัดเก็บ ระบบซิงก์ผลลัพธ์คำนวณในหน้าผังรวม, หน้าสต็อก &amp; Safety Stock และหน้าพิมพ์ฉลาก QR Code ทันที
             </p>
           </div>
         </div>
@@ -241,15 +241,15 @@ export const AgingFifoPanel: React.FC<AgingFifoPanelProps> = ({
           <button
             type="button"
             onClick={handleResetToStandard}
-            className="flex items-center space-x-1.5 px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-xl border border-slate-300 shadow-2xs transition-colors cursor-pointer"
+            className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-bold rounded-xl border border-slate-700 shadow-2xs transition-colors cursor-pointer"
             title="รีเซ็ตค่าเป็นเกณฑ์มาตรฐาน 28 วัน (21 / 24 / 27 / 28 วัน)"
           >
-            <RotateCcw className="w-3.5 h-3.5 text-blue-600" />
+            <RotateCcw className="w-3.5 h-3.5 text-blue-400" />
             <span>คืนค่ามาตรฐาน 28 วัน</span>
           </button>
 
-          <div className="flex items-center space-x-2 text-xs font-mono font-bold text-slate-600 bg-white/80 px-3 py-1.5 rounded-xl border border-slate-200">
-            <Clock className="w-4 h-4 text-blue-600" />
+          <div className="flex items-center space-x-2 text-xs font-mono font-bold text-slate-300 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800">
+            <Clock className="w-4 h-4 text-blue-400" />
             <span>Asia/Bangkok (UTC+7)</span>
           </div>
         </div>
@@ -258,14 +258,14 @@ export const AgingFifoPanel: React.FC<AgingFifoPanelProps> = ({
       {/* Config Form Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: 5 Levels Thresholds + Location Rules (col-span-7) */}
-        <div className="lg:col-span-7 bg-white border border-slate-200 rounded-2xl p-5 space-y-5 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between pb-3 border-b border-slate-100 gap-2">
-            <h4 className="text-sm font-bold text-slate-800 flex items-center space-x-2">
-              <Sliders className="w-4 h-4 text-blue-600" />
+        <div className="lg:col-span-7 bg-slate-950 border border-slate-800 rounded-2xl p-5 space-y-5 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between pb-3 border-b border-slate-800 gap-2">
+            <h4 className="text-sm font-bold text-white flex items-center space-x-2">
+              <Sliders className="w-4 h-4 text-blue-400" />
               <span>เกณฑ์อายุสินค้า 5 ระดับ (5-Level Aging Parameters)</span>
             </h4>
             <div className="flex items-center space-x-2">
-              <span className="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+              <span className="text-xs font-mono font-bold text-slate-400 bg-slate-900 px-2 py-0.5 rounded-md border border-slate-800">
                 Rule: {tempAgingConfig.customRuleName || 'มาตรฐาน Vinyl Wrapping (28 วัน)'}
               </span>
             </div>
@@ -274,12 +274,12 @@ export const AgingFifoPanel: React.FC<AgingFifoPanelProps> = ({
           {/* Rule Name Input + Quick Presets */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-700">ชื่อเกณฑ์ / ชื่อนโยบาย (Rule Name):</label>
+              <label className="text-xs font-bold text-slate-300">ชื่อเกณฑ์ / ชื่อนโยบาย (Rule Name):</label>
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
                   onClick={handleAutoChainDays}
-                  className="text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2 py-0.5 rounded transition-colors flex items-center gap-1 cursor-pointer"
+                  className="text-[11px] font-bold text-blue-400 hover:text-blue-300 hover:bg-blue-950/40 px-2 py-0.5 rounded transition-colors flex items-center gap-1 cursor-pointer"
                   title="ช่วยต่อช่วงวันแต่ละระดับให้อัตโนมัติ (Chain)"
                 >
                   <Sparkles className="w-3 h-3" />
@@ -292,26 +292,26 @@ export const AgingFifoPanel: React.FC<AgingFifoPanelProps> = ({
               value={tempAgingConfig.customRuleName || ''}
               onChange={(e) => setTempAgingConfig({ ...tempAgingConfig, customRuleName: e.target.value })}
               placeholder="เช่น มาตรฐาน Vinyl Wrapping 5 ระดับ (รอบ 28 วัน)"
-              className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
             />
           </div>
 
           {/* 5 Levels Configuration List - ALL FREELY EDITABLE */}
           <div className="space-y-2.5">
             {/* Level 1: NORMAL */}
-            <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl flex flex-wrap items-center justify-between gap-3 hover:bg-emerald-50 transition-colors">
+            <div className="p-3 bg-slate-900 border border-emerald-500/30 rounded-xl flex flex-wrap items-center justify-between gap-3 hover:bg-slate-850 transition-colors">
               <div className="flex items-center gap-3">
                 <div className="w-3.5 h-3.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
                 <div>
-                  <div className="text-xs font-black text-emerald-900 flex items-center gap-1.5">
+                  <div className="text-xs font-black text-emerald-400 flex items-center gap-1.5">
                     <span>1. NORMAL (กลุ่มปลอดภัย)</span>
-                    <span className="text-[10px] px-1.5 py-0.2 bg-emerald-100 text-emerald-800 rounded font-mono font-bold">Safe</span>
+                    <span className="text-[10px] px-1.5 py-0.2 bg-emerald-950 text-emerald-300 border border-emerald-500/30 rounded font-mono font-bold">Safe</span>
                   </div>
-                  <div className="text-[11px] text-emerald-700 mt-0.5">สินค้าใหม่ หมุนเวียนตามแผนปกติ (0 ถึง {safeDaysMax} วัน)</div>
+                  <div className="text-[11px] text-slate-400 mt-0.5">สินค้าใหม่ หมุนเวียนตามแผนปกติ (0 ถึง {safeDaysMax} วัน)</div>
                 </div>
               </div>
               <div className="flex items-center gap-2 font-mono">
-                <span className="text-xs text-slate-500 font-sans">0 ถึง</span>
+                <span className="text-xs text-slate-400 font-sans">0 ถึง</span>
                 <input
                   type="number"
                   min={0}
@@ -324,22 +324,22 @@ export const AgingFifoPanel: React.FC<AgingFifoPanelProps> = ({
                       safeDaysMax: val
                     });
                   }}
-                  className="w-16 bg-white border border-emerald-300 rounded-lg px-2 py-1 text-emerald-900 text-center text-xs font-black focus:ring-2 focus:ring-emerald-500 focus:outline-none shadow-2xs"
+                  className="w-16 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-emerald-400 text-center text-xs font-black focus:ring-2 focus:ring-emerald-500 focus:outline-none shadow-2xs"
                 />
-                <span className="text-xs font-bold text-emerald-800 font-sans">วัน</span>
+                <span className="text-xs font-bold text-emerald-400 font-sans">วัน</span>
               </div>
             </div>
 
             {/* Level 2: WARNING */}
-            <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl flex flex-wrap items-center justify-between gap-3 hover:bg-amber-50 transition-colors">
+            <div className="p-3 bg-slate-900 border border-amber-500/30 rounded-xl flex flex-wrap items-center justify-between gap-3 hover:bg-slate-850 transition-colors">
               <div className="flex items-center gap-3">
                 <div className="w-3.5 h-3.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"></div>
                 <div>
-                  <div className="text-xs font-black text-amber-900 flex items-center gap-1.5">
+                  <div className="text-xs font-black text-amber-400 flex items-center gap-1.5">
                     <span>2. WARNING (กลุ่มเฝ้าระวัง)</span>
-                    <span className="text-[10px] px-1.5 py-0.2 bg-amber-100 text-amber-800 rounded font-mono font-bold">Watch</span>
+                    <span className="text-[10px] px-1.5 py-0.2 bg-amber-950 text-amber-300 border border-amber-500/30 rounded font-mono font-bold">Watch</span>
                   </div>
-                  <div className="text-[11px] text-amber-700 mt-0.5">เริ่มมีอายุ เตรียมแผนเบิกจ่ายล่วงหน้า ({warningDaysMin} ถึง {warningDaysMax} วัน)</div>
+                  <div className="text-[11px] text-slate-400 mt-0.5">เริ่มมีอายุ เตรียมแผนเบิกจ่ายล่วงหน้า ({warningDaysMin} ถึง {warningDaysMax} วัน)</div>
                 </div>
               </div>
               <div className="flex items-center gap-2 font-mono">
@@ -355,9 +355,9 @@ export const AgingFifoPanel: React.FC<AgingFifoPanelProps> = ({
                       warningDaysMin: val
                     });
                   }}
-                  className="w-16 bg-white border border-amber-300 rounded-lg px-2 py-1 text-amber-900 text-center text-xs font-black focus:ring-2 focus:ring-amber-500 focus:outline-none shadow-2xs"
+                  className="w-16 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-amber-400 text-center text-xs font-black focus:ring-2 focus:ring-amber-500 focus:outline-none shadow-2xs"
                 />
-                <span className="text-xs text-slate-500 font-sans">ถึง</span>
+                <span className="text-xs text-slate-400 font-sans">ถึง</span>
                 <input
                   type="number"
                   min={0}
@@ -370,22 +370,22 @@ export const AgingFifoPanel: React.FC<AgingFifoPanelProps> = ({
                       warningDaysMax: val
                     });
                   }}
-                  className="w-16 bg-white border border-amber-300 rounded-lg px-2 py-1 text-amber-900 text-center text-xs font-black focus:ring-2 focus:ring-amber-500 focus:outline-none shadow-2xs"
+                  className="w-16 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-amber-400 text-center text-xs font-black focus:ring-2 focus:ring-amber-500 focus:outline-none shadow-2xs"
                 />
-                <span className="text-xs font-bold text-amber-800 font-sans">วัน</span>
+                <span className="text-xs font-bold text-amber-400 font-sans">วัน</span>
               </div>
             </div>
 
             {/* Level 3: URGENT */}
-            <div className="p-3 bg-orange-50/70 border border-orange-200 rounded-xl flex flex-wrap items-center justify-between gap-3 hover:bg-orange-50 transition-colors">
+            <div className="p-3 bg-slate-900 border border-orange-500/30 rounded-xl flex flex-wrap items-center justify-between gap-3 hover:bg-slate-850 transition-colors">
               <div className="flex items-center gap-3">
                 <div className="w-3.5 h-3.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.5)]"></div>
                 <div>
-                  <div className="text-xs font-black text-orange-900 flex items-center gap-1.5">
+                  <div className="text-xs font-black text-orange-400 flex items-center gap-1.5">
                     <span>3. URGENT (กลุ่มเร่งด่วน)</span>
-                    <span className="text-[10px] px-1.5 py-0.2 bg-orange-100 text-orange-800 rounded font-mono font-bold">Urgent</span>
+                    <span className="text-[10px] px-1.5 py-0.2 bg-orange-950 text-orange-300 border border-orange-500/30 rounded font-mono font-bold">Urgent</span>
                   </div>
-                  <div className="text-[11px] text-orange-700 mt-0.5">ใกล้หมดอายุ ต้องเร่งเคลียร์สต็อกเข้าไลน์ผลิต ({urgentDaysMin} ถึง {urgentDaysMax} วัน)</div>
+                  <div className="text-[11px] text-slate-400 mt-0.5">ใกล้หมดอายุ ต้องเร่งเคลียร์สต็อกเข้าไลน์ผลิต ({urgentDaysMin} ถึง {urgentDaysMax} วัน)</div>
                 </div>
               </div>
               <div className="flex items-center gap-2 font-mono">
@@ -401,9 +401,9 @@ export const AgingFifoPanel: React.FC<AgingFifoPanelProps> = ({
                       urgentDaysMin: val
                     });
                   }}
-                  className="w-16 bg-white border border-orange-300 rounded-lg px-2 py-1 text-orange-900 text-center text-xs font-black focus:ring-2 focus:ring-orange-500 focus:outline-none shadow-2xs"
+                  className="w-16 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-orange-400 text-center text-xs font-black focus:ring-2 focus:ring-orange-500 focus:outline-none shadow-2xs"
                 />
-                <span className="text-xs text-slate-500 font-sans">ถึง</span>
+                <span className="text-xs text-slate-400 font-sans">ถึง</span>
                 <input
                   type="number"
                   min={0}
@@ -416,26 +416,26 @@ export const AgingFifoPanel: React.FC<AgingFifoPanelProps> = ({
                       urgentDaysMax: val
                     });
                   }}
-                  className="w-16 bg-white border border-orange-300 rounded-lg px-2 py-1 text-orange-900 text-center text-xs font-black focus:ring-2 focus:ring-orange-500 focus:outline-none shadow-2xs"
+                  className="w-16 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-orange-400 text-center text-xs font-black focus:ring-2 focus:ring-orange-500 focus:outline-none shadow-2xs"
                 />
-                <span className="text-xs font-bold text-orange-800 font-sans">วัน</span>
+                <span className="text-xs font-bold text-orange-400 font-sans">วัน</span>
               </div>
             </div>
 
             {/* Level 4: DUE TODAY */}
-            <div className="p-3 bg-rose-50/70 border border-rose-200 rounded-xl flex flex-wrap items-center justify-between gap-3 hover:bg-rose-50 transition-colors">
+            <div className="p-3 bg-slate-900 border border-rose-500/30 rounded-xl flex flex-wrap items-center justify-between gap-3 hover:bg-slate-850 transition-colors">
               <div className="flex items-center gap-3">
                 <div className="w-3.5 h-3.5 rounded-full bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.5)]"></div>
                 <div>
-                  <div className="text-xs font-black text-red-900 flex items-center gap-1.5">
+                  <div className="text-xs font-black text-rose-400 flex items-center gap-1.5">
                     <span>4. DUE TODAY (ครบกำหนดวันนี้)</span>
-                    <span className="text-[10px] px-1.5 py-0.2 bg-red-100 text-red-800 rounded font-mono font-bold">Day {dueDay}</span>
+                    <span className="text-[10px] px-1.5 py-0.2 bg-rose-950 text-rose-300 border border-rose-500/30 rounded font-mono font-bold">Day {dueDay}</span>
                   </div>
-                  <div className="text-[11px] text-red-700 mt-0.5">ครบกำหนด {dueDay} วันพอดี ถือเป็นวันสุดท้ายของรอบการจัดเก็บ</div>
+                  <div className="text-[11px] text-slate-400 mt-0.5">ครบกำหนด {dueDay} วันพอดี ถือเป็นวันสุดท้ายของรอบการจัดเก็บ</div>
                 </div>
               </div>
               <div className="flex items-center gap-2 font-mono">
-                <span className="text-xs text-slate-500 font-sans">ครบกำหนดที่</span>
+                <span className="text-xs text-slate-400 font-sans">ครบกำหนดที่</span>
                 <input
                   type="number"
                   min={0}
@@ -448,27 +448,27 @@ export const AgingFifoPanel: React.FC<AgingFifoPanelProps> = ({
                       dueDay: val
                     });
                   }}
-                  className="w-16 bg-white border border-red-300 rounded-lg px-2 py-1 text-red-900 text-center text-xs font-black focus:ring-2 focus:ring-red-500 focus:outline-none shadow-2xs"
+                  className="w-16 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-rose-400 text-center text-xs font-black focus:ring-2 focus:ring-red-500 focus:outline-none shadow-2xs"
                 />
-                <span className="text-xs font-bold text-red-800 font-sans">วัน</span>
+                <span className="text-xs font-bold text-rose-400 font-sans">วัน</span>
               </div>
             </div>
 
             {/* Level 5: EXPIRED */}
-            <div className="p-3 bg-red-100/70 border border-red-300 rounded-xl flex flex-wrap items-center justify-between gap-3 relative overflow-hidden">
+            <div className="p-3 bg-slate-900 border border-red-500/40 rounded-xl flex flex-wrap items-center justify-between gap-3 relative overflow-hidden">
               <div className="absolute top-0 left-0 w-1.5 h-full bg-red-600"></div>
               <div className="flex items-center gap-3 pl-2">
                 <div className="w-3.5 h-3.5 rounded-full bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.7)] animate-pulse"></div>
                 <div>
-                  <div className="text-xs font-black text-red-900 flex items-center gap-1.5">
+                  <div className="text-xs font-black text-red-400 flex items-center gap-1.5">
                     <span>5. EXPIRED (ค้างเกินเกณฑ์วิกฤต)</span>
-                    <span className="text-[10px] px-1.5 py-0.2 bg-red-200 text-red-900 rounded font-mono font-bold">Action Needed</span>
+                    <span className="text-[10px] px-1.5 py-0.2 bg-red-950 text-red-300 border border-red-500/30 rounded font-mono font-bold">Action Needed</span>
                   </div>
-                  <div className="text-[11px] text-red-700 mt-0.5">หมดอายุ ต้องตรวจสอบสภาพพลาสติก / Re-wrapping / บังคับใส่จุกยาง (&gt; {criticalDays} วัน)</div>
+                  <div className="text-[11px] text-slate-400 mt-0.5">หมดอายุ ต้องตรวจสอบสภาพพลาสติก / Re-wrapping / บังคับใส่จุกยาง (&gt; {criticalDays} วัน)</div>
                 </div>
               </div>
               <div className="flex items-center gap-2 font-mono">
-                <span className="text-xs font-bold text-red-700 font-sans">มากกว่า &gt;</span>
+                <span className="text-xs font-bold text-red-400 font-sans">มากกว่า &gt;</span>
                 <input
                   type="number"
                   min={0}
@@ -481,69 +481,69 @@ export const AgingFifoPanel: React.FC<AgingFifoPanelProps> = ({
                       criticalDays: val
                     });
                   }}
-                  className="w-16 bg-white border border-red-400 rounded-lg px-2 py-1 text-red-900 text-center text-xs font-black focus:ring-2 focus:ring-red-500 focus:outline-none shadow-2xs"
+                  className="w-16 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-red-400 text-center text-xs font-black focus:ring-2 focus:ring-red-500 focus:outline-none shadow-2xs"
                 />
-                <span className="text-xs font-bold text-red-800 font-sans">วัน</span>
+                <span className="text-xs font-bold text-red-400 font-sans">วัน</span>
               </div>
             </div>
           </div>
 
           {/* Location-based Rules for Rubber Cap */}
-          <div className="pt-4 border-t border-slate-100 space-y-3">
-            <h4 className="text-sm font-bold text-slate-800 flex items-center space-x-2">
-              <MapPin className="w-4 h-4 text-blue-600" />
+          <div className="pt-4 border-t border-slate-800 space-y-3">
+            <h4 className="text-sm font-bold text-white flex items-center space-x-2">
+              <MapPin className="w-4 h-4 text-blue-400" />
               <span>กฎการใส่จุกยางตามพื้นที่จัดเก็บ (Location-based Rubber Cap Rules)</span>
             </h4>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-400">
               การบังคับใส่จุกยางเพื่อป้องกันชิ้นส่วนเสียหาย โดยแบ่งเงื่อนไขตามพื้นที่จัดเก็บภายนอก vs ภายในอาคาร สามารถปรับช่วงวันได้อย่างอิสระ
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               {/* Group 1: Outside / Tent */}
-              <div className="bg-amber-50/70 border border-amber-300/80 rounded-xl p-3.5 space-y-2.5">
+              <div className="bg-slate-900 border border-amber-500/30 rounded-xl p-3.5 space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-amber-900 flex items-center space-x-1.5">
-                    <ShieldAlert className="w-4 h-4 text-amber-600" />
+                  <span className="text-xs font-black text-amber-400 flex items-center space-x-1.5">
+                    <ShieldAlert className="w-4 h-4 text-amber-500" />
                     <span>กลุ่มที่ 1: บังคับใส่จุกยาง (ทันที)</span>
                   </span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-200 text-amber-900 rounded-full font-mono">
+                  <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-950 text-amber-300 border border-amber-500/30 rounded-full font-mono">
                     Day 0+ (บังคับทันที)
                   </span>
                 </div>
-                <p className="text-[11px] text-amber-800 leading-relaxed">
-                  พื้นที่นอกอาคารหรือเต็นท์ มีความชื้นและสภาพแวดล้อมเสี่ยง <strong>ต้องใส่จุกยางป้องกันตั้งแต่วันแรกที่รับเข้าจัดเก็บ (Day 0+)</strong>
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  พื้นที่นอกอาคารหรือเต็นท์ มีความชื้นและสภาพแวดล้อมเสี่ยง <strong className="text-amber-300">ต้องใส่จุกยางป้องกันตั้งแต่วันแรกที่รับเข้าจัดเก็บ (Day 0+)</strong>
                 </p>
                 <div className="flex flex-wrap gap-1.5 pt-1">
-                  <span className="px-2.5 py-1 bg-white border border-amber-300 rounded-md text-[11px] font-bold text-amber-900 shadow-2xs">
+                  <span className="px-2.5 py-1 bg-slate-950 border border-slate-700 rounded-md text-[11px] font-bold text-amber-300 shadow-2xs">
                     📍 CY3 (ลานนอก)
                   </span>
-                  <span className="px-2.5 py-1 bg-white border border-amber-300 rounded-md text-[11px] font-bold text-amber-900 shadow-2xs">
+                  <span className="px-2.5 py-1 bg-slate-950 border border-slate-700 rounded-md text-[11px] font-bold text-amber-300 shadow-2xs">
                     ⛺ A5 Tent 1 - 4
                   </span>
-                  <span className="px-2.5 py-1 bg-white border border-amber-300 rounded-md text-[11px] font-bold text-amber-900 shadow-2xs">
+                  <span className="px-2.5 py-1 bg-slate-950 border border-slate-700 rounded-md text-[11px] font-bold text-amber-300 shadow-2xs">
                     🌧️ OUTDOOR / CANOPY
                   </span>
                 </div>
               </div>
 
               {/* Group 2: Indoor Building */}
-              <div className="bg-blue-50/70 border border-blue-300/80 rounded-xl p-3.5 space-y-2.5">
+              <div className="bg-slate-900 border border-blue-500/30 rounded-xl p-3.5 space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-blue-900 flex items-center space-x-1.5">
-                    <Clock className="w-4 h-4 text-blue-600" />
+                  <span className="text-xs font-black text-blue-400 flex items-center space-x-1.5">
+                    <Clock className="w-4 h-4 text-blue-400" />
                     <span>กลุ่มที่ 2: อนุโลมในอาคาร (Delayed)</span>
                   </span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 bg-blue-200 text-blue-900 rounded-full font-mono">
+                  <span className="text-[10px] font-bold px-2 py-0.5 bg-blue-950 text-blue-300 border border-blue-500/30 rounded-full font-mono">
                     &gt; {indoorRubberCapDays} วัน
                   </span>
                 </div>
-                <p className="text-[11px] text-blue-800 leading-relaxed">
-                  พื้นที่ในอาคารปิดมิดชิด <strong>ยังไม่ต้องใส่จุกยาง</strong> ยกเว้นกรณีสินค้ามีอายุเกิน 4 สัปดาห์ (&gt; {indoorRubberCapDays} วันขึ้นไป) จึงต้องตรวจสอบ Wrapping หรือใส่ Rubber Cap ทันที
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  พื้นที่ในอาคารปิดมิดชิด <strong className="text-emerald-400">ยังไม่ต้องใส่จุกยาง</strong> ยกเว้นกรณีสินค้ามีอายุเกิน 4 สัปดาห์ (&gt; {indoorRubberCapDays} วันขึ้นไป) จึงต้องตรวจสอบ Wrapping หรือใส่ Rubber Cap ทันที
                 </p>
                 
                 {/* Editable Threshold for Indoor Rubber Cap */}
-                <div className="flex items-center gap-2 font-mono bg-white/80 p-2 rounded-lg border border-blue-200">
-                  <span className="text-xs text-blue-900 font-sans font-bold">บังคับใส่เมื่ออายุเกิน &gt;</span>
+                <div className="flex items-center gap-2 font-mono bg-slate-950 p-2 rounded-lg border border-slate-800">
+                  <span className="text-xs text-slate-300 font-sans font-bold">บังคับใส่เมื่ออายุเกิน &gt;</span>
                   <input
                     type="number"
                     min={0}
@@ -556,19 +556,19 @@ export const AgingFifoPanel: React.FC<AgingFifoPanelProps> = ({
                         indoorRubberCapDays: val
                       });
                     }}
-                    className="w-16 bg-white border border-blue-400 rounded-lg px-2 py-1 text-blue-900 text-center text-xs font-black focus:ring-2 focus:ring-blue-500 focus:outline-none shadow-2xs"
+                    className="w-16 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-blue-400 text-center text-xs font-black focus:ring-2 focus:ring-blue-500 focus:outline-none shadow-2xs"
                   />
-                  <span className="text-xs font-bold text-blue-900 font-sans">วัน (รอบ 4 สัปดาห์)</span>
+                  <span className="text-xs font-bold text-slate-300 font-sans">วัน (รอบ 4 สัปดาห์)</span>
                 </div>
 
                 <div className="flex flex-wrap gap-1.5 pt-0.5">
-                  <span className="px-2.5 py-1 bg-white border border-blue-300 rounded-md text-[11px] font-bold text-blue-900 shadow-2xs">
+                  <span className="px-2.5 py-1 bg-slate-950 border border-slate-700 rounded-md text-[11px] font-bold text-blue-300 shadow-2xs">
                     🏢 A2 (อาคารผลิต)
                   </span>
-                  <span className="px-2.5 py-1 bg-white border border-blue-300 rounded-md text-[11px] font-bold text-blue-900 shadow-2xs">
+                  <span className="px-2.5 py-1 bg-slate-950 border border-slate-700 rounded-md text-[11px] font-bold text-blue-300 shadow-2xs">
                     🏢 A4 (คลังหลัก Selective Rack)
                   </span>
-                  <span className="px-2.5 py-1 bg-white border border-blue-300 rounded-md text-[11px] font-bold text-blue-900 shadow-2xs">
+                  <span className="px-2.5 py-1 bg-slate-950 border border-slate-700 rounded-md text-[11px] font-bold text-blue-300 shadow-2xs">
                     📦 INDOOR STORAGE
                   </span>
                 </div>
@@ -577,33 +577,33 @@ export const AgingFifoPanel: React.FC<AgingFifoPanelProps> = ({
           </div>
 
           {/* Notification Toggles */}
-          <div className="space-y-2 pt-2 border-t border-slate-100">
-            <label className="flex items-center space-x-2.5 text-xs font-bold text-slate-700 cursor-pointer hover:text-slate-900">
+          <div className="space-y-2 pt-2 border-t border-slate-800">
+            <label className="flex items-center space-x-2.5 text-xs font-bold text-slate-300 cursor-pointer hover:text-white">
               <input
                 type="checkbox"
                 checked={tempAgingConfig.autoAlertEnabled}
                 onChange={(e) => setTempAgingConfig({ ...tempAgingConfig, autoAlertEnabled: e.target.checked })}
-                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer bg-slate-900 border-slate-700"
               />
               <span>เปิดระบบแจ้งเตือนสีแดงกะพริบในหน้าผังเมื่อพบสต็อกค้างเกินเกณฑ์ (Blinking Alert)</span>
             </label>
 
-            <label className="flex items-center space-x-2.5 text-xs font-bold text-slate-700 cursor-pointer hover:text-slate-900">
+            <label className="flex items-center space-x-2.5 text-xs font-bold text-slate-300 cursor-pointer hover:text-white">
               <input
                 type="checkbox"
                 checked={tempAgingConfig.notifyOnFifoViolation}
                 onChange={(e) => setTempAgingConfig({ ...tempAgingConfig, notifyOnFifoViolation: e.target.checked })}
-                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer bg-slate-900 border-slate-700"
               />
               <span>แจ้งเตือนเมื่อเจ้าหน้าที่สแกนเบิกสินค้าใหม่ก่อนสินค้าเก่า (FIFO Violation Prevention)</span>
             </label>
           </div>
 
           {/* Save Button & Message */}
-          <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+          <div className="pt-3 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
             {agingSaveSuccessMsg ? (
-              <div className="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 flex items-center space-x-1.5 animate-fadeIn">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <div className="text-xs font-bold text-emerald-300 bg-emerald-950/60 px-3 py-1.5 rounded-lg border border-emerald-500/30 flex items-center space-x-1.5 animate-fadeIn">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span>{agingSaveSuccessMsg}</span>
               </div>
             ) : (
@@ -616,7 +616,7 @@ export const AgingFifoPanel: React.FC<AgingFifoPanelProps> = ({
               <button
                 type="button"
                 onClick={handleResetToStandard}
-                className="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-bold transition-colors cursor-pointer border border-slate-700"
               >
                 คืนค่ามาตรฐาน
               </button>
@@ -624,7 +624,7 @@ export const AgingFifoPanel: React.FC<AgingFifoPanelProps> = ({
               <button
                 type="button"
                 onClick={handleSave}
-                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-md flex items-center space-x-2 transition-transform active:scale-95 cursor-pointer"
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black shadow-md flex items-center space-x-2 transition-transform active:scale-95 cursor-pointer"
               >
                 <Save className="w-4 h-4" />
                 <span>บันทึกและปรับใช้เกณฑ์ทันที (Save & Apply)</span>
@@ -634,125 +634,125 @@ export const AgingFifoPanel: React.FC<AgingFifoPanelProps> = ({
         </div>
 
         {/* Right Column: Live Impact Analyzer across Inventory (col-span-5) */}
-        <div className="lg:col-span-5 bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4 flex flex-col justify-between shadow-sm">
+        <div className="lg:col-span-5 bg-slate-950 border border-slate-800 rounded-2xl p-5 space-y-4 flex flex-col justify-between shadow-sm">
           <div>
-            <div className="flex items-center space-x-2 pb-3 border-b border-slate-200">
-              <ShieldAlert className="w-4 h-4 text-amber-600" />
-              <h4 className="text-sm font-bold text-slate-800">
+            <div className="flex items-center space-x-2 pb-3 border-b border-slate-800">
+              <ShieldAlert className="w-4 h-4 text-amber-400" />
+              <h4 className="text-sm font-bold text-white">
                 การวิเคราะห์ผลกระทบ Real-Time (Live Impact)
               </h4>
             </div>
-            <p className="text-xs text-slate-500 mt-2 mb-4">
-              จากสต็อกทั้งหมด <strong>{stats.total} รายการ</strong> ในคลังสินค้า การจัดกลุ่มตามเกณฑ์ 5 ระดับปัจจุบัน:
+            <p className="text-xs text-slate-400 mt-2 mb-4">
+              จากสต็อกทั้งหมด <strong className="text-white">{stats.total} รายการ</strong> ในคลังสินค้า การจัดกลุ่มตามเกณฑ์ 5 ระดับปัจจุบัน:
             </p>
 
             {/* Impact Breakdown Cards - 5 Levels */}
             <div className="space-y-2.5">
               {/* 1. NORMAL */}
-              <div className="p-2.5 bg-white border border-emerald-200 rounded-xl shadow-2xs flex items-center justify-between">
+              <div className="p-2.5 bg-slate-900 border border-slate-800 rounded-xl shadow-2xs flex items-center justify-between">
                 <div>
-                  <div className="text-xs font-bold text-emerald-800 flex items-center space-x-1.5">
+                  <div className="text-xs font-bold text-emerald-400 flex items-center space-x-1.5">
                     <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                     <span>🟢 1. NORMAL (0 - {safeDaysMax} วัน)</span>
                   </div>
-                  <div className="text-[10px] text-slate-500 pl-3.5">หมุนเวียนตามแผนปกติ</div>
+                  <div className="text-[10px] text-slate-400 pl-3.5">หมุนเวียนตามแผนปกติ</div>
                 </div>
                 <div className="text-right font-mono">
-                  <div className="text-sm font-black text-emerald-600">{stats.normalCount} รายการ</div>
+                  <div className="text-sm font-black text-emerald-400">{stats.normalCount} รายการ</div>
                   <div className="text-[10px] text-slate-400 font-bold">{stats.normalPct}%</div>
                 </div>
               </div>
 
               {/* 2. WARNING */}
-              <div className="p-2.5 bg-white border border-amber-200 rounded-xl shadow-2xs flex items-center justify-between">
+              <div className="p-2.5 bg-slate-900 border border-slate-800 rounded-xl shadow-2xs flex items-center justify-between">
                 <div>
-                  <div className="text-xs font-bold text-amber-800 flex items-center space-x-1.5">
+                  <div className="text-xs font-bold text-amber-400 flex items-center space-x-1.5">
                     <span className="w-2 h-2 rounded-full bg-amber-500"></span>
                     <span>🟡 2. WARNING ({warningDaysMin} - {warningDaysMax} วัน)</span>
                   </div>
-                  <div className="text-[10px] text-slate-500 pl-3.5">เริ่มมีอายุ เตรียมแผนเบิก</div>
+                  <div className="text-[10px] text-slate-400 pl-3.5">เริ่มมีอายุ เตรียมแผนเบิก</div>
                 </div>
                 <div className="text-right font-mono">
-                  <div className="text-sm font-black text-amber-600">{stats.warningCount} รายการ</div>
+                  <div className="text-sm font-black text-amber-400">{stats.warningCount} รายการ</div>
                   <div className="text-[10px] text-slate-400 font-bold">{stats.warningPct}%</div>
                 </div>
               </div>
 
               {/* 3. URGENT */}
-              <div className="p-2.5 bg-white border border-orange-200 rounded-xl shadow-2xs flex items-center justify-between">
+              <div className="p-2.5 bg-slate-900 border border-slate-800 rounded-xl shadow-2xs flex items-center justify-between">
                 <div>
-                  <div className="text-xs font-bold text-orange-800 flex items-center space-x-1.5">
+                  <div className="text-xs font-bold text-orange-400 flex items-center space-x-1.5">
                     <span className="w-2 h-2 rounded-full bg-orange-500"></span>
                     <span>🟠 3. URGENT ({urgentDaysMin} - {urgentDaysMax} วัน)</span>
                   </div>
-                  <div className="text-[10px] text-slate-500 pl-3.5">ใกล้หมดอายุ ต้องเร่งเบิก</div>
+                  <div className="text-[10px] text-slate-400 pl-3.5">ใกล้หมดอายุ ต้องเร่งเบิก</div>
                 </div>
                 <div className="text-right font-mono">
-                  <div className="text-sm font-black text-orange-600">{stats.urgentCount} รายการ</div>
+                  <div className="text-sm font-black text-orange-400">{stats.urgentCount} รายการ</div>
                   <div className="text-[10px] text-slate-400 font-bold">{stats.urgentPct}%</div>
                 </div>
               </div>
 
               {/* 4. DUE TODAY */}
-              <div className="p-2.5 bg-white border border-red-200 rounded-xl shadow-2xs flex items-center justify-between">
+              <div className="p-2.5 bg-slate-900 border border-slate-800 rounded-xl shadow-2xs flex items-center justify-between">
                 <div>
-                  <div className="text-xs font-bold text-red-800 flex items-center space-x-1.5">
+                  <div className="text-xs font-bold text-rose-400 flex items-center space-x-1.5">
                     <span className="w-2 h-2 rounded-full bg-red-400"></span>
                     <span>🔴 4. DUE TODAY ({dueDay} วัน)</span>
                   </div>
-                  <div className="text-[10px] text-slate-500 pl-3.5">วันสุดท้ายของรอบการจัดเก็บ</div>
+                  <div className="text-[10px] text-slate-400 pl-3.5">วันสุดท้ายของรอบการจัดเก็บ</div>
                 </div>
                 <div className="text-right font-mono">
-                  <div className="text-sm font-black text-red-600">{stats.dueTodayCount} รายการ</div>
+                  <div className="text-sm font-black text-rose-400">{stats.dueTodayCount} รายการ</div>
                   <div className="text-[10px] text-slate-400 font-bold">{stats.dueTodayPct}%</div>
                 </div>
               </div>
 
               {/* 5. EXPIRED */}
-              <div className="p-2.5 bg-white border border-red-300 rounded-xl shadow-2xs flex items-center justify-between">
+              <div className="p-2.5 bg-slate-900 border border-red-500/30 rounded-xl shadow-2xs flex items-center justify-between">
                 <div>
-                  <div className="text-xs font-bold text-red-900 flex items-center space-x-1.5">
+                  <div className="text-xs font-bold text-red-400 flex items-center space-x-1.5">
                     <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>
                     <span>🚨 5. EXPIRED (&gt; {criticalDays} วัน)</span>
                   </div>
-                  <div className="text-[10px] text-slate-500 pl-3.5">หมดอายุ ตรวจสอบ/Re-wrap</div>
+                  <div className="text-[10px] text-slate-400 pl-3.5">หมดอายุ ตรวจสอบ/Re-wrap</div>
                 </div>
                 <div className="text-right font-mono">
-                  <div className="text-sm font-black text-red-700">{stats.expiredCount} รายการ</div>
+                  <div className="text-sm font-black text-red-400">{stats.expiredCount} รายการ</div>
                   <div className="text-[10px] text-slate-400 font-bold">{stats.expiredPct}%</div>
                 </div>
               </div>
             </div>
 
             {/* Rubber Cap Requirement Card */}
-            <div className="mt-4 p-3.5 bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-300 rounded-xl space-y-2 shadow-2xs">
+            <div className="mt-4 p-3.5 bg-slate-900 border border-amber-500/30 rounded-xl space-y-2 shadow-2xs">
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-1.5 text-xs font-black text-amber-900">
+                <div className="flex items-center space-x-1.5 text-xs font-black text-amber-300">
                   <span>🧢 ชิ้นส่วนที่ต้องใส่ Rubber Cap:</span>
                 </div>
-                <span className="text-sm font-mono font-black text-amber-900 bg-amber-200/80 px-2 py-0.5 rounded-lg">
+                <span className="text-sm font-mono font-black text-amber-300 bg-amber-950/80 px-2 py-0.5 rounded-lg border border-amber-500/30">
                   {stats.rubberCapCount} รายการ ({stats.rubberCapPct}%)
                 </span>
               </div>
-              <div className="grid grid-cols-2 gap-2 text-[10.5px] text-slate-600 pt-1 border-t border-amber-200/60">
-                <div className="bg-white/70 p-1.5 rounded border border-amber-200/60">
-                  <span className="font-bold text-amber-800">CY3 & A5 นอกอาคาร:</span>
-                  <div className="font-mono font-bold text-slate-800">{stats.rubberCapGroup1Count} รายการ (บังคับทันที Day 0+)</div>
+              <div className="grid grid-cols-2 gap-2 text-[10.5px] text-slate-300 pt-1 border-t border-slate-800">
+                <div className="bg-slate-950 p-1.5 rounded border border-slate-800">
+                  <span className="font-bold text-amber-400">CY3 & A5 นอกอาคาร:</span>
+                  <div className="font-mono font-bold text-slate-200">{stats.rubberCapGroup1Count} รายการ (บังคับทันที Day 0+)</div>
                 </div>
-                <div className="bg-white/70 p-1.5 rounded border border-amber-200/60">
-                  <span className="font-bold text-blue-800">A2 & A4 ในอาคาร:</span>
-                  <div className="font-mono font-bold text-slate-800">{stats.rubberCapGroup2Count} รายการ (&gt; {indoorRubberCapDays} วัน)</div>
+                <div className="bg-slate-950 p-1.5 rounded border border-slate-800">
+                  <span className="font-bold text-blue-400">A2 & A4 ในอาคาร:</span>
+                  <div className="font-mono font-bold text-slate-200">{stats.rubberCapGroup2Count} รายการ (&gt; {indoorRubberCapDays} วัน)</div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-[11px] text-blue-900 space-y-1 mt-4">
-            <div className="font-bold flex items-center space-x-1">
-              <Clock className="w-3.5 h-3.5 text-blue-600" />
+          <div className="p-3 bg-blue-950/40 border border-blue-500/30 rounded-xl text-[11px] text-blue-200 space-y-1 mt-4">
+            <div className="font-bold flex items-center space-x-1 text-blue-300">
+              <Clock className="w-3.5 h-3.5 text-blue-400" />
               <span>นโยบาย Vinyl Wrapping 28 วัน:</span>
             </div>
-            <p className="text-blue-800/80 leading-relaxed">
+            <p className="text-blue-300/80 leading-relaxed">
               การ Re-wrapping ชิ้นส่วนจะไม่รีเซ็ตวันที่เริ่มจัดเก็บเดิม (Start Date Protection) และสินค้าที่เสียหาย (Condition NG) จะถูกคัดแยกทันที
             </p>
           </div>

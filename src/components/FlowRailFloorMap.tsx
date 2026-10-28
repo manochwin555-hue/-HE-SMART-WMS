@@ -4,6 +4,7 @@ import { UnifiedSlotModal, UnifiedSlotData } from './UnifiedSlotModal';
 import { SlotMiniStatsOverlay, MiniStatsSlotData } from './SlotMiniStatsOverlay';
 import { A2FlowRail3DView } from './zone-3d/A2FlowRail3DView';
 import { ZoneKpiFormalDashboard } from './ZoneKpiFormalDashboard';
+import { isA2InventoryItem } from '../utils/zoneKpiHelper';
 import { useTranslation } from '../i18n/i18nContext';
 import { 
   GitCommit, 
@@ -92,6 +93,9 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
     const altLocator2 = `DA2D-1-R${String(railNum).padStart(2, '0')}-${formattedPos}`;
 
     return items.find(it => {
+      // Must strictly be an A2 inventory item
+      if (!isA2InventoryItem(it)) return false;
+
       // 1. Check exact locator code match
       if (it.locatorCode === exactLocator || it.locatorCode === altLocator1 || it.locatorCode === altLocator2) {
         return true;
@@ -157,107 +161,38 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
 
   return (
     <div className="w-full h-full flex flex-col min-h-0 space-y-1.5 overflow-hidden animate-fadeIn font-sans">
-      {/* ========================================================================= */}
-      {/* UNIFIED ENTERPRISE TOOLBAR: STANDARD ORDER ACROSS ALL ZONES                */}
-      {/* ========================================================================= */}
-      <header className="h-11 sm:h-12 border-b border-slate-800 bg-slate-900/95 px-3 sm:px-4 flex items-center justify-between gap-3 shrink-0 backdrop-blur-md z-30 text-slate-100">
-        
-        {/* ด้านซ้าย: ปุ่มย้อนกลับผังรวมและชื่อโซน */}
-        <div className="flex items-center gap-2 min-w-0">
-          {onNavigateToCampus && (
-            <button
-              onClick={onNavigateToCampus}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-bold border border-slate-700/80 transition-all shadow-sm shrink-0 active:scale-95"
-              title="กลับสู่ผังรวมแคมปัส"
-            >
-              <ArrowLeft className="w-3.5 h-3.5 text-blue-400" />
-              <span className="hidden sm:inline">โซน A2 รางเลื่อน (DA2D-1)</span>
-              <span className="sm:hidden">A2 รางเลื่อน</span>
-              <span className="px-1.5 py-0.2 rounded-full bg-blue-600/30 text-blue-300 font-mono text-[10px] border border-blue-500/30">
-                104P
-              </span>
-            </button>
-          )}
+      <header className="flex items-center justify-between px-3 pt-1 shrink-0">
+        <div className="flex items-center gap-2">
+           <h2 className="text-sm font-black text-white">Flow Rail Monitoring</h2>
         </div>
-
-        {/* ตรงกลาง: View Switcher + Status Filter + Rail Selector + Flow Direction (ลำดับมาตรฐานเดียวกัน) */}
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
-          {/* 1. View Switcher: [3D ผัง 3 มิติ] vs [แปลนบน (Top 2D)] */}
-          <div className="inline-flex items-center bg-slate-950 p-0.5 rounded-xl border border-slate-800 text-xs font-bold shrink-0">
+        {/* ด้านขวา: กลุ่มเลือกมุมมอง 3D/2D และค้นหา */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* View Mode Switcher */}
+          <div className="bg-slate-950 border border-slate-800 p-0.5 rounded-xl flex items-center text-[11px] font-bold">
             <button
               onClick={() => setViewMode('3D')}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all whitespace-nowrap ${
+              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 ${
                 viewMode === '3D'
-                  ? 'bg-blue-600 text-white shadow-md ring-1 ring-blue-400/50'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-400 hover:text-slate-200'
               }`}
-              title="แสดงโมเดล 3D รางเลื่อน (3D Twin)"
             >
-              <Box className="w-3.5 h-3.5 text-blue-200" />
-              <span>3D ผัง 3 มิติ</span>
+              <Eye className="w-3 h-3 text-cyan-200" />
+              <span>3D Twin</span>
             </button>
             <button
               onClick={() => setViewMode('2D')}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all whitespace-nowrap ${
+              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 ${
                 viewMode === '2D'
-                  ? 'bg-blue-600 text-white shadow-md ring-1 ring-blue-400/50'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-400 hover:text-slate-200'
               }`}
-              title="แสดงแปลนพื้น 2 มิติ (2D Plan)"
             >
-              <Grid className="w-3.5 h-3.5 text-blue-200" />
-              <span>แปลนพื้น (Top 2D)</span>
+              <Grid className="w-3 h-3 text-amber-200" />
+              <span>2D Matrix</span>
             </button>
           </div>
 
-          {/* 2. Sub-Zone Selector: ราง R1-R13 */}
-          <div className="inline-flex items-center bg-slate-950 p-0.5 rounded-xl border border-slate-800 text-xs font-bold shrink-0">
-            <button
-              onClick={() => setSelectedRailFilter('ALL')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
-                selectedRailFilter === 'ALL'
-                  ? 'bg-blue-600 text-white font-black shadow-xs'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              {t('common.all')} (R1-R13)
-            </button>
-            <button
-              onClick={() => setSelectedRailFilter('TOP')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
-                selectedRailFilter === 'TOP'
-                  ? 'bg-blue-600 text-white font-black shadow-xs'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              บน (R8-R13)
-            </button>
-            <button
-              onClick={() => setSelectedRailFilter('BOTTOM')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
-                selectedRailFilter === 'BOTTOM'
-                  ? 'bg-blue-600 text-white font-black shadow-xs'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              ล่าง (R1-R7)
-            </button>
-          </div>
-
-          {/* Flow Direction Indicator */}
-          <div className="hidden xl:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-slate-950 border border-slate-800 text-slate-300 shrink-0">
-            <span className="text-emerald-400 font-black flex items-center gap-1">
-              <ArrowLeft className="w-3.5 h-3.5" /> Outfeed
-            </span>
-            <span className="text-slate-700">|</span>
-            <span className="text-blue-400 font-black flex items-center gap-1">
-              Infeed <ArrowRight className="w-3.5 h-3.5" />
-            </span>
-          </div>
-        </div>
-
-        {/* ด้านขวา: กลุ่มค้นหา, สแกน KANBAN (ลำดับมาตรฐานเดียวกันทุกโซน) */}
-        <div className="flex items-center gap-1.5 shrink-0">
           {/* ช่องค้นหาด่วน */}
           <div className="relative w-36 sm:w-48 h-8">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -278,18 +213,6 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
               </button>
             )}
           </div>
-
-          {/* ปุ่มสแกน KANBAN */}
-          {onOpenScanner && (
-            <button
-              onClick={() => onOpenScanner('R1' as any, 1, 1 as any, 'IN')}
-              className="h-8 px-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
-              title="เปิดกล้องสแกน KANBAN QR Code (รับเข้า/เบิกออก)"
-            >
-              <QrCode className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">สแกน KANBAN</span>
-            </button>
-          )}
         </div>
       </header>
 
@@ -350,8 +273,8 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
 
             {/* Single Continuous Grid Container (Unified R1-R13) */}
             <div className="bg-slate-900/90 p-3 sm:p-4 rounded-2xl border border-slate-800 shadow-xs space-y-2.5">
-              {/* Card Header Bar */}
-              <div className="flex items-center justify-between px-1">
+              {/* Card Header Bar with Interactive Filters */}
+              <div className="flex flex-wrap items-center justify-between gap-2 px-1 pb-1 border-b border-slate-800/80">
                 <div className="flex items-center space-x-2">
                   <span className="w-2.5 h-2.5 rounded bg-blue-600" />
                   <span className="text-xs font-black text-slate-200">
@@ -361,13 +284,77 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
                       ? 'รางเลื่อน R8 - R13' 
                       : 'รางเลื่อน R1 - R7'}
                   </span>
-                  <span className="text-[10px] text-slate-400 font-mono font-semibold">
+                  <span className="text-[10px] text-slate-400 font-mono font-semibold hidden sm:inline">
                     ({displayedRails.length} Rails x 8 Positions = {displayedRails.length * 8} Pallets)
                   </span>
                 </div>
-                <span className="text-[10px] font-mono font-bold text-blue-400 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
-                  {selectedRailFilter === 'ALL' ? 'R1-R13 (104P)' : selectedRailFilter === 'TOP' ? 'R8-R13 (48P)' : 'R1-R7 (56P)'}
-                </span>
+
+                {/* Filter Controls: Rail Group & Status */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Rail Group Selector */}
+                  <div className="bg-slate-950 p-0.5 rounded-lg border border-slate-800 flex items-center text-[10px] font-bold font-mono">
+                    <button
+                      onClick={() => setSelectedRailFilter('ALL')}
+                      className={`px-2 py-0.5 rounded transition-all ${
+                        selectedRailFilter === 'ALL' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      R1-R13 (104P)
+                    </button>
+                    <button
+                      onClick={() => setSelectedRailFilter('TOP')}
+                      className={`px-2 py-0.5 rounded transition-all ${
+                        selectedRailFilter === 'TOP' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      R8-R13 (48P)
+                    </button>
+                    <button
+                      onClick={() => setSelectedRailFilter('BOTTOM')}
+                      className={`px-2 py-0.5 rounded transition-all ${
+                        selectedRailFilter === 'BOTTOM' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      R1-R7 (56P)
+                    </button>
+                  </div>
+
+                  {/* Status Filter Selector */}
+                  <div className="bg-slate-950 p-0.5 rounded-lg border border-slate-800 flex items-center text-[10px] font-bold">
+                    <button
+                      onClick={() => setStatusFilter('ALL')}
+                      className={`px-2 py-0.5 rounded transition-all ${
+                        statusFilter === 'ALL' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      ทั้งหมด
+                    </button>
+                    <button
+                      onClick={() => setStatusFilter('OCCUPIED')}
+                      className={`px-2 py-0.5 rounded transition-all ${
+                        statusFilter === 'OCCUPIED' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      มีสินค้า
+                    </button>
+                    <button
+                      onClick={() => setStatusFilter('EMPTY')}
+                      className={`px-2 py-0.5 rounded transition-all ${
+                        statusFilter === 'EMPTY' ? 'bg-slate-800 text-emerald-300' : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      ช่องว่าง
+                    </button>
+                    <button
+                      onClick={() => setStatusFilter('AGING')}
+                      className={`px-2 py-0.5 rounded transition-all ${
+                        statusFilter === 'AGING' ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      Aging
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {/* 8 Columns Header Indicator (Block 01 to Block 08 with Infeed/Outfeed markers) */}

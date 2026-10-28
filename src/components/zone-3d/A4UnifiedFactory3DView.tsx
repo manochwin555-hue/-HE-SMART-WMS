@@ -1551,17 +1551,6 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
         
         {/* Left Info */}
         <div className="flex items-center gap-2.5">
-          {onNavigateToCampus && (
-            <button
-              onClick={onNavigateToCampus}
-              className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 hover:text-white border border-slate-700 font-bold transition-all flex items-center gap-1.5 shadow-sm"
-              title="กลับหน้าผังรวมแคมปัส 3D"
-            >
-              <Building2 className="w-3.5 h-3.5 text-blue-400" />
-              <span>ผังรวม</span>
-            </button>
-          )}
-
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-black text-white flex items-center gap-1.5">
