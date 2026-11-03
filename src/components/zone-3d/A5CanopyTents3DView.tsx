@@ -42,7 +42,7 @@ export const A5CanopyTents3DView: React.FC<A5CanopyTents3DViewProps> = ({
   const sceneRef = useRef<THREE.Scene | null>(null);
   const animFrameRef = useRef<number | null>(null);
 
-  const [roofMode, setRoofMode] = useState<'TRANSLUCENT' | 'SOLID' | 'HIDDEN'>('TRANSLUCENT');
+  const [roofMode, setRoofMode] = useState<'TRANSLUCENT' | 'HIDDEN'>('TRANSLUCENT');
   const [cameraFocus, setCameraFocus] = useState<'ALL_A5' | 'TOP_DOWN' | 'TENT_1' | 'TENT_2' | 'TENT_3' | 'TENT_4'>('ALL_A5');
 
   const [hoveredSlot, setHoveredSlot] = useState<{
@@ -60,27 +60,40 @@ export const A5CanopyTents3DView: React.FC<A5CanopyTents3DViewProps> = ({
   const a5ItemMap = useMemo(() => {
     const map = new Map<string, InventoryItem>();
     items.forEach(it => {
+      const loc = (it.locatorCode || '').toUpperCase();
+      if (!loc.includes('DA5T') && it.facilityId !== 'FAC-A5-TENT' && !it.zone?.startsWith('T')) {
+        return;
+      }
+
       let tent = 1;
       let grp = 1;
       let r = 1;
       let c = 1;
 
-      // Match DA5T-1-01-R3-05 or DA5T-1.01-G1-R1-01 or DAST-1...
-      const m = it.locatorCode?.match(/DA(?:ST|5T)-([1-4])(?:\.01)?-(?:0?([1-7])|G([1-7]))-(?:R([1-4]))-(?:0?([1-7])|C([1-7]))?/i);
-      if (m) {
-        tent = parseInt(m[1], 10);
-        grp = parseInt(m[2] || m[3] || '1', 10);
-        r = parseInt(m[4] || '1', 10);
-        c = parseInt(m[5] || m[6] || '1', 10);
-        map.set(`${tent}-${grp}-${r}-${c}`, it);
-        map.set(`DA5T-${tent}-${String(grp).padStart(2, '0')}-R${r}-${String(c).padStart(2, '0')}`, it);
-      } else if (it.facilityId === 'FAC-A5-TENT' || it.locatorCode?.includes('DA5T')) {
-        const tentNum = typeof it.zone === 'string' && it.zone.includes('2') ? 2 :
-                        typeof it.zone === 'string' && it.zone.includes('3') ? 3 :
-                        typeof it.zone === 'string' && it.zone.includes('4') ? 4 : 1;
-        const b = it.bayNumber || 1;
-        map.set(`${tentNum}-${b}-1-1`, it);
-      }
+      // Extract Tent number (1-4)
+      const tentMatch = loc.match(/DA5T[-.]?([1-4])/i) || loc.match(/T([1-4])/i);
+      if (tentMatch) tent = parseInt(tentMatch[1], 10);
+      else if (typeof it.zone === 'string' && it.zone.includes('2')) tent = 2;
+      else if (typeof it.zone === 'string' && it.zone.includes('3')) tent = 3;
+      else if (typeof it.zone === 'string' && it.zone.includes('4')) tent = 4;
+
+      // Extract Group number (01-07)
+      const grpMatch = loc.match(/DA5T[-.]?[1-4][-.]?0?([1-7])/i) || loc.match(/G0?([1-7])/i) || loc.match(/-0?([1-7])-R/i);
+      if (grpMatch) grp = parseInt(grpMatch[1], 10);
+      else if (it.bayNumber && it.bayNumber >= 1 && it.bayNumber <= 7) grp = it.bayNumber;
+
+      // Extract Row (R1-R4)
+      const rowMatch = loc.match(/R([1-4])/i);
+      if (rowMatch) r = parseInt(rowMatch[1], 10);
+      else if (it.level && it.level >= 1 && it.level <= 4) r = it.level;
+
+      // Extract Column (01-07)
+      const colMatch = loc.match(/[-C]0?([1-7])$/i) || loc.match(/R[1-4]-0?([1-7])/i);
+      if (colMatch) c = parseInt(colMatch[1], 10);
+
+      map.set(`${tent}-${grp}-${r}-${c}`, it);
+      const canonLoc = `DA5T-${tent}-${String(grp).padStart(2, '0')}-R${r}-${String(c).padStart(2, '0')}`;
+      map.set(canonLoc, it);
     });
     return map;
   }, [items]);
@@ -117,12 +130,12 @@ export const A5CanopyTents3DView: React.FC<A5CanopyTents3DViewProps> = ({
 
     switch (preset) {
       case 'ALL_A5':
-        // Expanded 45° isometric view - framed nicely inside viewport bounds without clipping
-        flyCameraTo(new THREE.Vector3(0, 52, 60), new THREE.Vector3(0, 0, 0));
+        // Expanded 45° isometric view - zoomed in closer to fill the screen
+        flyCameraTo(new THREE.Vector3(0, 34, 40), new THREE.Vector3(0, 0, 0));
         break;
       case 'TOP_DOWN':
         // 85° Overhead Blueprint
-        flyCameraTo(new THREE.Vector3(0, 68, 0.1), new THREE.Vector3(0, 0, 0));
+        flyCameraTo(new THREE.Vector3(0, 58, 0.1), new THREE.Vector3(0, 0, 0));
         break;
       case 'TENT_1':
         // South-West Tent 1 (Bottom Left)
@@ -155,9 +168,9 @@ export const A5CanopyTents3DView: React.FC<A5CanopyTents3DViewProps> = ({
     scene.fog = new THREE.FogExp2('#f8fafc', 0.007);
     sceneRef.current = scene;
 
-    // 2. Camera Setup
+    // 2. Camera Setup (Tighter 45° view closer to tents)
     const camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 900);
-    camera.position.set(0, 52, 60);
+    camera.position.set(0, 34, 40);
     cameraRef.current = camera;
 
     // 3. Renderer with PCF Shadows
@@ -404,15 +417,15 @@ export const A5CanopyTents3DView: React.FC<A5CanopyTents3DViewProps> = ({
 
     const redFrameMat = new THREE.LineBasicMaterial({ color: 0xdc2626, linewidth: 3 }); // Red Frame Boundary
 
-    const roofOpacity = roofMode === 'HIDDEN' ? 0 : roofMode === 'SOLID' ? 1.0 : 0.22;
+    const roofOpacity = roofMode === 'HIDDEN' ? 0 : 0.22;
     const roofMat = new THREE.MeshStandardMaterial({
-      color: roofMode === 'SOLID' ? '#ffffff' : '#e2e8f0',
+      color: '#e2e8f0',
       roughness: 0.3,
       metalness: 0.05,
-      transparent: roofMode !== 'SOLID',
+      transparent: true,
       opacity: roofOpacity,
       side: THREE.DoubleSide,
-      depthWrite: roofMode === 'SOLID'
+      depthWrite: false
     });
 
     tentPositions.forEach(tent => {
@@ -516,8 +529,7 @@ export const A5CanopyTents3DView: React.FC<A5CanopyTents3DViewProps> = ({
 
         const roofMesh = new THREE.Mesh(cylGeo, roofMat);
         roofMesh.rotation.z = Math.PI / 2; // Lie along X axis
-        roofMesh.position.set(0, archPeakY - cylRadius, 0); // Apex aligns with archPeakY
-        roofMesh.castShadow = roofMode === 'SOLID';
+        roofMesh.castShadow = false;
         roofMesh.receiveShadow = true;
         tentGroup.add(roofMesh);
 
@@ -525,7 +537,7 @@ export const A5CanopyTents3DView: React.FC<A5CanopyTents3DViewProps> = ({
         const pzBtm = TENT_DEPTH / 2 - 0.35;
         [-TENT_WIDTH / 2 - 0.1, TENT_WIDTH / 2 + 0.1].forEach((endX) => {
           const gableShape = new THREE.Shape();
-          const startY = roofMode === 'SOLID' ? 0 : TENT_HEIGHT;
+          const startY = TENT_HEIGHT;
           gableShape.moveTo(-pzBtm, startY);
 
           const steps = 24;
@@ -544,16 +556,6 @@ export const A5CanopyTents3DView: React.FC<A5CanopyTents3DViewProps> = ({
           gableMesh.position.set(endX, 0, 0);
           tentGroup.add(gableMesh);
         });
-
-        // Full Enclosed Side Walls in Solid Roof Mode (ปิดมิดชิดทุกด้าน)
-        if (roofMode === 'SOLID') {
-          [-pzBtm, pzBtm].forEach(zPos => {
-            const sideWallGeo = new THREE.BoxGeometry(TENT_WIDTH + 0.4, TENT_HEIGHT, 0.08);
-            const sideWallMesh = new THREE.Mesh(sideWallGeo, roofMat);
-            sideWallMesh.position.set(0, TENT_HEIGHT / 2, zPos);
-            tentGroup.add(sideWallMesh);
-          });
-        }
       }
 
       // 5. TENT NAME ENGRAVED FLOOR DECAL (สลักชื่อเต็นท์ตรงพื้นหน้าเต็นท์ - วางห่างออกมาตรงถนนไม่ทับกลุ่ม 4)
@@ -880,31 +882,21 @@ export const A5CanopyTents3DView: React.FC<A5CanopyTents3DViewProps> = ({
 
       {/* Top Floating Multi-Perspective Camera Focus Bar (Top Right) */}
       <div className="absolute top-3 right-3 pointer-events-auto z-20 flex items-center gap-1.5">
-        {/* Roof Mode 3-Segment Selector Bar */}
+        {/* Roof Mode 2-Segment Selector Bar (Translucent vs Hidden) */}
         <div className="bg-slate-900/90 backdrop-blur-md border border-slate-800 p-1 rounded-xl shadow-lg flex items-center gap-1 shrink-0">
           <button
-            onClick={() => setRoofMode('SOLID')}
-            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 ${
-              roofMode === 'SOLID' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-300 hover:text-white hover:bg-slate-800'
-            }`}
-            title="แสดงหลังคาแบบทึบเต็มหลังคา"
-          >
-            <Eye className="w-3 h-3 text-blue-200" />
-            <span>หลังคา: ทึบ</span>
-          </button>
-          <button
             onClick={() => setRoofMode('TRANSLUCENT')}
-            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 ${
-              roofMode === 'TRANSLUCENT' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-300 hover:text-white hover:bg-slate-800'
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
+              roofMode === 'TRANSLUCENT' ? 'bg-cyan-600 text-white shadow-xs' : 'text-slate-300 hover:text-white hover:bg-slate-800'
             }`}
-            title="แสดงหลังคาแบบใส มองทะลุเห็นสินค้า + โครงสร้างลดรายละเอียด"
+            title="แสดงหลังคาแบบใส มองทะลุเห็นสินค้า + โครงสร้าง"
           >
             <Eye className="w-3 h-3 text-cyan-200" />
             <span>หลังคา: ใส</span>
           </button>
           <button
             onClick={() => setRoofMode('HIDDEN')}
-            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 ${
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
               roofMode === 'HIDDEN' ? 'bg-rose-600 text-white shadow-xs' : 'text-slate-300 hover:text-white hover:bg-slate-800'
             }`}
             title="ซ่อนหลังคาและโครงเหล็กหลังคาออกทั้งหมด เห็นผังสินค้าเต็มตา"

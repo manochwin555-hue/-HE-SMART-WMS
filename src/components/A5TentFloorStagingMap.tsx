@@ -270,7 +270,7 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
         
         {/* ด้านซ้าย: ปุ่มย้อนกลับผังรวมและชื่อโซน */}
         <div className="flex items-center gap-2 min-w-0">
-          {onNavigateToCampus && (
+          {onNavigateToCampus ? (
             <button
               onClick={onNavigateToCampus}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-bold border border-slate-700/80 transition-all shadow-sm shrink-0 active:scale-95"
@@ -283,6 +283,14 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
                 784P
               </span>
             </button>
+          ) : (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/90 text-slate-200 rounded-xl text-xs font-bold border border-slate-700/80 shadow-sm shrink-0">
+              <span className="hidden sm:inline">โซน A5 เต็นท์ผ้าใบ (DA5T)</span>
+              <span className="sm:hidden">A5 เต็นท์</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-emerald-600/30 text-emerald-300 font-mono text-[10px] border border-emerald-500/30">
+                784P
+              </span>
+            </div>
           )}
         </div>
 
@@ -325,17 +333,16 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
           </div>
         </div>
 
-        {/* ด้านขวา: กลุ่มค้นหา, สแกน KANBAN (ลำดับมาตรฐานเดียวกันทุกโซน) */}
+        {/* ด้านขวา: กลุ่มค้นหาด่วนมาตรฐานเดียวกันทุกโซน */}
         <div className="flex items-center gap-1.5 shrink-0">
-          {/* ช่องค้นหาด่วน */}
-          <div className="relative w-36 sm:w-48 h-8">
+          <div className="relative w-40 sm:w-56 h-8">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
-              placeholder="ค้นหา Model, DA5T..."
+              placeholder="ค้นหา Model, Locator..."
               value={localSearch}
               onChange={(e) => setLocalSearch(e.target.value)}
-              className="w-full h-8 bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-6 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
+              className="w-full h-8 bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-7 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 transition-colors shadow-inner"
             />
             {localSearch && (
               <button
@@ -347,16 +354,6 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
               </button>
             )}
           </div>
-
-          {/* ปุ่มสแกน KANBAN */}
-          <button
-            onClick={() => onOpenScanner('T1-01', 1, 1, 'IN')}
-            className="h-8 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
-            title="เปิดกล้องสแกน KANBAN QR Code (รับเข้า/เบิกออก)"
-          >
-            <QrCode className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">สแกน KANBAN</span>
-          </button>
         </div>
       </header>
 

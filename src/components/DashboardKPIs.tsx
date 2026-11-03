@@ -25,7 +25,8 @@ import {
   Calendar,
   CheckCircle2,
   ChevronRight,
-  ArrowRight
+  ArrowRight,
+  ArrowRightLeft
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -423,7 +424,7 @@ export const DashboardKPIs: React.FC<DashboardKPIsProps> = ({ stats, lowStockCou
     switch (widgetId) {
       case 'kpi_cards':
         content = (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 w-full">
+          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-7 gap-4 w-full">
             {/* Current Balance */}
             <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col justify-between hover:border-slate-300 transition-all">
               <div className="flex items-center justify-between text-slate-500 text-xs uppercase font-semibold">
@@ -505,6 +506,25 @@ export const DashboardKPIs: React.FC<DashboardKPIsProps> = ({ stats, lowStockCou
               </div>
               <div className="mt-2 text-[11px] text-sky-700 font-medium">
                 เบิกเข้าไลน์ผลิต HE1 - HE3
+              </div>
+            </div>
+
+            {/* Transfer Count Card */}
+            <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col justify-between hover:border-slate-300 transition-all">
+              <div className="flex items-center justify-between text-slate-500 text-xs uppercase font-semibold">
+                <span>จำนวนครั้งย้ายพิกัด</span>
+                <div className="p-1.5 rounded-lg bg-purple-50 text-purple-600">
+                  <ArrowRightLeft className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="mt-2 flex items-baseline space-x-2">
+                <span className="text-2xl font-bold text-purple-600">
+                  {logs.filter(l => l.type === 'TRANSFER').length}
+                </span>
+                <span className="text-xs font-semibold text-slate-500">ครั้ง</span>
+              </div>
+              <div className="mt-2 text-[11px] text-purple-700 font-medium">
+                ประวัติการย้ายพิกัดสินค้า
               </div>
             </div>
 

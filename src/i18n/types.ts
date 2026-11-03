@@ -1,4 +1,4 @@
-export type Language = 'th' | 'en' | 'kh' | 'mm' | 'kr';
+export type Language = 'th' | 'en';
 
 export interface LanguageOption {
   code: Language;
@@ -9,9 +9,6 @@ export interface LanguageOption {
 export const LANGUAGE_OPTIONS: LanguageOption[] = [
   { code: 'th', label: 'ไทย', flag: '🇹🇭' },
   { code: 'en', label: 'English', flag: '🇬🇧' },
-  { code: 'kh', label: 'ខ្មែរ', flag: '🇰🇭' },
-  { code: 'mm', label: 'မြန်မာ', flag: '🇲🇲' },
-  { code: 'kr', label: '한국어', flag: '🇰🇷' },
 ];
 
 export interface TranslationDictionary {

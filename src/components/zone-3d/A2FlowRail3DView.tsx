@@ -519,13 +519,13 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
       rubberBufferR.position.set(-10.05, Y_RAIL_OUTFEED + 0.25, zPos + 0.55);
       railsGroup.add(stopperBase, rubberBufferL, rubberBufferR);
 
-      // Create 8 Pallet Block Node Structures
+      // Create 8 Pallet Block Node Structures (Pos 01 Outfeed on Left, Pos 08 Infeed on Right)
       for (let p = 1; p <= 8; p++) {
-        const xPos = 8.575 - ((p - 1) * POS_SPACING_X);
+        const xPos = -8.575 + ((p - 1) * POS_SPACING_X);
         const railSurfaceY = getRailYAtX(xPos);
 
         const blockDivider = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.015, 1.8), floorLineWhite);
-        blockDivider.position.set(xPos + (POS_SPACING_X / 2), 0.02, zPos);
+        blockDivider.position.set(xPos - (POS_SPACING_X / 2), 0.02, zPos);
         floorDecoGroup.add(blockDivider);
 
         // Pallet Group Container
@@ -853,7 +853,7 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
               <div className="mt-1.5 pt-1.5 bg-blue-950/50 border border-blue-800/50 rounded-lg px-2.5 py-1 text-[11px] text-cyan-300 flex items-center justify-between">
                 <span>🎯 คลิกช่องนี้เพื่อ <strong className="text-white underline">เบิกจ่าย / ตรวจสอบข้อมูล</strong></span>
                 <span className="text-[10px] text-amber-300 font-bold font-mono">
-                  {hoveredInfo.pos === 8 ? '⚡ หน้าไลน์ Outfeed' : `FIFO ขั้น ${hoveredInfo.pos}`}
+                  {hoveredInfo.pos === 1 ? '⚡ หน้าไลน์ Outfeed (Pos 01)' : `FIFO ขั้น Pos ${String(hoveredInfo.pos).padStart(2, '0')}`}
                 </span>
               </div>
             </div>
@@ -865,7 +865,7 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
               <div className="bg-emerald-950/50 border border-emerald-700/50 rounded-lg px-2.5 py-1 text-[11px] text-emerald-300 flex items-center justify-between">
                 <span>✨ คลิกช่องนี้เพื่อ <strong className="text-white underline">บันทึกรับเข้าสินค้า (Infeed)</strong></span>
                 <span className="text-[10px] text-emerald-300 font-bold font-mono">
-                  {hoveredInfo.pos === 1 ? '📥 จุดรับเข้าหลัก Pos 1' : `ช่อง Pos ${hoveredInfo.pos}`}
+                  {hoveredInfo.pos === 8 ? '📥 จุดรับเข้าหลัก Pos 08' : `ช่อง Pos ${String(hoveredInfo.pos).padStart(2, '0')}`}
                 </span>
               </div>
             </div>

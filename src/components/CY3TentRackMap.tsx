@@ -7,6 +7,7 @@ import { MiniatureRackIcon } from './MiniatureRackIcon';
 import { CY3OutdoorRack3DView } from './zone-3d/CY3OutdoorRack3DView';
 import { ZoneKpiFormalDashboard } from './ZoneKpiFormalDashboard';
 import { useTranslation } from '../i18n/i18nContext';
+import { resolveCanonicalCoordinate } from '../utils/locatorUtils';
 import { 
   Building2, 
   Search, 
@@ -193,13 +194,25 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
     return list;
   };
 
-  const handleSlotClick = (rowCode: 'A' | 'B' | 'C' | 'D', bayNum: number, locatorSign: string, targetLevel?: ShelfLevel) => {
+  const handleSlotClick = (
+    rowCode: 'A' | 'B' | 'C' | 'D', 
+    bayNum: number, 
+    locatorSign: string, 
+    targetLevel?: ShelfLevel,
+    targetItem?: InventoryItem
+  ) => {
     const bayItems = getBayItems(rowCode, bayNum);
     const lvl = targetLevel || (floorFilter !== 'ALL' ? floorFilter : 1);
-    const item = slotMap.get(`${rowCode}-${bayNum}-${lvl}`) || null;
+    const resolved = resolveCanonicalCoordinate({
+      zone: `CY3-${rowCode}`,
+      bayNumber: bayNum,
+      level: lvl,
+      palletPosition: targetItem?.palletPosition || 'P1',
+      locatorCode: locatorSign.includes('DY3T-') && locatorSign.includes('-L') ? locatorSign : undefined
+    });
 
-    const formattedBay = `${rowCode}${bayNum}`;
-    const locator = `${locatorSign}-${formattedBay}-L${lvl}`;
+    const locator = resolved.canonicalLocator;
+    const item = targetItem || slotMap.get(locator) || slotMap.get(`${rowCode}-${bayNum}-${lvl}`) || null;
 
     setSelectedSlotModal({
       sectorType: 'RACK',
@@ -252,7 +265,7 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
         
         {/* ด้านซ้าย: ปุ่มย้อนกลับผังรวมและชื่อโซน */}
         <div className="flex items-center gap-2 min-w-0">
-          {onNavigateToCampus && (
+          {onNavigateToCampus ? (
             <button
               onClick={onNavigateToCampus}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-bold border border-slate-700/80 transition-all shadow-sm shrink-0 active:scale-95"
@@ -265,6 +278,14 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
                 400P
               </span>
             </button>
+          ) : (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/90 text-slate-200 rounded-xl text-xs font-bold border border-slate-700/80 shadow-sm shrink-0">
+              <span className="hidden sm:inline">โซน CY3 แร็คกลางแจ้ง (DY3T)</span>
+              <span className="sm:hidden">CY3 แร็ค</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-rose-600/30 text-rose-300 font-mono text-[10px] border border-rose-500/30">
+                400P
+              </span>
+            </div>
           )}
         </div>
 
@@ -317,18 +338,16 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
             ))}
           </div>
         </div>
-
-        {/* ด้านขวา: กลุ่มค้นหา, สแกน KANBAN (ลำดับมาตรฐานเดียวกันทุกโซน) */}
+        {/* ด้านขวา: กลุ่มค้นหาด่วนมาตรฐานเดียวกันทุกโซน */}
         <div className="flex items-center gap-1.5 shrink-0">
-          {/* ช่องค้นหาด่วน */}
-          <div className="relative w-36 sm:w-48 h-8">
+          <div className="relative w-40 sm:w-56 h-8">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               placeholder="ค้นหา Model, Locator..."
               value={localSearch}
               onChange={(e) => setLocalSearch(e.target.value)}
-              className="w-full h-8 bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-6 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500 transition-colors"
+              className="w-full h-8 bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-7 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 transition-colors shadow-inner"
             />
             {localSearch && (
               <button
@@ -340,16 +359,6 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
               </button>
             )}
           </div>
-
-          {/* ปุ่มสแกน KANBAN */}
-          <button
-            onClick={() => onOpenScanner('CY3-A', 1, 1, 'IN')}
-            className="h-8 px-3 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
-            title="เปิดกล้องสแกน KANBAN QR Code (รับเข้า/เบิกออก)"
-          >
-            <QrCode className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">สแกน KANBAN</span>
-          </button>
         </div>
       </header>
 
@@ -368,7 +377,7 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
                 searchQuery={activeSearch}
                 onSelectSlot={(row, bay, locator, level, item) => {
                   const locatorSign = row === 'A' ? 'DY3T-1.01' : row === 'B' ? 'DY3T-1.02' : row === 'C' ? 'DY3T-1.03' : 'DY3T-1.04';
-                  handleSlotClick(row as any, bay, locator || locatorSign, level as any);
+                  handleSlotClick(row as any, bay, locator || locatorSign, level as any, item);
                 }}
                 onOpenScanner={onOpenScanner}
               />

@@ -6,7 +6,7 @@ interface A4FloorStaging3DViewProps {
   items: InventoryItem[];
   searchQuery?: string;
   onSelectSlot: (group: string, row: number, col: number, item?: InventoryItem) => void;
-  onOpenScanner?: (zone: StorageZone, bay: number, level: ShelfLevel, mode: MovementType) => void;
+  onOpenScanner?: (zone: StorageZone, bay: number, level: ShelfLevel, mode: MovementType, locatorCode?: string, palletPosition?: string, item?: InventoryItem) => void;
   onNavigateToCampus?: () => void;
 }
 

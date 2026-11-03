@@ -6,6 +6,7 @@ import {
   ShelfLevel, 
   StorageZone, 
   UseLineMaster,
+  TargetUseLineMaster,
   ProtectionMethod,
   ProductType,
   ProductStorageType
@@ -35,10 +36,12 @@ import {
   Sparkles,
   Bookmark,
   Check,
-  ArrowRight
+  ArrowRight,
+  Flame
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { QRScanner } from './QRScanner';
+import { getModelStdCapacity, evaluatePalletCapacity, validateSlotPlacement } from '../utils/inventoryConsistency';
 
 interface QuickScannerModalProps {
   isOpen: boolean;
@@ -63,13 +66,21 @@ interface QuickScannerModalProps {
     targetZone?: StorageZone;
     targetBayNumber?: number;
     targetLevel?: ShelfLevel;
+    palletPosition?: string;
+    locatorCode?: string;
+    targetItemId?: string;
+    targetLocatorCode?: string;
   }) => void;
   initialZone?: StorageZone;
   initialBayNumber?: number;
   initialLevel?: ShelfLevel;
   initialMode?: MovementType;
+  initialLocatorCode?: string;
+  initialPalletPosition?: string;
+  initialItem?: InventoryItem | null;
   existingItems: InventoryItem[];
   useLines?: UseLineMaster[];
+  targetUseLines?: TargetUseLineMaster[];
   masterData?: MasterDataItem[];
 }
 
@@ -95,28 +106,30 @@ const getSavedLearnedParts = (): LearnedPart[] => {
 };
 
 // Helper to format proper locator code across campus zones
-export const formatLocatorCode = (z: StorageZone | string, bay: number, lvl: ShelfLevel | number): string => {
+export const formatLocatorCode = (z: StorageZone | string, bay: number, lvl: ShelfLevel | number, palletPos?: string): string => {
   const zStr = String(z);
+  const pSuffix = palletPos ? `-${palletPos}` : '';
   if (zStr.startsWith('CY3') || zStr.startsWith('DY3T')) {
     let rowCode = 'A';
     if (zStr.includes('B') || zStr.includes('1.02')) rowCode = 'B';
     else if (zStr.includes('C') || zStr.includes('1.03')) rowCode = 'C';
     else if (zStr.includes('D') || zStr.includes('1.04')) rowCode = 'D';
     const rowNum = rowCode === 'A' ? '1.01' : rowCode === 'B' ? '1.02' : rowCode === 'C' ? '1.03' : '1.04';
-    return `DY3T-${rowNum}-${rowCode}${bay}-L${lvl}`;
+    return `DY3T-${rowNum}-${rowCode}${String(bay).padStart(2, '0')}-L${lvl}${pSuffix || '-P1'}`;
   }
   if (zStr.startsWith('X')) {
-    return `DA4D-1-${zStr}-${bay}`;
+    return `DA4D-1.01-${zStr}-R${bay}-C${String(lvl).padStart(2, '0')}`;
   }
   if (zStr.startsWith('R') || zStr.startsWith('FR')) {
-    const railNum = zStr.replace(/\D/g, '');
-    return `DA2D-1-R${railNum}-${String(bay).padStart(2, '0')}`;
+    const railNum = zStr.replace(/\D/g, '') || '1';
+    return `DA2D-1-R${String(railNum).padStart(2, '0')}-${String(bay).padStart(2, '0')}`;
   }
   if (zStr.startsWith('T') || zStr.startsWith('DA5T')) {
     const tentNum = zStr.replace(/\D/g, '') || '1';
-    return `DA5T-${tentNum}.01-${String(bay).padStart(2, '0')}`;
+    return `DA5T-${tentNum}-01-R${lvl}-C${String(bay).padStart(2, '0')}`;
   }
-  return `${zStr}${bay}-L${lvl}`;
+  const prefix = ['G', 'H', 'I', 'J', 'K'].includes(zStr) ? 'DA4D-3' : 'DA4D-2';
+  return `${prefix}-${zStr}${String(bay).padStart(2, '0')}-L${lvl}${pSuffix || '-P1'}`;
 };
 
 export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
@@ -127,6 +140,9 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
   initialBayNumber = 6,
   initialLevel = 1,
   initialMode = 'IN',
+  initialLocatorCode,
+  initialPalletPosition,
+  initialItem,
   existingItems,
   useLines = [
     { id: 'HE1', name: 'Line HE1' },
@@ -135,6 +151,7 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
     { id: 'HE4', name: 'Line HE4' },
     { id: 'REPAIR', name: 'Line Repair' },
   ],
+  targetUseLines = [],
   masterData = [],
 }) => {
   // 1. Transaction Type: IN (รับเข้า) / OUT (เบิกจ่าย) / TRANSFER (ย้ายพิกัด)
@@ -160,6 +177,9 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
   const [zone, setZone] = useState<StorageZone>(initialZone);
   const [bayNumber, setBayNumber] = useState<number>(initialBayNumber);
   const [level, setLevel] = useState<ShelfLevel>(initialLevel);
+  const [palletPosition, setPalletPosition] = useState<string | undefined>(initialPalletPosition);
+  const [activeCustomLocator, setActiveCustomLocator] = useState<string | undefined>(initialLocatorCode);
+  const [targetItemObj, setTargetItemObj] = useState<InventoryItem | null>(initialItem || null);
 
   // Target Locator (For Transfer / Relocate mode)
   const [targetZone, setTargetZone] = useState<StorageZone>('F');
@@ -181,6 +201,7 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
   // Quantity States
   const [actualQty, setActualQty] = useState<number>(80);
   const [labelQty, setLabelQty] = useState<number>(80);
+  const [stdQtyPerPallet, setStdQtyPerPallet] = useState<number>(80);
 
   // Feedback & Validation
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -293,6 +314,45 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
     return existingItems.filter(it => it.zone === zone && it.bayNumber === bayNumber);
   }, [existingItems, zone, bayNumber]);
 
+  // Standard capacity for current model
+  const currentModelStdCapacity = useMemo(() => {
+    return getModelStdCapacity(modelHE, masterData);
+  }, [modelHE, masterData]);
+
+  // Current slot locator
+  const effectiveCurrentLocator = useMemo(() => {
+    return activeCustomLocator || formatLocatorCode(zone, bayNumber, level, palletPosition);
+  }, [activeCustomLocator, zone, bayNumber, level, palletPosition]);
+
+  // Target locator for transfer
+  const effectiveTargetLocator = useMemo(() => {
+    return formatLocatorCode(targetZone, targetBayNumber, targetLevel);
+  }, [targetZone, targetBayNumber, targetLevel]);
+
+  // Real-time slot placement & model mixing validation
+  const placementValidation = useMemo(() => {
+    if (type === 'IN') {
+      return validateSlotPlacement(effectiveCurrentLocator, palletPosition, modelHE, existingItems, actualQty, masterData);
+    }
+    if (type === 'TRANSFER') {
+      return validateSlotPlacement(effectiveTargetLocator, 'P1', modelHE, existingItems, actualQty, masterData);
+    }
+    return { allowed: true, canMerge: false };
+  }, [type, effectiveCurrentLocator, palletPosition, effectiveTargetLocator, modelHE, existingItems, actualQty, masterData]);
+
+  // Active standard capacity for current model
+  const activeStdCapacity = stdQtyPerPallet > 0 ? stdQtyPerPallet : currentModelStdCapacity;
+
+  // Evaluate Pallet Capacity
+  const capacityEval = useMemo(() => {
+    if (type === 'IN') {
+      const existingInSlot = placementValidation.existingItem?.quantity || 0;
+      const totalQty = existingInSlot + (actualQty || 0);
+      return evaluatePalletCapacity(totalQty, activeStdCapacity);
+    }
+    return evaluatePalletCapacity(actualQty || 0, activeStdCapacity);
+  }, [type, placementValidation.existingItem, actualQty, activeStdCapacity]);
+
   // Exact standard QR Code string formatted: [PartNo]_[Date]_[Time]_[Line]_[Qty]
   const composedQRString = useMemo(() => {
     const pModel = modelHE.trim().toUpperCase() || 'MODEL';
@@ -328,6 +388,9 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
       setBayNumber(initialBayNumber);
       setLevel(initialLevel);
       setType(initialMode);
+      setPalletPosition(initialPalletPosition);
+      setActiveCustomLocator(initialLocatorCode);
+      setTargetItemObj(initialItem || null);
       setSuccessMessage(null);
       setValidationError(null);
       setCameraActive(false);
@@ -336,24 +399,42 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
       setModelSearchQuery('');
 
       // Determine item in clicked slot
-      const found = existingItems.find(
-        (it) => it.zone === initialZone && it.bayNumber === initialBayNumber && it.level === initialLevel
-      );
+      let found = initialItem || null;
+      if (!found && initialLocatorCode) {
+        found = existingItems.find(it => it.locatorCode === initialLocatorCode) || null;
+      }
+      if (!found) {
+        found = existingItems.find(
+          (it) => it.zone === initialZone && it.bayNumber === initialBayNumber && it.level === initialLevel && (initialPalletPosition ? it.palletPosition === initialPalletPosition : true)
+        ) || null;
+      }
 
       if (found) {
         // Slot has item: Pre-fill with the exact item in the slot
+        setTargetItemObj(found);
         setModelHE(found.modelHE);
         setModelSearchQuery(found.modelHE);
         setUseLine(found.useLine);
         setLabelQty(found.quantity);
-        setActualQty(initialMode === 'OUT' || initialMode === 'TRANSFER' ? found.quantity : (found.stdQtyPerPallet || 80));
+        const itemStd = found.stdQtyPerPallet || getModelStdCapacity(found.modelHE, masterData);
+        setStdQtyPerPallet(itemStd);
+        setActualQty(initialMode === 'OUT' || initialMode === 'TRANSFER' ? found.quantity : itemStd);
         setScanInput(found.qrCode || `${found.modelHE}_2026-07-01_${found.useLine}_${found.quantity}`);
+        if (found.locatorCode) {
+          setActiveCustomLocator(found.locatorCode);
+        }
+        if (found.palletPosition) {
+          setPalletPosition(found.palletPosition);
+        }
       } else {
         // Slot is empty
+        setTargetItemObj(null);
         setModelHE('ADL74920904');
         setModelSearchQuery('ADL74920904');
-        setLabelQty(80);
-        setActualQty(80);
+        const defaultStd = getModelStdCapacity('ADL74920904', masterData);
+        setStdQtyPerPallet(defaultStd);
+        setLabelQty(defaultStd);
+        setActualQty(defaultStd);
         setUseLine('HE2');
         setScanInput('ADL74920904_2026-09-29_09:00_HE2_80');
       }
@@ -363,7 +444,7 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
       setTargetBayNumber(1);
       setTargetLevel(1);
     }
-  }, [isOpen, initialZone, initialBayNumber, initialLevel, initialMode, existingItems]);
+  }, [isOpen, initialZone, initialBayNumber, initialLevel, initialMode, initialLocatorCode, initialPalletPosition, initialItem, existingItems]);
 
   // Max Bays Calculation
   const getMaxBaysForZone = (z: string): number => {
@@ -394,7 +475,7 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
     setIsModelDropdownOpen(false);
 
     const match = availableModels.find(m => m.modelHE.toUpperCase() === selectedModel.toUpperCase());
-    const std = defaultStdQty || match?.stdQty || 80;
+    const std = defaultStdQty || match?.stdQty || getModelStdCapacity(selectedModel, masterData);
     setActualQty(std);
     setLabelQty(std);
   };
@@ -543,6 +624,12 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
       return;
     }
 
+    // Model Mixing & Placement Validation
+    if (!placementValidation.allowed) {
+      setValidationError(placementValidation.reason || '⚠️ ไม่อนุญาตให้จัดเก็บปน Model ในพาเลทเดียวกัน');
+      return;
+    }
+
     // Stock OUT validation: Check against slot quantity
     if (type === 'OUT' && currentSlotItem && actualQty > currentSlotItem.quantity) {
       setValidationError(`⚠️ จำนวนที่ต้องการเบิก (${actualQty.toLocaleString()}) เกินกว่ายอดคงเหลือในช่อง (${currentSlotItem.quantity.toLocaleString()} ชิ้น)`);
@@ -570,6 +657,8 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
       ? composedQRString
       : (scanInput.trim() || composedQRString);
 
+    const effectiveLocator = activeCustomLocator || formatLocatorCode(zone, bayNumber, level, palletPosition);
+
     onSaveMovement({
       type,
       scanInput: finalScanInput,
@@ -581,15 +670,18 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
       actualQty,
       useLine,
       remark,
-      stdQtyPerPallet: 80,
+      stdQtyPerPallet: activeStdCapacity,
       protectionMethod: 'NOT_APPLICABLE',
       targetZone: type === 'TRANSFER' ? targetZone : undefined,
       targetBayNumber: type === 'TRANSFER' ? targetBayNumber : undefined,
       targetLevel: type === 'TRANSFER' ? targetLevel : undefined,
+      palletPosition,
+      locatorCode: effectiveLocator,
+      targetItemId: targetItemObj?.id || (type === 'OUT' || type === 'TRANSFER' ? currentSlotItem?.id : undefined),
     });
 
     const actionText = type === 'IN' ? 'รับเข้า' : type === 'OUT' ? 'เบิกจ่าย' : 'ย้ายพิกัด';
-    const locText = formatLocatorCode(zone, bayNumber, level);
+    const locText = effectiveLocator;
     const targetLocText = type === 'TRANSFER' ? ` -> ${formatLocatorCode(targetZone, targetBayNumber, targetLevel)}` : '';
     setSuccessMessage(`✅ บันทึก${actionText} ${cleanModel} ที่ ${locText}${targetLocText} (${actualQty.toLocaleString()} ชิ้น) สำเร็จ!`);
 
@@ -646,7 +738,7 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
                   {type === 'IN' ? '📥 รับเข้าสินค้า (Stock IN)' : type === 'OUT' ? '📤 เบิกออกสินค้า (Stock OUT)' : '🔄 ย้ายพิกัดสินค้า (Transfer)'}
                 </span>
                 <span className="text-[9.5px] font-mono px-1 py-0.2 bg-slate-800 text-slate-400 rounded">
-                  {formatLocatorCode(zone, bayNumber, level)}
+                  {activeCustomLocator || formatLocatorCode(zone, bayNumber, level, palletPosition)}
                 </span>
               </h3>
             </div>
@@ -851,11 +943,16 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
               <input
                 type="text"
                 value={modelHE}
+                readOnly={type !== 'IN'}
+                disabled={type !== 'IN'}
                 onFocus={() => {
-                  setModelSearchQuery(modelHE);
-                  setIsModelDropdownOpen(true);
+                  if (type === 'IN') {
+                    setModelSearchQuery(modelHE);
+                    setIsModelDropdownOpen(true);
+                  }
                 }}
                 onChange={(e) => {
+                  if (type !== 'IN') return;
                   const val = e.target.value.toUpperCase();
                   setModelHE(val);
                   setModelSearchQuery(val);
@@ -867,16 +964,20 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
                   }
                 }}
                 placeholder="กรอก Parts No..."
-                className="w-full h-8 bg-slate-900 border border-slate-700 focus:border-cyan-400 rounded-lg pl-2.5 pr-8 font-mono font-black text-xs text-cyan-300 placeholder-slate-500 focus:outline-none"
+                className={`w-full h-8 bg-slate-900 border rounded-lg pl-2.5 pr-8 font-mono font-black text-xs text-cyan-300 placeholder-slate-500 focus:outline-none ${
+                  type !== 'IN' ? 'opacity-80 cursor-not-allowed border-slate-800' : 'border-slate-700 focus:border-cyan-400'
+                }`}
                 required
               />
-              <button
-                type="button"
-                onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-0.5"
-              >
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isModelDropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
+              {type === 'IN' && (
+                <button
+                  type="button"
+                  onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-0.5"
+                >
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isModelDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+              )}
 
               {/* Suggestions Dropdown */}
               {isModelDropdownOpen && (
@@ -929,7 +1030,7 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
                   <span>พิกัดจัดเก็บ (Storage Locator):</span>
                 </label>
                 <span className="font-mono font-black text-amber-300 text-xs">
-                  {formatLocatorCode(zone, bayNumber, level)}
+                  {activeCustomLocator || formatLocatorCode(zone, bayNumber, level, palletPosition)}
                 </span>
               </div>
 
@@ -1056,32 +1157,41 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
                 </div>
               </div>
 
-              {/* Quick Zone Selector Pills */}
+              {/* Quick Zone Selector Dropdown (All Zones 100%) */}
               <div>
-                <label className="block text-[10px] font-bold text-slate-300 mb-1">1. เลือกโซนปลายทาง (Zone):</label>
-                <div className="flex flex-wrap gap-1">
-                  {['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'CY3-A', 'CY3-B', 'X1'].map((z) => {
-                    const isSel = targetZone === z;
-                    return (
-                      <button
-                        key={z}
-                        type="button"
-                        onClick={() => {
-                          setTargetZone(z as StorageZone);
-                          const maxB = getMaxBaysForZone(z as StorageZone);
-                          if (targetBayNumber > maxB) setTargetBayNumber(1);
-                        }}
-                        className={`h-7 px-2.5 rounded-lg text-xs font-black transition-all border ${
-                          isSel
-                            ? 'bg-purple-600 text-white border-purple-400 shadow-sm ring-1 ring-purple-400'
-                            : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
-                        }`}
-                      >
-                        {z}
-                      </button>
-                    );
-                  })}
-                </div>
+                <label className="block text-[10px] font-bold text-slate-300 mb-1">1. เลือกโซนปลายทาง (Destination Zone):</label>
+                <select
+                  value={targetZone}
+                  onChange={(e) => {
+                    const z = e.target.value as StorageZone;
+                    setTargetZone(z);
+                    const maxB = getMaxBaysForZone(z);
+                    if (targetBayNumber > maxB) setTargetBayNumber(1);
+                    if (z.startsWith('X') || z.startsWith('R') || z.startsWith('T') || z.startsWith('FR')) {
+                      setTargetLevel(1);
+                    }
+                  }}
+                  className="w-full h-8 bg-slate-900 border border-purple-500/50 text-purple-200 rounded-lg px-2.5 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-purple-400 font-mono"
+                >
+                  <optgroup label="A4 แร็คมาตรฐาน (B-F)">
+                    {['B', 'C', 'D', 'E', 'F'].map(z => <option key={z} value={z}>แร็ค Zone {z}</option>)}
+                  </optgroup>
+                  <optgroup label="A4 แร็คสูง (G-K)">
+                    {['G', 'H', 'I', 'J', 'K'].map(z => <option key={z} value={z}>แร็คสูง Zone {z}</option>)}
+                  </optgroup>
+                  <optgroup label="CY3 เต็นท์ (CY3-A to CY3-D)">
+                    {['CY3-A', 'CY3-B', 'CY3-C', 'CY3-D'].map(z => <option key={z} value={z}>เต็นท์ {z}</option>)}
+                  </optgroup>
+                  <optgroup label="A4 ลานวางพื้น (X1-X8)">
+                    {['X1','X2','X3','X4','X5','X6','X7','X8'].map(z => <option key={z} value={z}>ลานกองพื้น {z}</option>)}
+                  </optgroup>
+                  <optgroup label="A2 รางเลื่อน (R1-R13)">
+                    {Array.from({ length: 13 }, (_, idx) => `R${idx + 1}`).map(z => <option key={z} value={z}>รางเลื่อน {z}</option>)}
+                  </optgroup>
+                  <optgroup label="A5 เต็นท์วางพื้น (T1-T4)">
+                    {['T1', 'T2', 'T3', 'T4'].map(z => <option key={z} value={z}>เต็นท์ {z}</option>)}
+                  </optgroup>
+                </select>
               </div>
 
               {/* Bay & Level Selection in a clean row */}
@@ -1089,7 +1199,7 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
                 {/* Bay Number Selection */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="text-[10px] font-bold text-slate-300">2. เลือก Bay ปลายทาง:</label>
+                    <label className="text-[10px] font-bold text-slate-300">2. เลือก Bay / ช่วงเสา:</label>
                     <span className="text-[10px] font-mono text-purple-300 font-bold">Bay {targetBayNumber}</span>
                   </div>
                   <div className="flex items-center gap-1">
@@ -1122,31 +1232,45 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
                   </div>
                 </div>
 
-                {/* Level Selection */}
+                {/* Level Selection (Conditional: Racks/CY3 show L1-L4; Floor/Rail/Tent show Single-Tier Ground L1) */}
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-[10px] font-bold text-slate-300">3. เลือกระดับชั้น:</label>
-                    <span className="text-[10px] font-mono text-purple-300 font-bold">L{targetLevel}</span>
-                  </div>
-                  <div className="grid grid-cols-4 gap-1">
-                    {([1, 2, 3, 4] as ShelfLevel[]).map((lvl) => {
-                      const isSel = targetLevel === lvl;
-                      return (
-                        <button
-                          key={lvl}
-                          type="button"
-                          onClick={() => setTargetLevel(lvl)}
-                          className={`h-7 rounded-lg text-xs font-mono font-black border transition-all ${
-                            isSel
-                              ? 'bg-purple-600 text-white border-purple-400 shadow-sm'
-                              : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
-                          }`}
-                        >
-                          L{lvl}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  {['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'].includes(String(targetZone)) || String(targetZone).startsWith('CY3') ? (
+                    <>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[10px] font-bold text-slate-300">3. เลือกระดับชั้น:</label>
+                        <span className="text-[10px] font-mono text-purple-300 font-bold">L{targetLevel}</span>
+                      </div>
+                      <div className="grid grid-cols-4 gap-1">
+                        {([1, 2, 3, 4] as ShelfLevel[]).map((lvl) => {
+                          const isSel = targetLevel === lvl;
+                          return (
+                            <button
+                              key={lvl}
+                              type="button"
+                              onClick={() => setTargetLevel(lvl)}
+                              className={`h-7 rounded-lg text-xs font-mono font-black border transition-all ${
+                                isSel
+                                  ? 'bg-purple-600 text-white border-purple-400 shadow-sm'
+                                  : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
+                              }`}
+                            >
+                              L{lvl}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[10px] font-bold text-slate-300">3. ระดับชั้น:</label>
+                        <span className="text-[10px] font-mono text-emerald-300 font-bold">ชั้นเดียว (L1)</span>
+                      </div>
+                      <div className="h-7 bg-slate-900/80 border border-slate-800 rounded-lg flex items-center justify-center text-[11px] text-slate-400 font-mono">
+                        <span>พื้นที่ชั้นเดียว (L1)</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -1237,54 +1361,204 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
             </div>
           </div>
 
-          {/* FIELD 4: PRODUCTION LINE & DATE (ONE COMPACT ROW) */}
-          <div className="bg-slate-950/70 p-2.5 rounded-xl border border-slate-800 space-y-1.5">
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-[10px] text-slate-400 mb-0.5 font-bold">
-                  {type === 'OUT' ? 'ไลน์ที่นำไปใช้ (Usage Line):' : 'ไลน์ผลิต (Use Line):'}
-                </label>
-                <div className="grid grid-cols-5 gap-1">
-                  {useLines.map((line) => {
-                    const isActive = useLine === line.id;
-                    return (
-                      <button
-                        key={line.id}
-                        type="button"
-                        onClick={() => setUseLine(line.id)}
-                        className={`h-7 rounded text-[11px] font-bold border transition-all ${
-                          isActive
-                            ? 'bg-amber-500 text-slate-950 font-black border-amber-400'
-                            : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700'
-                        }`}
-                      >
-                        {line.name?.replace('Line ', '') || line.id}
-                      </button>
-                    );
-                  })}
+          {/* CAPACITY CONTROL & MODEL MIXING WARNING CARD */}
+          {!placementValidation.allowed ? (
+            <div className="bg-rose-950/85 border-2 border-rose-500/80 p-3 rounded-xl text-xs space-y-1.5 animate-fadeIn">
+              <div className="flex items-center gap-1.5 text-rose-300 font-black">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>คำเตือน: ห้ามจัดเก็บปน Model ในพาเลทเดียวกัน (WMS Rule)</span>
+              </div>
+              <p className="text-slate-200 text-[11px] leading-relaxed">
+                {placementValidation.reason}
+              </p>
+            </div>
+          ) : (
+            type === 'IN' && (
+              <div className="bg-slate-950/80 border border-slate-800 p-2.5 rounded-xl space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Box className="w-3.5 h-3.5 text-cyan-400" />
+                    <span className="font-bold text-slate-300">ควบคุมความจุพาเลท (Pallet Capacity Control):</span>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-black border ${capacityEval.badgeColor}`}>
+                    {capacityEval.label}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] font-mono">
+                  <span className="text-slate-300">
+                    {placementValidation.canMerge && placementValidation.existingItem ? (
+                      <>
+                        เดิม: <strong className="text-amber-400">{placementValidation.existingItem.quantity}</strong> + เติม: <strong className="text-emerald-400">{actualQty}</strong> = รวม <strong className="text-white">{placementValidation.existingItem.quantity + actualQty}</strong> ชิ้น
+                      </>
+                    ) : (
+                      <>
+                        ยอดจัดเก็บพาเลทนี้: <strong className="text-white">{actualQty}</strong> ชิ้น
+                      </>
+                    )}
+                  </span>
+                  <span className="text-slate-400">
+                    ความจุมาตรฐาน: <strong className="text-cyan-300 font-bold">{currentModelStdCapacity}</strong> ชิ้น/พาเลท
+                  </span>
+                </div>
+
+                {/* Visual Gauge Bar */}
+                <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden border border-slate-800">
+                  <div
+                    className={`h-full transition-all duration-300 ${
+                      capacityEval.status === 'OVER'
+                        ? 'bg-amber-400'
+                        : capacityEval.status === 'FULL'
+                        ? 'bg-emerald-400'
+                        : 'bg-blue-400'
+                    }`}
+                    style={{ width: `${Math.min(100, capacityEval.capacityPercent)}%` }}
+                  />
+                </div>
+
+                {/* Editable Standard Pallet Capacity Input Field (Only in IN Mode) */}
+                <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2">
+                  <label className="text-[10.5px] font-bold text-slate-300 flex items-center gap-1">
+                    <span>ความจุมาตรฐานต่อพาเลท (Pallet Std Capacity):</span>
+                  </label>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min="1"
+                      value={stdQtyPerPallet || ''}
+                      onChange={(e) => setStdQtyPerPallet(Math.max(1, Number(e.target.value) || 1))}
+                      className="w-16 h-7 bg-slate-900 border border-cyan-500/50 rounded-lg text-center font-mono font-black text-xs text-cyan-300 focus:outline-none focus:ring-1 focus:ring-cyan-400"
+                    />
+                    <span className="text-[10px] font-bold text-slate-400">ชิ้น/PL</span>
+                  </div>
+                </div>
+
+                {/* Preset Chips for Pallet Capacity */}
+                <div className="flex items-center justify-end gap-1 pt-0.5">
+                  <span className="text-[9.5px] text-slate-500">ปรับมาตรฐาน:</span>
+                  {[30, 50, 80, 100, 120].map((preset) => (
+                    <button
+                      key={`cap-${preset}`}
+                      type="button"
+                      onClick={() => setStdQtyPerPallet(preset)}
+                      className={`h-5 px-1.5 rounded text-[9.5px] font-mono font-bold border transition-all ${
+                        stdQtyPerPallet === preset
+                          ? 'bg-cyan-500 text-slate-950 border-cyan-400 font-black'
+                          : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
                 </div>
               </div>
+            )
+          )}
 
-              <div>
-                <div className="flex items-center justify-between text-[10px] text-slate-400 mb-0.5">
-                  <span className="font-bold">วันที่บันทึก:</span>
-                  <button
-                    type="button"
-                    onClick={setDateToToday}
-                    className="text-[9px] text-amber-400 hover:underline"
-                  >
-                    วันนี้
-                  </button>
+          {/* FIELD 4: LINE SELECTION & TRANSACTION TIMESTAMP */}
+          {type !== 'TRANSFER' ? (
+            <div className="bg-slate-950/70 p-2.5 rounded-xl border border-slate-800 space-y-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[10px] text-slate-300 font-bold flex items-center gap-1">
+                      <span>{type === 'IN' ? 'ไลน์ผลิต (Production Line):' : 'ไลน์ที่นำไปใช้ (Target Use Line):'}</span>
+                    </label>
+                    <span className="text-[10px] font-mono font-bold text-amber-300 bg-amber-500/20 px-1.5 py-0.2 rounded border border-amber-500/40">
+                      เลือก: {useLine}
+                    </span>
+                  </div>
+
+                  {/* IN Mode: Production Lines Dropdown */}
+                  {type === 'IN' && (
+                    <div>
+                      <select
+                        value={useLine}
+                        onChange={(e) => setUseLine(e.target.value)}
+                        className="w-full h-8 bg-slate-900 border border-emerald-500/50 text-emerald-300 rounded-lg px-2.5 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-emerald-400 font-mono"
+                      >
+                        {useLines.map((line) => (
+                          <option key={line.id} value={line.id}>
+                            {line.name} ({line.id})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* OUT Mode: Target Use Lines Dropdown */}
+                  {type === 'OUT' && targetUseLines && targetUseLines.length > 0 && (
+                    <div>
+                      <select
+                        value={useLine}
+                        onChange={(e) => setUseLine(e.target.value)}
+                        className="w-full h-8 bg-slate-900 border border-orange-500/50 text-orange-300 rounded-lg px-2.5 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-orange-400 font-mono"
+                      >
+                        {targetUseLines.map((line) => (
+                          <option key={line.id} value={line.id}>
+                            {line.name} ({line.id})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
-                <input
-                  type="date"
-                  value={manualDate}
-                  onChange={(e) => setManualDate(e.target.value)}
-                  className="w-full h-7 bg-slate-900 border border-slate-700 focus:border-amber-400 rounded px-2 font-mono text-xs text-white focus:outline-none"
-                  required
-                />
+
+                <div>
+                  <div className="flex items-center justify-between text-[10px] text-slate-400 mb-0.5">
+                    <span className="font-bold">
+                      {type === 'IN' ? 'วันที่รับเข้า (Inbound Date):' : 'วันที่เบิกออก (OUT Date):'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={setDateToToday}
+                      className="text-[9px] text-amber-400 hover:underline"
+                    >
+                      วันนี้
+                    </button>
+                  </div>
+                  <input
+                    type="date"
+                    value={manualDate}
+                    onChange={(e) => setManualDate(e.target.value)}
+                    className="w-full h-7 bg-slate-900 border border-slate-700 focus:border-amber-400 rounded px-2 font-mono text-xs text-white focus:outline-none"
+                    required
+                  />
+                  {type === 'OUT' && currentSlotItem?.date && (
+                    <span className="text-[9.5px] text-slate-500 font-mono block mt-0.5">
+                      📥 รับเข้าเดิม: {currentSlotItem.date}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
+          ) : (
+            /* TRANSFER Mode: Date Only, No Lines */
+            <div className="bg-slate-950/70 p-2.5 rounded-xl border border-slate-800 space-y-1.5">
+              <div className="flex items-center justify-between text-[10px] text-slate-400 mb-0.5">
+                <span className="font-bold">วันที่ย้ายพิกัด (Transfer Date):</span>
+                <button
+                  type="button"
+                  onClick={setDateToToday}
+                  className="text-[9px] text-amber-400 hover:underline"
+                >
+                  วันนี้
+                </button>
+              </div>
+              <input
+                type="date"
+                value={manualDate}
+                onChange={(e) => setManualDate(e.target.value)}
+                className="w-full h-7 bg-slate-900 border border-slate-700 focus:border-amber-400 rounded px-2 font-mono text-xs text-white focus:outline-none"
+                required
+              />
+              {currentSlotItem?.date && (
+                <span className="text-[9.5px] text-slate-500 font-mono block mt-0.5">
+                  📥 รับเข้าเดิม: {currentSlotItem.date}
+                </span>
+              )}
+            </div>
+          )}
 
             {/* Optional Remark Input */}
             <div className="pt-1">
@@ -1296,8 +1570,6 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
                 className="w-full h-7 bg-slate-900 border border-slate-800 focus:border-slate-600 rounded px-2 text-[11px] text-white placeholder-slate-500 focus:outline-none"
               />
             </div>
-          </div>
-
         </form>
 
         {/* ========================================================================= */}
@@ -1315,10 +1587,10 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={!actualQty || actualQty <= 0}
+            disabled={!actualQty || actualQty <= 0 || !placementValidation.allowed}
             className={`flex-1 h-10 rounded-xl font-black text-xs sm:text-sm text-white shadow-md flex items-center justify-center gap-1.5 transition-all active:scale-[0.99] ${
-              !actualQty || actualQty <= 0
-                ? 'bg-slate-800 cursor-not-allowed text-slate-500'
+              !actualQty || actualQty <= 0 || !placementValidation.allowed
+                ? 'bg-slate-800 cursor-not-allowed text-slate-500 border border-slate-700'
                 : type === 'IN'
                 ? 'bg-emerald-600 hover:bg-emerald-500 ring-1 ring-emerald-400'
                 : type === 'OUT'
@@ -1328,7 +1600,9 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
           >
             <Zap className="w-3.5 h-3.5" />
             <span>
-              {actualQty > 0
+              {!placementValidation.allowed
+                ? '⛔ ไม่สามารถบันทึกได้ (ห้ามจัดเก็บปน Model)'
+                : actualQty > 0
                 ? type === 'IN'
                   ? `ยืนยันรับเข้า (${actualQty.toLocaleString()} ชิ้น)`
                   : type === 'OUT'

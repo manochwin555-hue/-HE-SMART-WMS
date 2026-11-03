@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { InventoryItem, MovementLog, MovementType, ShelfLevel, StorageZone, WmsStats, MasterDataItem, UseLineMaster, ZoneCapacityMaster, WarehouseFacility, AgingThresholdConfig, CustomRackSlot, ProtectionMethod, ProductType, ProductStorageType } from './types';
+import { InventoryItem, MovementLog, MovementType, ShelfLevel, StorageZone, WmsStats, MasterDataItem, UseLineMaster, TargetUseLineMaster, ZoneCapacityMaster, WarehouseFacility, AgingThresholdConfig, CustomRackSlot, ProtectionMethod, ProductType, ProductStorageType } from './types';
 import { 
   INITIAL_ITEMS, 
   INITIAL_LOGS, 
@@ -30,6 +30,8 @@ import { Campus3DCockpitView } from './components/Campus3DCockpitView';
 import { CampusMasterOverview } from './components/CampusMasterOverview';
 import { GlobalSearchZoneLookup } from './components/GlobalSearchZoneLookup';
 import { calculateVinylWrappingStatus, getBangkokDateString } from './utils/vinylWrappingRule';
+import { recalculateInventoryConsistency, validateSlotPlacement, getModelStdCapacity } from './utils/inventoryConsistency';
+import { resolveCanonicalCoordinate } from './utils/locatorUtils';
 import { Search, X } from 'lucide-react';
 
 const initialMasterData: MasterDataItem[] = INITIAL_MASTER_DATA;
@@ -78,6 +80,29 @@ export default function App() {
     { id: 'HE5', name: 'Line HE5', description: 'สายการผลิตเครื่องทำความร้อน HE5 (โรง A4)' },
     { id: 'REPAIR', name: 'Line Repair', description: 'โซนงานซ่อมแก้ไข (Repair Station)' },
   ]);
+  const [targetUseLines, setTargetUseLines] = useState<TargetUseLineMaster[]>(() => {
+    const saved = localStorage.getItem('lge_wms_target_use_lines');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        // ignore
+      }
+    }
+    return [
+      { id: 'A2', name: 'Line A2', description: 'สายการประกอบหลัก A2 (Main Assembly Plant A2)' },
+      { id: 'A4', name: 'Line A4', description: 'สายการประกอบหลัก A4 (Main Assembly Plant A4)' },
+      { id: 'A6', name: 'Line A6', description: 'สายการประกอบ A6 (Assembly Line A6)' },
+      { id: 'A7', name: 'Line A7', description: 'สายการประกอบ A7 (Assembly Line A7)' },
+      { id: 'A8', name: 'Line A8', description: 'สายการประกอบ A8 (Assembly Line A8)' },
+      { id: 'A9', name: 'Line A9', description: 'สายการประกอบ A9 (Assembly Line A9)' },
+      { id: 'SUB_LINE', name: 'Sub Line', description: 'สายงานย่อยเตรียมชิ้นส่วน (Sub-Assembly Staging Line)' }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('lge_wms_target_use_lines', JSON.stringify(targetUseLines));
+  }, [targetUseLines]);
   const [zoneCapacities, setZoneCapacities] = useState<ZoneCapacityMaster[]>(initialZoneCapacities);
   const [facilities, setFacilities] = useState<WarehouseFacility[]>(INITIAL_FACILITIES);
   const [activeFacilityId, setActiveFacilityId] = useState<string>('ALL');
@@ -264,6 +289,9 @@ export default function App() {
   const [scannerBay, setScannerBay] = useState<number>(6);
   const [scannerLevel, setScannerLevel] = useState<ShelfLevel>(1);
   const [scannerMode, setScannerMode] = useState<MovementType>('IN');
+  const [scannerLocatorCode, setScannerLocatorCode] = useState<string | undefined>(undefined);
+  const [scannerPalletPosition, setScannerPalletPosition] = useState<string | undefined>(undefined);
+  const [scannerTargetItem, setScannerTargetItem] = useState<InventoryItem | null>(null);
 
   // Vinyl Action Modal state
   const [activeVinylItem, setActiveVinylItem] = useState<InventoryItem | null>(null);
@@ -315,12 +343,18 @@ export default function App() {
     targetZone: StorageZone = selected3DZone,
     targetBay: number = selected3DBay,
     targetLevel: ShelfLevel = 1,
-    mode: MovementType = 'IN'
+    mode: MovementType = 'IN',
+    locatorCode?: string,
+    palletPosition?: string,
+    targetItem?: InventoryItem | null
   ) => {
     setScannerZone(targetZone);
     setScannerBay(targetBay);
     setScannerLevel(targetLevel);
     setScannerMode(mode);
+    setScannerLocatorCode(locatorCode);
+    setScannerPalletPosition(palletPosition);
+    setScannerTargetItem(targetItem || null);
     setIsScannerOpen(true);
   };
 
@@ -359,6 +393,10 @@ export default function App() {
     targetZone?: StorageZone;
     targetBayNumber?: number;
     targetLevel?: ShelfLevel;
+    palletPosition?: string;
+    locatorCode?: string;
+    targetItemId?: string;
+    targetLocatorCode?: string;
   }) => {
     const {
       type,
@@ -379,40 +417,100 @@ export default function App() {
       productStorageType,
       targetZone,
       targetBayNumber,
-      targetLevel
+      targetLevel,
+      palletPosition,
+      locatorCode: incomingLocatorCode,
+      targetItemId,
+      targetLocatorCode: incomingTargetLocatorCode
     } = data;
 
-    let locatorCode = `DA4D-1.05-${zone}${bayNumber}-L${level}`;
-    let storageType: 'RACK' | 'FLOW_RAIL' | 'FLOOR_STAGING' = 'RACK';
-    let facilityId = activeFacilityId === 'ALL' ? 'FAC-A4-RACK' : activeFacilityId;
+    // Determine canonical locatorCode, storageType, facilityId using resolveCanonicalCoordinate
+    const resolved = resolveCanonicalCoordinate({
+      zone,
+      bayNumber,
+      level,
+      palletPosition,
+      locatorCode: incomingLocatorCode
+    });
 
-    if (String(zone).startsWith('CY3') || String(zone).startsWith('DY3T')) {
-      const rowCode = String(zone).replace('CY3-', '');
-      const rowNum = rowCode === 'A' ? '1.01' : rowCode === 'B' ? '1.02' : rowCode === 'C' ? '1.03' : '1.04';
-      locatorCode = `DY3T-${rowNum}-${rowCode}${bayNumber}-L${level}`;
+    const locatorCode = resolved.canonicalLocator;
+    const cleanZone = resolved.zone;
+    const cleanPalletPos = resolved.palletPosition || 'P1';
+
+    let storageType: 'RACK' | 'FLOW_RAIL' | 'FLOOR_STAGING' = 'RACK';
+    let facilityId = 'FAC-A4-RACK';
+
+    const zStr = String(cleanZone);
+    if (zStr.startsWith('CY3') || zStr.startsWith('DY3T')) {
       storageType = 'RACK';
       facilityId = 'FAC-CY3-TENT';
-    } else if (String(zone).startsWith('R') || String(zone).startsWith('FR')) {
-      const railNum = String(zone).replace(/\D/g, '');
-      const formattedPos = String(bayNumber).padStart(2, '0');
-      locatorCode = `DA2D-1-R${railNum}-${formattedPos}`;
+    } else if (zStr.startsWith('T') || zStr.startsWith('DA5T')) {
+      storageType = 'FLOOR_STAGING';
+      facilityId = 'FAC-A5-TENT';
+    } else if (zStr.startsWith('X') || zStr.startsWith('DA4D-1')) {
+      storageType = 'FLOOR_STAGING';
+      facilityId = 'FAC-A4-FLOOR';
+    } else if (zStr.startsWith('R') || zStr.startsWith('FR')) {
       storageType = 'FLOW_RAIL';
       facilityId = 'FAC-A2-RAIL';
-    } else if (String(zone).startsWith('FL') || String(zone).startsWith('A1')) {
-      locatorCode = `A2-FL-${zone}-${String(bayNumber).padStart(2, '0')}`;
-      storageType = 'FLOOR_STAGING';
-      facilityId = 'FAC-A2-RAIL';
+    } else {
+      storageType = 'RACK';
+      facilityId = 'FAC-A4-RACK';
     }
 
     const qtyGap = actualQty - quantityCheck;
 
-    // 1. Update or create Inventory Item
+    // 1. Locate Target Inventory Item
     let updatedItems = [...items];
-    const existingIndex = updatedItems.findIndex(
-      (it) => it.zone === zone && it.bayNumber === bayNumber && it.level === level
-    );
+    let existingIndex = -1;
+
+    // Highest priority: exact ID
+    if (targetItemId) {
+      existingIndex = updatedItems.findIndex(it => it.id === targetItemId);
+    }
+    // Second priority: exact canonical locator code match
+    if (existingIndex < 0 && locatorCode) {
+      existingIndex = updatedItems.findIndex(it => {
+        if (it.locatorCode === locatorCode) return true;
+        const resIt = resolveCanonicalCoordinate({
+          zone: it.zone,
+          bayNumber: it.bayNumber,
+          level: it.level,
+          palletPosition: it.palletPosition,
+          locatorCode: it.locatorCode
+        });
+        return resIt.canonicalLocator === locatorCode;
+      });
+    }
+    // Third priority: zone, bay, level, and palletPosition
+    if (existingIndex < 0) {
+      existingIndex = updatedItems.findIndex(it => {
+        const resIt = resolveCanonicalCoordinate({
+          zone: it.zone,
+          bayNumber: it.bayNumber,
+          level: it.level,
+          palletPosition: it.palletPosition,
+          locatorCode: it.locatorCode
+        });
+        return (
+          resIt.zone === cleanZone &&
+          resIt.bayNumber === bayNumber &&
+          resIt.level === level &&
+          (cleanPalletPos ? (resIt.palletPosition === cleanPalletPos || (!it.palletPosition && cleanPalletPos === 'P1')) : true)
+        );
+      });
+    }
 
     let newBalance = stats.totalBalanceUnits;
+
+    // Validate slot placement to strictly reject mixing different models on the same pallet position
+    if (type === 'IN') {
+      const placementVal = validateSlotPlacement(locatorCode, cleanPalletPos, modelHE, updatedItems, actualQty, masterData);
+      if (!placementVal.allowed) {
+        alert(placementVal.reason || '⚠️ ไม่อนุญาตให้จัดเก็บปน Model ในพาเลทเดียวกัน');
+        return;
+      }
+    }
 
     // Evaluate Vinyl Wrapping Status for IN
     let agingStatusVal: any = 'SAFE';
@@ -431,28 +529,33 @@ export default function App() {
        dueDateStr = vinylRes.dueDate;
     }
 
+    const effectiveStdCapacity = stdQtyPerPallet || getModelStdCapacity(modelHE, masterData);
+
     if (type === 'IN') {
-      newBalance += actualQty;
       if (existingIndex >= 0) {
+        // Merge into existing pallet of the same model
         const item = updatedItems[existingIndex];
         item.quantity += actualQty;
-        item.stdQtyPerPallet = stdQtyPerPallet;
-        item.fullPallets = fullPallets ?? Math.floor(item.quantity / stdQtyPerPallet);
-        item.looseQty = looseQty ?? (item.quantity % stdQtyPerPallet);
+        item.stdQtyPerPallet = effectiveStdCapacity;
+        item.fullPallets = fullPallets ?? Math.floor(item.quantity / effectiveStdCapacity);
+        item.looseQty = looseQty ?? (item.quantity % effectiveStdCapacity);
+        if (modelHE) item.modelHE = modelHE;
+        if (useLine) item.useLine = useLine;
       } else {
         const newItem: InventoryItem = {
-          id: `item-${zone}${bayNumber}-${level}-${Date.now()}`,
+          id: `item-${cleanZone}${bayNumber}-${level}-${cleanPalletPos}-${Date.now()}`,
           modelHE,
           partName: `Part ${modelHE}`,
           quantity: actualQty,
-          stdQtyPerPallet,
-          fullPallets: fullPallets ?? Math.floor(actualQty / stdQtyPerPallet),
-          looseQty: looseQty ?? (actualQty % stdQtyPerPallet),
+          stdQtyPerPallet: effectiveStdCapacity,
+          fullPallets: fullPallets ?? Math.floor(actualQty / effectiveStdCapacity),
+          looseQty: looseQty ?? (actualQty % effectiveStdCapacity),
           qrCode: scanInput,
           locatorCode,
-          zone,
+          zone: cleanZone,
           bayNumber,
           level,
+          palletPosition: cleanPalletPos as 'P1' | 'P2',
           storageType,
           facilityId,
           useLine,
@@ -477,6 +580,47 @@ export default function App() {
     } else if (type === 'TRANSFER' && targetZone && targetBayNumber && targetLevel) {
       // 🔄 TRANSFER: Move goods from source locator to target locator
       let sourceItem = existingIndex >= 0 ? updatedItems[existingIndex] : null;
+
+      // Calculate target locator code
+      let targetLocatorCode = incomingTargetLocatorCode;
+      let targetStorageType = storageType;
+      let targetFacilityId = facilityId;
+      const tZStr = String(targetZone);
+
+      if (tZStr.startsWith('CY3') || tZStr.startsWith('DY3T')) {
+        const rowCode = tZStr.replace('CY3-', '').charAt(0) || 'A';
+        const rowNum = rowCode === 'A' ? '1.01' : rowCode === 'B' ? '1.02' : rowCode === 'C' ? '1.03' : '1.04';
+        targetLocatorCode = targetLocatorCode || `DY3T-${rowNum}-${rowCode}${String(targetBayNumber).padStart(2, '0')}-L${targetLevel}-P1`;
+        targetStorageType = 'RACK';
+        targetFacilityId = 'FAC-CY3-TENT';
+      } else if (tZStr.startsWith('X') || tZStr.startsWith('DA4D-1')) {
+        targetLocatorCode = targetLocatorCode || `DA4D-1.01-${tZStr}-R${targetBayNumber}-C${String(targetLevel).padStart(2, '0')}`;
+        targetStorageType = 'FLOOR_STAGING';
+        targetFacilityId = 'FAC-A4-FLOOR';
+      } else if (tZStr.startsWith('T') || tZStr.startsWith('DA5T')) {
+        const tentNum = tZStr.replace(/\D/g, '') || '1';
+        targetLocatorCode = targetLocatorCode || `DA5T-${tentNum}-01-R${targetLevel}-C${String(targetBayNumber).padStart(2, '0')}`;
+        targetStorageType = 'FLOOR_STAGING';
+        targetFacilityId = 'FAC-A5-TENT';
+      } else if (tZStr.startsWith('R') || tZStr.startsWith('FR')) {
+        const railNum = tZStr.replace(/\D/g, '') || '1';
+        targetLocatorCode = targetLocatorCode || `DA2D-1-R${String(railNum).padStart(2, '0')}-${String(targetBayNumber).padStart(2, '0')}`;
+        targetStorageType = 'FLOW_RAIL';
+        targetFacilityId = 'FAC-A2-RAIL';
+      } else {
+        const prefix = ['G', 'H', 'I', 'J', 'K'].includes(tZStr) ? 'DA4D-3' : 'DA4D-2';
+        targetLocatorCode = targetLocatorCode || `${prefix}-${tZStr}${String(targetBayNumber).padStart(2, '0')}-L${targetLevel}-P1`;
+        targetStorageType = 'RACK';
+        targetFacilityId = 'FAC-A4-RACK';
+      }
+
+      // Validate target slot against mixed models
+      const transferPlacementVal = validateSlotPlacement(targetLocatorCode, 'P1', modelHE, updatedItems, actualQty, masterData);
+      if (!transferPlacementVal.allowed) {
+        alert(transferPlacementVal.reason || '⚠️ ไม่อนุญาตให้ย้ายสินค้าไปปน Model กับตำแหน่งปลายทาง');
+        return;
+      }
+
       if (existingIndex >= 0) {
         const currentQty = updatedItems[existingIndex].quantity;
         const remaining = currentQty - actualQty;
@@ -487,41 +631,30 @@ export default function App() {
         }
       }
 
-      // Calculate target locator code
-      let targetLocatorCode = `DA4D-1.05-${targetZone}${targetBayNumber}-L${targetLevel}`;
-      if (String(targetZone).startsWith('CY3') || String(targetZone).startsWith('DY3T')) {
-        const rowCode = String(targetZone).replace('CY3-', '');
-        const rowNum = rowCode === 'A' ? '1.01' : rowCode === 'B' ? '1.02' : rowCode === 'C' ? '1.03' : '1.04';
-        targetLocatorCode = `DY3T-${rowNum}-${rowCode}${targetBayNumber}-L${targetLevel}`;
-      } else if (String(targetZone).startsWith('X')) {
-        targetLocatorCode = `DA4D-1-${targetZone}-${targetBayNumber}`;
-      } else if (String(targetZone).startsWith('R') || String(targetZone).startsWith('FR')) {
-        const railNum = String(targetZone).replace(/\D/g, '');
-        targetLocatorCode = `DA2D-1-R${railNum}-${String(targetBayNumber).padStart(2, '0')}`;
-      }
-
       // Add or merge into target slot
       const targetIndex = updatedItems.findIndex(
-        it => it.zone === targetZone && it.bayNumber === targetBayNumber && it.level === targetLevel
+        it => it.locatorCode === targetLocatorCode || (it.zone === targetZone && it.bayNumber === targetBayNumber && it.level === targetLevel)
       );
       if (targetIndex >= 0) {
         updatedItems[targetIndex].quantity += actualQty;
       } else {
+        const transferStdCap = getModelStdCapacity(modelHE, masterData) || sourceItem?.stdQtyPerPallet || effectiveStdCapacity;
         const transferredItem: InventoryItem = {
           id: `item-${targetZone}${targetBayNumber}-${targetLevel}-${Date.now()}`,
           modelHE,
           partName: sourceItem?.partName || `Part ${modelHE}`,
           quantity: actualQty,
-          stdQtyPerPallet: sourceItem?.stdQtyPerPallet || stdQtyPerPallet,
-          fullPallets: Math.floor(actualQty / (sourceItem?.stdQtyPerPallet || stdQtyPerPallet)),
-          looseQty: actualQty % (sourceItem?.stdQtyPerPallet || stdQtyPerPallet),
+          stdQtyPerPallet: transferStdCap,
+          fullPallets: Math.floor(actualQty / transferStdCap),
+          looseQty: actualQty % transferStdCap,
           qrCode: sourceItem?.qrCode || scanInput,
           locatorCode: targetLocatorCode,
           zone: targetZone,
           bayNumber: targetBayNumber,
           level: targetLevel,
-          storageType,
-          facilityId,
+          palletPosition: 'P1',
+          storageType: targetStorageType,
+          facilityId: targetFacilityId,
           useLine: sourceItem?.useLine || useLine,
           storageInDate: sourceItem?.storageInDate || new Date().toISOString(),
           agingDays: sourceItem?.agingDays || 0,
@@ -533,22 +666,28 @@ export default function App() {
         updatedItems.push(transferredItem);
       }
     } else {
-      // OUT (เบิกจ่าย)
-      newBalance = Math.max(0, newBalance - actualQty);
+      // OUT (เบิกจ่าย): ลบหรือลดเฉพาะพาเลทที่เลือก
       if (existingIndex >= 0) {
         const currentQty = updatedItems[existingIndex].quantity;
         const remaining = currentQty - actualQty;
         if (remaining <= 0) {
-          updatedItems.splice(existingIndex, 1); // Remove item if 0
+          updatedItems.splice(existingIndex, 1); // ลบเฉพาะพาเลทเป้าหมายเท่านั้น ไม่กระทบพาเลทอื่นบนคานเดียวกัน
         } else {
           updatedItems[existingIndex].quantity = remaining;
+          const stdCap = updatedItems[existingIndex].stdQtyPerPallet || effectiveStdCapacity;
+          updatedItems[existingIndex].fullPallets = Math.floor(remaining / stdCap);
+          updatedItems[existingIndex].looseQty = remaining % stdCap;
         }
       }
     }
 
-    setItems(updatedItems);
+    // 2. Perform Sanity Check & Inventory Consistency
+    const sanitizedItems = recalculateInventoryConsistency(updatedItems, masterData);
+    setItems(sanitizedItems);
 
-    // 2. Add Transaction Log
+    const calculatedTotalBalance = sanitizedItems.reduce((acc, it) => acc + it.quantity, 0);
+
+    // 3. Add Transaction Log
     const targetLocText = (type === 'TRANSFER' && targetZone)
       ? `DA4D-1.05-${targetZone}${targetBayNumber}-L${targetLevel}`
       : locatorCode;
@@ -566,7 +705,7 @@ export default function App() {
       quantityCheck,
       actualQty,
       qtyGap,
-      balanceQty: newBalance,
+      balanceQty: calculatedTotalBalance,
       useLine,
       scanStatus: 'DONE',
       issueDate: new Date().toISOString().slice(0, 10),
@@ -576,13 +715,13 @@ export default function App() {
 
     setLogs([newLog, ...logs]);
 
-    // 3. Update Stats
+    // 4. Update Stats
     setStats((prev) => ({
       ...prev,
-      totalBalanceUnits: newBalance,
+      totalBalanceUnits: calculatedTotalBalance,
       todayInScanCount: type === 'IN' ? prev.todayInScanCount + 1 : prev.todayInScanCount,
       todayOutScanCount: type === 'OUT' ? prev.todayOutScanCount + 1 : prev.todayOutScanCount,
-      occupiedRacksCount: updatedItems.length,
+      occupiedRacksCount: sanitizedItems.length,
     }));
   };
 
@@ -620,7 +759,8 @@ export default function App() {
       return it;
     });
 
-    setItems(updatedItems);
+    const sanitizedItems = recalculateInventoryConsistency(updatedItems, masterData);
+    setItems(sanitizedItems);
 
     // Add Transfer Movement Log
     const newLog: MovementLog = {
@@ -692,19 +832,7 @@ export default function App() {
 
       {/* Flexible Right Main Content Wrapper */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden w-full relative">
-        {/* Floating Quick Search & Tools Pill for Zone Views (When top bar is hidden) */}
-        {isZoneTab && activeTab !== 'a4_rack' && !showZoneTopSearch && !isFullscreen && (
-          <div className="absolute top-2.5 right-4 z-30 animate-fadeIn pointer-events-auto">
-            <button
-              onClick={() => setShowZoneTopSearch(true)}
-              className="px-2.5 py-1 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-xs font-bold text-slate-300 hover:text-white shadow-lg backdrop-blur-xs flex items-center gap-1.5 transition-all active:scale-95 group"
-              title="เปิดแถบค้นหาและส่งออก Excel"
-            >
-              <Search className="w-3.5 h-3.5 text-blue-400 group-hover:scale-110 transition-transform" />
-              <span className="hidden sm:inline">ค้นหา / Export</span>
-            </button>
-          </div>
-        )}
+
 
         {/* Sticky Top Bar: Hidden on Zone Pages by Default (matching Full Screen), Shown on Data Tables (Inventory, Logs, Master, Printer) or when toggled */}
         {!isFullscreen && (!isZoneTab || showZoneTopSearch) && (
@@ -976,6 +1104,8 @@ export default function App() {
                 setMasterData={setMasterData}
                 useLines={useLines}
                 setUseLines={setUseLines}
+                targetUseLines={targetUseLines}
+                setTargetUseLines={setTargetUseLines}
                 zoneCapacities={zoneCapacities}
                 setZoneCapacities={setZoneCapacities}
                 items={items}
@@ -1014,8 +1144,12 @@ export default function App() {
         initialBayNumber={scannerBay}
         initialLevel={scannerLevel}
         initialMode={scannerMode}
+        initialLocatorCode={scannerLocatorCode}
+        initialPalletPosition={scannerPalletPosition}
+        initialItem={scannerTargetItem}
         existingItems={items}
         useLines={useLines}
+        targetUseLines={targetUseLines}
         masterData={masterData}
       />
       

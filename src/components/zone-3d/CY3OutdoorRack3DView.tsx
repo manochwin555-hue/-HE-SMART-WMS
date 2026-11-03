@@ -44,7 +44,7 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
   const rowGroupsRef = useRef<Record<'A' | 'B' | 'C' | 'D', THREE.Group>>({} as any);
   const [hoveredSlot, setHoveredSlot] = useState<{ row: 'A' | 'B' | 'C' | 'D'; bay: number; lvl: ShelfLevel; locator: string; item?: InventoryItem } | null>(null);
 
-  // Map CY3 items: 4 rows x 25 bays x 4 levels = 400 slots
+  // Map CY3 items: 4 rows x 25 bays x 4 levels x 2 positions (P1, P2)
   const cy3ItemMap = useMemo(() => {
     const map = new Map<string, InventoryItem>();
     items.forEach(it => {
@@ -57,15 +57,22 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
       else if (it.zone === 'CY3-C' || it.zone === 'C') r = 'C';
       else if (it.zone === 'CY3-D' || it.zone === 'D') r = 'D';
 
-      const m = it.locatorCode?.match(/DY3T-1\.0([1-4])-(?:[A-D])?0?(\d+)-L(\d)/i);
+      const m = it.locatorCode?.match(/DY3T-1\.0([1-4])-(?:[A-D])?0?(\d+)-L(\d)(?:-P([12]))?/i);
+      let pos = it.palletPosition || 'P1';
       if (m) {
         const num = parseInt(m[1], 10);
         r = num === 1 ? 'A' : num === 2 ? 'B' : num === 3 ? 'C' : 'D';
         b = parseInt(m[2], 10);
         l = parseInt(m[3], 10) as ShelfLevel;
+        if (m[4]) pos = `P${m[4]}`;
+      } else if (it.locatorCode?.includes('-P2')) {
+        pos = 'P2';
       }
 
-      map.set(`${r}-${b}-${l}`, it);
+      map.set(`${r}-${b}-${l}-${pos}`, it);
+      if (!map.has(`${r}-${b}-${l}`)) {
+        map.set(`${r}-${b}-${l}`, it);
+      }
     });
     return map;
   }, [items]);
@@ -424,14 +431,18 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
           const item = cy3ItemMap.get(`${rConfig.code}-${b}-${l}`);
           const palletOffsetsX = [-0.55, 0.55];
 
-          if (item) {
-            const isAging = item.agingDays > 28;
-            const isOverdue = item.agingDays > 45 || item.agingStatus === 'OVERDUE';
-            const boxMat = isOverdue ? overdueBoxMat : isAging ? agingBoxMat : normalBoxMat;
-            const statusMode: 'EMPTY' | 'OCCUPIED' | 'AGING' | 'OVERDUE' = isOverdue ? 'OVERDUE' : isAging ? 'AGING' : 'OCCUPIED';
+          palletOffsetsX.forEach((xOff, pIdx) => {
+            const pPos: 'P1' | 'P2' = pIdx === 0 ? 'P1' : 'P2';
+            const palletLocator = `${locator}-${pPos}`;
+            const palletItem = cy3ItemMap.get(`${rConfig.code}-${b}-${l}-${pPos}`) || 
+                               (pIdx === 0 ? cy3ItemMap.get(`${rConfig.code}-${b}-${l}`) : undefined);
 
-            // 2 Pallets side-by-side (Pallet 1 at xPos - 0.55, Pallet 2 at xPos + 0.55)
-            palletOffsetsX.forEach((xOff, pIdx) => {
+            if (palletItem) {
+              const isAging = palletItem.agingDays > 28;
+              const isOverdue = palletItem.agingDays > 45 || palletItem.agingStatus === 'OVERDUE';
+              const boxMat = isOverdue ? overdueBoxMat : isAging ? agingBoxMat : normalBoxMat;
+              const statusMode: 'EMPTY' | 'OCCUPIED' | 'AGING' | 'OVERDUE' = isOverdue ? 'OVERDUE' : isAging ? 'AGING' : 'OCCUPIED';
+
               const palletGrp = new THREE.Group();
               palletGrp.position.set(xPos + xOff, yPos + (l === 1 ? 0.0 : 0.05), rConfig.z);
 
@@ -461,8 +472,8 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
                 row: rConfig.code, 
                 bay: b, 
                 lvl: l as ShelfLevel, 
-                locator: `${locator}-P${pIdx + 1}`, 
-                item,
+                locator: palletLocator, 
+                item: palletItem,
                 x: xPos + xOff,
                 y: yPos + (l === 1 ? 0.0 : 0.05),
                 z: rConfig.z,
@@ -471,9 +482,7 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
                 d: RACK_DEPTH - 0.1,
                 statusMode
               });
-            });
-          } else {
-            palletOffsetsX.forEach((xOff, pIdx) => {
+            } else {
               const emptyHit = new THREE.Mesh(
                 new THREE.BoxGeometry(0.95, 0.9, RACK_DEPTH - 0.1),
                 new THREE.MeshBasicMaterial({ visible: false })
@@ -485,7 +494,7 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
                 row: rConfig.code, 
                 bay: b, 
                 lvl: l as ShelfLevel, 
-                locator: `${locator}-P${pIdx + 1}`, 
+                locator: palletLocator, 
                 item: undefined,
                 x: xPos + xOff,
                 y: yPos + (l === 1 ? 0.0 : 0.05),
@@ -495,8 +504,8 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
                 d: RACK_DEPTH - 0.1,
                 statusMode: 'EMPTY'
               });
-            });
-          }
+            }
+          });
         }
       }
     });
@@ -589,7 +598,12 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
           intersects[0].object.parent?.parent === c.mesh
         );
         if (hit) {
-          onSelectSlot(hit.row, hit.bay, hit.locator, hit.lvl, hit.item);
+          if (e.detail === 2 && onOpenScanner) {
+            const cy3Zone = `CY3-${hit.row}` as StorageZone;
+            onOpenScanner(cy3Zone, hit.bay, hit.lvl, hit.item ? 'OUT' : 'IN');
+          } else {
+            onSelectSlot(hit.row, hit.bay, hit.locator, hit.lvl, hit.item);
+          }
         }
       }
     };

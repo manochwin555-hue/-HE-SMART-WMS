@@ -22,6 +22,7 @@ import {
   Tent,
   LayoutGrid
 } from 'lucide-react';
+import { getModelStdCapacity, evaluatePalletCapacity } from '../utils/inventoryConsistency';
 
 export interface UnifiedSlotData {
   sectorType: 'RACK' | 'FLOOR_STAGING' | 'FLOW_RAIL' | 'TENT';
@@ -42,7 +43,15 @@ interface UnifiedSlotModalProps {
   isOpen: boolean;
   onClose: () => void;
   slotData: UnifiedSlotData | null;
-  onOpenScanner?: (zone: StorageZone, bay: number, level: ShelfLevel, mode: MovementType) => void;
+  onOpenScanner?: (
+    zone: StorageZone, 
+    bay: number, 
+    level: ShelfLevel, 
+    mode: MovementType,
+    locatorCode?: string,
+    palletPosition?: string,
+    item?: InventoryItem | null
+  ) => void;
   onRelocateItem?: (item: InventoryItem) => void;
   onOpen3D?: (zone: StorageZone, bay: number) => void;
   onPrintLabel?: (item: InventoryItem) => void;
@@ -162,16 +171,22 @@ export const UnifiedSlotModal: React.FC<UnifiedSlotModalProps> = ({
     let z: StorageZone = 'B';
     let b = 1;
     let l: ShelfLevel = (selectedLevel as ShelfLevel) || (level as ShelfLevel) || 1;
+    let pPos: string | undefined = undefined;
+
+    if (activeLocatorCode.includes('-P2')) pPos = 'P2';
+    else if (activeLocatorCode.includes('-P1')) pPos = 'P1';
+    else if (currentItem?.palletPosition) pPos = currentItem.palletPosition;
 
     if (sectorType === 'RACK') {
       // Check CY3 locator: e.g. DY3T-1.01-A1-L1 or CY3-A
-      if (locatorCode.includes('DY3T') || (facilityId && facilityId.includes('CY3')) || zoneName.includes('CY3')) {
-        const cy3Match = locatorCode.match(/DY3T-1\.0([1-4])-(?:([A-D]))?(\d+)/i);
+      if (activeLocatorCode.includes('DY3T') || (facilityId && facilityId.includes('CY3')) || zoneName.includes('CY3')) {
+        const cy3Match = activeLocatorCode.match(/DY3T-1\.0([1-4])-(?:([A-D]))?(\d+)(?:-L(\d))?/i);
         if (cy3Match) {
           const numCode = cy3Match[1];
           const letter = cy3Match[2] || (numCode === '1' ? 'A' : numCode === '2' ? 'B' : numCode === '3' ? 'C' : 'D');
           z = `CY3-${letter}` as StorageZone;
           b = parseInt(cy3Match[3], 10);
+          if (cy3Match[4]) l = parseInt(cy3Match[4], 10) as ShelfLevel;
         } else if (zoneName.includes('Row A') || zoneName.includes('1.01')) {
           z = 'CY3-A';
           b = typeof bayOrGroupNumber === 'number' ? bayOrGroupNumber : 1;
@@ -186,33 +201,36 @@ export const UnifiedSlotModal: React.FC<UnifiedSlotModalProps> = ({
           b = typeof bayOrGroupNumber === 'number' ? bayOrGroupNumber : 1;
         }
       } else {
-        const match = locatorCode.match(/([B-K])(\d+)/i);
+        const match = activeLocatorCode.match(/([B-K])(\d+)(?:-L(\d))?/i);
         if (match) {
           z = match[1].toUpperCase() as StorageZone;
           b = parseInt(match[2], 10);
+          if (match[3]) l = parseInt(match[3], 10) as ShelfLevel;
         }
       }
     } else if (sectorType === 'FLOW_RAIL') {
-      const match = locatorCode.match(/R(\d+)-(\d+)/i);
+      const match = activeLocatorCode.match(/R(\d+)-(\d+)/i);
       if (match) {
-        z = `R${match[1]}` as StorageZone;
+        z = `R${parseInt(match[1], 10)}` as StorageZone;
         b = parseInt(match[2], 10);
       }
-    } else if (sectorType === 'TENT') {
-      const match = locatorCode.match(/DA5T-(\d+)\.01-(\d+)/i);
+    } else if (sectorType === 'TENT' || activeLocatorCode.includes('DA5T')) {
+      const match = activeLocatorCode.match(/DA5T-([1-4])[-.]?(?:0?([1-7]))?[-_]?(?:R([1-4]))?[-_]?(?:0?([1-7]))?/i);
       if (match) {
         z = `T${match[1]}` as StorageZone;
-        b = parseInt(match[2], 10);
+        b = parseInt(match[2] || '1', 10);
+        if (match[3]) l = parseInt(match[3], 10) as ShelfLevel;
       }
-    } else if (sectorType === 'FLOOR_STAGING') {
-      const match = locatorCode.match(/X(\d+)/i);
+    } else if (sectorType === 'FLOOR_STAGING' || activeLocatorCode.includes('DA4D-1')) {
+      const match = activeLocatorCode.match(/X([1-8])[-_]?(?:R([1-6]))?[-_]?(?:C0?([1-9]|1[0-2]))?/i);
       if (match) {
         z = `X${match[1]}` as StorageZone;
-        b = typeof bayOrGroupNumber === 'number' ? bayOrGroupNumber : 1;
+        b = match[2] ? parseInt(match[2], 10) : (typeof bayOrGroupNumber === 'number' ? bayOrGroupNumber : 1);
+        if (match[3]) l = parseInt(match[3], 10) as ShelfLevel;
       }
     }
 
-    return { zone: z, bay: b, level: l };
+    return { zone: z, bay: b, level: l, palletPosition: pPos };
   };
 
   const parsed = parseZoneAndBay();
@@ -306,61 +324,102 @@ export const UnifiedSlotModal: React.FC<UnifiedSlotModalProps> = ({
         <div className="p-3.5 overflow-y-auto space-y-3 text-xs flex-1">
           
           {/* OCCUPIED ITEM DETAILS */}
-          {currentItem ? (
-            <div className="space-y-2.5">
-              
-              {/* Product Header Card */}
-              <div className="p-3 bg-slate-950/80 rounded-xl border border-blue-500/40 space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <span className="text-[10px] font-bold text-blue-400 block tracking-wider uppercase">MODEL / PART NO</span>
-                    <h4 className="text-base font-black text-white font-mono truncate">
-                      {currentItem.modelHE}
-                    </h4>
-                    <p className="text-[11px] text-slate-300 font-medium truncate mt-0.5">{currentItem.partName}</p>
-                  </div>
-                  <span className="text-xs font-black bg-blue-600 text-white px-2 py-0.5 rounded-lg shrink-0">
-                    Line {currentItem.useLine || 'HE1'}
-                  </span>
-                </div>
+          {currentItem ? (() => {
+            const itemStdCapacity = currentItem.stdQtyPerPallet || getModelStdCapacity(currentItem.modelHE);
+            const itemCapEval = evaluatePalletCapacity(currentItem.quantity, itemStdCapacity);
 
-                {/* Grid Metrics */}
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800">
-                  <div className="bg-slate-900 p-2 rounded-lg border border-slate-800">
-                    <span className="text-[10px] text-slate-400 block">จำนวนจัดเก็บ:</span>
-                    <span className="text-base font-black text-emerald-400 font-mono">
-                      {currentItem.quantity.toLocaleString()} <span className="text-xs font-normal text-slate-400">ชิ้น</span>
+            return (
+              <div className="space-y-2.5">
+                
+                {/* Product Header Card */}
+                <div className="p-3 bg-slate-950/80 rounded-xl border border-blue-500/40 space-y-2.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <span className="text-[10px] font-bold text-blue-400 block tracking-wider uppercase">MODEL / PART NO</span>
+                      <h4 className="text-base font-black text-white font-mono truncate">
+                        {currentItem.modelHE}
+                      </h4>
+                      <p className="text-[11px] text-slate-300 font-medium truncate mt-0.5">{currentItem.partName}</p>
+                    </div>
+                    <span className="text-xs font-black bg-blue-600 text-white px-2 py-0.5 rounded-lg shrink-0">
+                      Line {currentItem.useLine || 'HE1'}
                     </span>
                   </div>
 
-                  <div className="bg-slate-900 p-2 rounded-lg border border-slate-800">
-                    <span className="text-[10px] text-slate-400 block">อายุจัดเก็บ (Aging):</span>
-                    <span className={`text-xs font-black flex items-center gap-1 mt-0.5 ${
-                      currentItem.agingDays > 30 ? 'text-rose-400' : 'text-emerald-400'
-                    }`}>
-                      <Clock className="w-3.5 h-3.5 shrink-0" />
-                      <span>{currentItem.agingDays} วัน ({currentItem.agingStatus})</span>
+                  {/* PALLET CAPACITY CONTROL GAUGE */}
+                  <div className="bg-slate-900/90 p-2.5 rounded-lg border border-slate-800 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-slate-300 flex items-center gap-1">
+                        <Box className="w-3 h-3 text-cyan-400" />
+                        <span>ความจุพาเลท (Pallet Capacity):</span>
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${itemCapEval.badgeColor}`}>
+                        {itemCapEval.label}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] font-mono">
+                      <span className="text-white font-bold">
+                        {currentItem.quantity.toLocaleString()} <span className="text-slate-400 font-normal">/ {itemStdCapacity} ชิ้น</span>
+                      </span>
+                      <span className="text-cyan-300 font-bold">
+                        {itemCapEval.capacityPercent}%
+                      </span>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-700/60">
+                      <div
+                        className={`h-full transition-all duration-300 ${
+                          itemCapEval.status === 'OVER'
+                            ? 'bg-amber-400'
+                            : itemCapEval.status === 'FULL'
+                            ? 'bg-emerald-400'
+                            : 'bg-blue-400'
+                        }`}
+                        style={{ width: `${Math.min(100, itemCapEval.capacityPercent)}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Grid Metrics */}
+                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800">
+                    <div className="bg-slate-900 p-2 rounded-lg border border-slate-800">
+                      <span className="text-[10px] text-slate-400 block">จำนวนจัดเก็บจริง:</span>
+                      <span className="text-base font-black text-emerald-400 font-mono">
+                        {currentItem.quantity.toLocaleString()} <span className="text-xs font-normal text-slate-400">ชิ้น</span>
+                      </span>
+                    </div>
+
+                    <div className="bg-slate-900 p-2 rounded-lg border border-slate-800">
+                      <span className="text-[10px] text-slate-400 block">อายุจัดเก็บ (Aging):</span>
+                      <span className={`text-xs font-black flex items-center gap-1 mt-0.5 ${
+                        currentItem.agingDays > 30 ? 'text-rose-400' : 'text-emerald-400'
+                      }`}>
+                        <Clock className="w-3.5 h-3.5 shrink-0" />
+                        <span>{currentItem.agingDays} วัน ({currentItem.agingStatus})</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Storage Date */}
+                  <div className="flex items-center justify-between text-[10.5px] text-slate-400 pt-0.5">
+                    <span>วันที่รับเข้า:</span>
+                    <span className="font-mono text-slate-200 font-bold">
+                      {currentItem.storageInDate ? new Date(currentItem.storageInDate).toLocaleDateString('th-TH') : '-'}
                     </span>
                   </div>
-                </div>
 
-                {/* Storage Date */}
-                <div className="flex items-center justify-between text-[10.5px] text-slate-400 pt-0.5">
-                  <span>วันที่รับเข้า:</span>
-                  <span className="font-mono text-slate-200 font-bold">
-                    {currentItem.storageInDate ? new Date(currentItem.storageInDate).toLocaleDateString('th-TH') : '-'}
-                  </span>
+                  {/* Remark note if any */}
+                  {currentItem.remark && (
+                    <div className="bg-amber-950/40 p-2 rounded-lg border border-amber-500/30 text-amber-300 text-[11px]">
+                      <strong>💡 หมายเหตุ:</strong> {currentItem.remark}
+                    </div>
+                  )}
                 </div>
-
-                {/* Remark note if any */}
-                {currentItem.remark && (
-                  <div className="bg-amber-950/40 p-2 rounded-lg border border-amber-500/30 text-amber-300 text-[11px]">
-                    <strong>💡 หมายเหตุ:</strong> {currentItem.remark}
-                  </div>
-                )}
               </div>
-            </div>
-          ) : (
+            );
+          })() : (
             /* EMPTY SLOT DETAILS */
             <div className="py-6 px-4 text-center bg-slate-950/60 rounded-xl border border-slate-800 space-y-2.5">
               <div className="w-10 h-10 mx-auto rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
@@ -378,7 +437,7 @@ export const UnifiedSlotModal: React.FC<UnifiedSlotModalProps> = ({
                   type="button"
                   onClick={() => {
                     if (onOpenScanner) {
-                      onOpenScanner(parsed.zone, parsed.bay, parsed.level, 'IN');
+                      onOpenScanner(parsed.zone, parsed.bay, parsed.level, 'IN', activeLocatorCode, parsed.palletPosition, null);
                     }
                     onClose();
                   }}
@@ -401,13 +460,13 @@ export const UnifiedSlotModal: React.FC<UnifiedSlotModalProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      onOpenScanner(parsed.zone, parsed.bay, parsed.level, 'OUT');
+                      onOpenScanner(parsed.zone, parsed.bay, parsed.level, 'OUT', activeLocatorCode, parsed.palletPosition, currentItem);
                       onClose();
                     }}
                     className="flex-1 h-9 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg shadow-xs flex items-center justify-center gap-1 transition-all"
                   >
                     <ArrowUpRight className="w-3.5 h-3.5" />
-                    <span>เบิกออก (OUT)</span>
+                    <span>เบิกออกพาเลทนี้ (OUT)</span>
                   </button>
                 )}
 

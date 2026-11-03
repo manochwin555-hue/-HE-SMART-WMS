@@ -65,7 +65,9 @@ export const INITIAL_FACILITIES: WarehouseFacility[] = [
 ];
 
 export const INITIAL_MASTER_DATA: MasterDataItem[] = [
-  { modelHE: 'ADL74920904', partName: 'Inverter Main Board Module', safetyStock: 300, stdQtyPerPallet: 80 },
+  { modelHE: '5006', partName: 'Model 5006 Main Core Sub-Assembly', safetyStock: 150, stdQtyPerPallet: 50 },
+  { modelHE: '904', partName: 'Inverter Main Board Module (904 Series)', safetyStock: 300, stdQtyPerPallet: 80 },
+  { modelHE: 'ADL74920904', partName: 'Inverter Main Board Module (ADL74920904)', safetyStock: 300, stdQtyPerPallet: 80 },
   { modelHE: 'ADL74761254', partName: 'SK 18FPI Assembly', safetyStock: 250, stdQtyPerPallet: 80 },
   { modelHE: 'ACG76284709', partName: 'U36/Corru Buffer Pallet', safetyStock: 300, stdQtyPerPallet: 80 },
   { modelHE: 'ADL76754205', partName: 'S1 Condenser Unit', safetyStock: 200, stdQtyPerPallet: 80 },

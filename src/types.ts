@@ -83,6 +83,12 @@ export interface UseLineMaster {
   description?: string;
 }
 
+export interface TargetUseLineMaster {
+  id: string; // e.g. "A2", "A4", "A6", "A7", "A8", "A9", "SUB_LINE"
+  name: string; // e.g. "Line A2 Main Assembly"
+  description?: string;
+}
+
 export interface AgingThresholdConfig {
   safeDaysMin?: number; // e.g. 0 (0 to safeDaysMax is Normal)
   safeDaysMax: number; // e.g. 21 (0 - 21 is Normal)
@@ -124,6 +130,7 @@ export interface InventoryItem {
   zone: StorageZone;
   bayNumber: number; // 1 - 12 for B-F, 1 - 5 for G-K
   level: ShelfLevel; // ชั้น 1, 2, 3, 4
+  palletPosition?: 'P1' | 'P2' | string; // Position within bay level (P1 = left/pallet 1, P2 = right/pallet 2)
   storageType?: StorageLocationType; // 'RACK' | 'FLOW_RAIL' | 'FLOOR_STAGING'
   facilityId?: string; // e.g. 'FAC-A4-MAIN' | 'FAC-A2-RAIL'
   stationId?: string; // e.g. 'STATION_1' | 'STATION_2'
@@ -159,6 +166,8 @@ export interface InventoryItem {
   lastCycleCountQty?: number;
   lastCycleCountDate?: string;
   varianceQty?: number;
+  isOvercapacity?: boolean; // True if quantity exceeds pallet standard capacity
+  capacityRatio?: number; // Ratio of quantity to standard pallet capacity (e.g. 1.3 = 130%)
 }
 
 export interface CycleCountRecord {

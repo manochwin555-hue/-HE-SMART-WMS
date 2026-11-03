@@ -261,6 +261,13 @@ export const CY3FrontElevationView: React.FC<CY3FrontElevationViewProps> = ({
                                 key={bayNum}
                                 type="button"
                                 onClick={() => onSlotClick(row.rowCode, bayNum, row.locatorSign, lvl as ShelfLevel)}
+                                onDoubleClick={(e) => {
+                                  e.stopPropagation();
+                                  if (onOpenScanner) {
+                                    const cy3Zone = `CY3-${row.rowCode}` as StorageZone;
+                                    onOpenScanner(cy3Zone, bayNum, lvl as ShelfLevel, hasItem ? 'OUT' : 'IN');
+                                  }
+                                }}
                                 onMouseEnter={(e) => onSlotHover(e, row.rowCode, bayNum, row.locatorSign)}
                                 onMouseLeave={onSlotLeave}
                                 style={{

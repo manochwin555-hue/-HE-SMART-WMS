@@ -35,7 +35,7 @@ interface RackLayout2DProps {
   initialSectionTab?: 'FLOOR_DA4D1' | 'RACK_ZONES' | 'FULL3D' | 'FRONT_ELEVATION';
   onSelectBay: (zone: StorageZone, bayNumber: number) => void;
   onOpen3D: (zone: StorageZone, bayNumber: number) => void;
-  onOpenScanner?: (zone: StorageZone, bay: number, level: ShelfLevel, mode: MovementType) => void;
+  onOpenScanner?: (zone: StorageZone, bay: number, level: ShelfLevel, mode: MovementType, locatorCode?: string, palletPosition?: string, item?: InventoryItem) => void;
   onRelocateItem?: (item: InventoryItem) => void;
   onNavigateToFloor?: () => void;
   onNavigateToCampus?: () => void;
@@ -124,15 +124,30 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
       {/* ===================================================================== */}
       <header className="h-11 sm:h-12 border-b border-slate-800 bg-slate-900/95 px-3 sm:px-4 flex items-center justify-between gap-3 shrink-0 backdrop-blur-md z-30">
         
-        {/* ด้านซ้าย: ชื่อโซน */}
+        {/* ด้านซ้าย: ปุ่มย้อนกลับผังรวมและชื่อโซน */}
         <div className="flex items-center gap-2 min-w-0">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/90 text-slate-200 rounded-xl text-xs font-bold border border-slate-700/80 shadow-sm shrink-0">
-            <span className="hidden sm:inline">โซน A4 แร็ค (DA4D-2 &amp; 3)</span>
-            <span className="sm:hidden">A4 แร็ค</span>
-            <span className="px-1.5 py-0.2 rounded-full bg-blue-600/30 text-blue-300 font-mono text-[10px] border border-blue-500/30">
-              680P
-            </span>
-          </div>
+          {onNavigateToCampus ? (
+            <button
+              onClick={onNavigateToCampus}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-bold border border-slate-700/80 transition-all shadow-sm shrink-0 active:scale-95"
+              title="กลับสู่ผังรวมแคมปัส"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 text-purple-400" />
+              <span className="hidden sm:inline">โซน A4 แร็ค (DA4D-2 & 3)</span>
+              <span className="sm:hidden">A4 แร็ค</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-blue-600/30 text-blue-300 font-mono text-[10px] border border-blue-500/30">
+                680P
+              </span>
+            </button>
+          ) : (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/90 text-slate-200 rounded-xl text-xs font-bold border border-slate-700/80 shadow-sm shrink-0">
+              <span className="hidden sm:inline">โซน A4 แร็ค (DA4D-2 & 3)</span>
+              <span className="sm:hidden">A4 แร็ค</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-blue-600/30 text-blue-300 font-mono text-[10px] border border-blue-500/30">
+                680P
+              </span>
+            </div>
+          )}
         </div>
 
         {/* ตรงกลาง: แท็บเลือกมุมมอง (3D ผัง 3 มิติ, แปลนบน Top 2D, มุมมองหน้าตรง L1-L4) */}
@@ -178,17 +193,16 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
           </button>
         </div>
 
-        {/* ด้านขวา: กลุ่มค้นหา, สแกน KANBAN, รีเซ็ตมุมมอง และขยายเต็มจอ (ลำดับมาตรฐานเดียวกันทุกโซน) */}
+        {/* ด้านขวา: กลุ่มค้นหาด่วนมาตรฐานเดียวกันทุกโซน, รีเซ็ตมุมมอง และขยายเต็มจอ */}
         <div className="flex items-center gap-1.5 shrink-0">
-          {/* ช่องค้นหาด่วน */}
-          <div className="relative w-36 sm:w-48 h-8">
+          <div className="relative w-40 sm:w-56 h-8">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               placeholder="ค้นหา Model, Locator..."
               value={localSearch}
               onChange={(e) => setLocalSearch(e.target.value)}
-              className="w-full h-8 bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-6 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
+              className="w-full h-8 bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-7 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 transition-colors shadow-inner"
             />
             {localSearch && (
               <button

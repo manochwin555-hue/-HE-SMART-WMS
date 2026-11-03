@@ -1,0 +1,6 @@
+{
+  "summary": "Comprehensive architectural plan to fix WMS locator coordinate routing, eliminate neighboring slot displacements, enable double-click quick scanner vs single-click detail inspection, add pallet standard capacity definition in Stock IN modal, and ensure seamless auto-sync to transaction logs and inventory.",
+  "updatedAt": "2026-11-03T14:05:22.411584293Z",
+  "requestFeedback": true,
+  "userFacing": true
+}

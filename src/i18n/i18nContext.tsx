@@ -2,16 +2,10 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Language, TranslationDictionary, LANGUAGE_OPTIONS } from './types';
 import { th } from './locales/th';
 import { en } from './locales/en';
-import { kh } from './locales/kh';
-import { mm } from './locales/mm';
-import { kr } from './locales/kr';
 
 const dictionaries: Record<Language, TranslationDictionary> = {
   th,
   en,
-  kh,
-  mm,
-  kr,
 };
 
 const STORAGE_KEY = 'wms-language';
@@ -29,7 +23,7 @@ export const I18nProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [language, setLanguageState] = useState<Language>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved && (saved === 'th' || saved === 'en' || saved === 'kh' || saved === 'mm' || saved === 'kr')) {
+      if (saved && (saved === 'th' || saved === 'en')) {
         return saved as Language;
       }
     } catch (e) {

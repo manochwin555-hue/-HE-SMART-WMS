@@ -25,7 +25,7 @@ interface A4FrontElevationViewProps {
   filterStatus?: 'ALL' | 'OCCUPIED' | 'EMPTY' | 'AGING';
   selectedZone?: StorageZone;
   onSelectZone?: (zone: StorageZone) => void;
-  onSlotClick: (zone: StorageZone, bayNum: number, locatorSign: string, targetLevel?: ShelfLevel) => void;
+  onSlotClick: (zone: StorageZone, bayNum: number, locatorSign: string, targetLevel?: ShelfLevel, targetItem?: InventoryItem) => void;
   onSlotHover: (e: React.MouseEvent, zone: StorageZone, bayNum: number, locatorSign: string) => void;
   onSlotLeave: () => void;
   onOpenScanner?: (zone: StorageZone, bay: number, level: ShelfLevel, mode: MovementType) => void;
@@ -81,22 +81,29 @@ export const A4FrontElevationView: React.FC<A4FrontElevationViewProps> = ({
     }
   };
 
-  // Map key: `${zone}-${bayNum}-${level}`
+  // Map key: `${zone}-${bayNum}-${level}-${palletPos}` and `${zone}-${bayNum}-${level}`
   const slotMap = useMemo(() => {
     const map = new Map<string, InventoryItem>();
     items.forEach(it => {
+      const match = it.locatorCode ? it.locatorCode.match(/DA4D-[23]-([B-K])(?:0?(\d+))?-L(\d)(?:-P([12]))?/i) : null;
+      let pos = it.palletPosition || 'P1';
+      if (match?.[4]) pos = `P${match[4]}`;
+      else if (it.locatorCode?.includes('-P2')) pos = 'P2';
+
       // Direct zone match
       if (['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'].includes(it.zone)) {
-        const key = `${it.zone}-${it.bayNumber}-${it.level}`;
-        map.set(key, it);
+        map.set(`${it.zone}-${it.bayNumber}-${it.level}-${pos}`, it);
+        if (!map.has(`${it.zone}-${it.bayNumber}-${it.level}`)) {
+          map.set(`${it.zone}-${it.bayNumber}-${it.level}`, it);
+        }
       }
       // Also match locatorCode e.g. DA4D-2-B03-L2 or DA4D-3-G01-L4
-      if (it.locatorCode) {
-        const match = it.locatorCode.match(/DA4D-[23]-([B-K])(?:0?(\d+))?-L(\d)/i);
-        if (match) {
-          const z = match[1].toUpperCase() as StorageZone;
-          const b = parseInt(match[2] || `${it.bayNumber}`, 10);
-          const l = parseInt(match[3] || `${it.level}`, 10);
+      if (match) {
+        const z = match[1].toUpperCase() as StorageZone;
+        const b = parseInt(match[2] || `${it.bayNumber}`, 10);
+        const l = parseInt(match[3] || `${it.level}`, 10);
+        map.set(`${z}-${b}-${l}-${pos}`, it);
+        if (!map.has(`${z}-${b}-${l}`)) {
           map.set(`${z}-${b}-${l}`, it);
         }
       }
@@ -255,67 +262,93 @@ export const A4FrontElevationView: React.FC<A4FrontElevationViewProps> = ({
                             <line x1="100%" y1="0" x2="0" y2="100%" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 3" />
                           </svg>
 
-                          <div
-                            onClick={() => onSlotClick(currentRowConfig.rowCode, bayNum, locatorCode, level)}
-                            onMouseMove={(e) => onSlotHover(e, currentRowConfig.rowCode, bayNum, locatorCode)}
-                            onMouseLeave={onSlotLeave}
-                            style={{
-                              backgroundColor: slotStatus.bgHex,
-                              borderColor: isMatch ? '#10B981' : slotStatus.borderHex,
-                              boxShadow: isMatch ? '0 0 12px rgba(16, 185, 129, 0.5)' : undefined,
-                            }}
-                            className="relative z-1 flex-1 rounded-sm border p-1.5 transition-all cursor-pointer select-none min-h-[72px] flex flex-col justify-between hover:scale-[1.03] hover:z-30 hover:shadow-xl"
-                          >
-                            {/* Top: Bay Number + Level Indicator */}
-                            <div className="flex items-center justify-between text-[10px] leading-none">
-                              <span
-                                className="font-mono font-black"
-                                style={{ color: slotStatus.textColorHex }}
-                              >
-                                B{String(bayNum).padStart(2, '0')}
-                              </span>
-                              <span className="font-mono text-[9px] text-slate-400 font-bold">
-                                L{level}
-                              </span>
-                            </div>
+                          {/* Pallet 1 (P1) & Pallet 2 (P2) side-by-side */}
+                          <div className="flex-1 flex gap-0.5 relative z-1">
+                            {[1, 2].map(posNum => {
+                              const pPos = `P${posNum}` as 'P1' | 'P2';
+                              const palletLocator = `${locatorCode}-${pPos}`;
+                              const palletItem = slotMap.get(`${currentRowConfig.rowCode}-${bayNum}-${level}-${pPos}`) || 
+                                                 (posNum === 1 ? slotMap.get(`${currentRowConfig.rowCode}-${bayNum}-${level}`) : undefined);
+                              const isPalletMatch = activeSearch && palletItem && (
+                                palletItem.modelHE?.toLowerCase().includes(activeSearch) ||
+                                palletItem.partNumber?.toLowerCase().includes(activeSearch) ||
+                                palletItem.locatorCode?.toLowerCase().includes(activeSearch)
+                              );
+                              const palletStatus = evaluateSlotStatus(palletItem);
 
-                            {/* Center: Model or Empty state */}
-                            <div className="my-1 text-center">
-                              {item ? (
-                                <div className="space-y-0.5">
-                                  <span className="font-mono font-black text-[11px] text-white block truncate leading-tight">
-                                    {item.modelHE}
-                                  </span>
-                                  <span className="font-mono font-bold text-[10px] text-slate-300 block leading-none">
-                                    {item.quantity} EA
-                                  </span>
+                              return (
+                                <div
+                                  key={pPos}
+                                  onClick={() => onSlotClick(currentRowConfig.rowCode, bayNum, palletLocator, level, palletItem)}
+                                  onDoubleClick={(e) => {
+                                    e.stopPropagation();
+                                    if (onOpenScanner) {
+                                      onOpenScanner(currentRowConfig.rowCode, bayNum, level, palletItem ? 'OUT' : 'IN');
+                                    }
+                                  }}
+                                  onMouseMove={(e) => onSlotHover(e, currentRowConfig.rowCode, bayNum, palletLocator)}
+                                  onMouseLeave={onSlotLeave}
+                                  style={{
+                                    backgroundColor: palletStatus.bgHex,
+                                    borderColor: isPalletMatch ? '#10B981' : palletStatus.borderHex,
+                                    boxShadow: isPalletMatch ? '0 0 8px rgba(16, 185, 129, 0.5)' : undefined,
+                                  }}
+                                  className="flex-1 rounded-sm border p-1 transition-all cursor-pointer select-none min-h-[72px] flex flex-col justify-between hover:scale-[1.03] hover:z-30 hover:shadow-lg"
+                                  title={`${palletLocator}: ${palletItem ? `${palletItem.modelHE} (${palletItem.quantity} EA)` : 'ว่าง พร้อมจัดเก็บ'}`}
+                                >
+                                  {/* Top: Bay Number + Pallet Position Indicator */}
+                                  <div className="flex items-center justify-between text-[9px] leading-none">
+                                    <span
+                                      className="font-mono font-black"
+                                      style={{ color: palletStatus.textColorHex }}
+                                    >
+                                      B{String(bayNum).padStart(2, '0')}
+                                    </span>
+                                    <span className="font-mono text-[8px] text-slate-400 font-bold">
+                                      {pPos}
+                                    </span>
+                                  </div>
+
+                                  {/* Center: Model or Empty state */}
+                                  <div className="my-0.5 text-center">
+                                    {palletItem ? (
+                                      <div className="space-y-0.5">
+                                        <span className="font-mono font-black text-[10px] text-white block truncate leading-tight">
+                                          {palletItem.modelHE}
+                                        </span>
+                                        <span className="font-mono font-bold text-[9px] text-slate-300 block leading-none">
+                                          {palletItem.quantity} EA
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <span className="text-[9px] font-bold text-slate-500 italic block">
+                                        ว่าง
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {/* Bottom: Aging Days or Empty state */}
+                                  <div className="flex items-center justify-between text-[8px] font-mono">
+                                    {palletItem ? (
+                                      <>
+                                        <span className={`px-1 py-0.2 rounded font-bold ${
+                                          palletItem.agingDays > 28 ? 'bg-rose-950 text-rose-300 border border-rose-800' : 'bg-slate-800 text-slate-300'
+                                        }`}>
+                                          {palletItem.agingDays}d
+                                        </span>
+                                        <span className="text-slate-400 truncate max-w-[32px]">
+                                          {palletItem.partName || 'Part'}
+                                        </span>
+                                      </>
+                                    ) : (
+                                      <span className="text-slate-600 block w-full text-center">
+                                        L{level}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
-                              ) : (
-                                <span className="text-[10px] font-bold text-slate-500 italic block">
-                                  ว่าง (Empty)
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Bottom: Aging Days or Empty pill */}
-                            <div className="flex items-center justify-between text-[9px] font-mono">
-                              {item ? (
-                                <>
-                                  <span className={`px-1 py-0.2 rounded font-bold ${
-                                    item.agingDays > 28 ? 'bg-rose-950 text-rose-300 border border-rose-800' : 'bg-slate-800 text-slate-300'
-                                  }`}>
-                                    {item.agingDays}d
-                                  </span>
-                                  <span className="text-slate-400 truncate max-w-[42px]">
-                                    {item.partName || 'Part'}
-                                  </span>
-                                </>
-                              ) : (
-                                <span className="text-slate-600 block w-full text-center">
-                                  พร้อมเก็บ
-                                </span>
-                              )}
-                            </div>
+                              );
+                            })}
                           </div>
 
                           {/* 3. Orange Horizontal Load Beam (คานรับน้ำหนักสีส้ม) below L2, L3, L4 (L1 is on floor) */}

@@ -299,9 +299,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 <option value="th">🇹🇭 TH - ไทย</option>
                 <option value="en">🇬🇧 EN - English</option>
-                <option value="kh">🇰🇭 KH - ខ្មែរ</option>
-                <option value="mm">🇲🇲 MM - မြန်မာ</option>
-                <option value="kr">🇰🇷 KR - 한국어</option>
               </select>
 
               <div className="flex items-center space-x-1 shrink-0">

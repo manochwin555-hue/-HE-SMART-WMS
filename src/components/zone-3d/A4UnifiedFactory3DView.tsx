@@ -74,7 +74,7 @@ interface A4UnifiedFactory3DViewProps {
   searchQuery?: string;
   initialFocus?: CameraPresetKey;
   onSelectSlot?: (type: 'RACK' | 'FLOOR', locator: string, item?: InventoryItem) => void;
-  onOpenScanner?: (zone: StorageZone, bay: number, level: ShelfLevel, mode: MovementType) => void;
+  onOpenScanner?: (zone: StorageZone, bay: number, level: ShelfLevel, mode: MovementType, locatorCode?: string, palletPosition?: string, item?: InventoryItem) => void;
   onNavigateToCampus?: () => void;
 }
 
@@ -107,6 +107,7 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
     locator: string;
     zoneName: string;
     item?: InventoryItem;
+    palletPosition?: string;
     rowName?: string;
     bay?: number;
     level?: number;
@@ -120,6 +121,7 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
     locator: string;
     desc: string;
     item?: InventoryItem;
+    palletPosition?: string;
     statusMode: 'EMPTY' | 'OCCUPIED' | 'AGING' | 'OVERDUE';
     posDetail?: string;
   } | null>(null);
@@ -133,40 +135,40 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
     // 2. A4 Floor Staging items: X1 - X8
     const floorItemsMap = new Map<string, InventoryItem>();
 
+    let totalRackOccupied = 0;
+    let totalFloorOccupied = 0;
+
     items.forEach(it => {
       // Check for rack
-      if (rackRows.includes(it.zone)) {
-        const bay = it.bayNumber || 1;
-        const lvl = (it.level as number) || 1;
-        rackItemsMap.set(`${it.zone}-${bay}-${lvl}`, it);
-      } else if (it.locatorCode) {
-        const rackMatch = it.locatorCode.match(/DA4D-[23]-([B-K])(?:0)?(\d+)-L(\d)/i);
-        if (rackMatch) {
-          const row = rackMatch[1].toUpperCase();
-          const bay = parseInt(rackMatch[2], 10);
-          const lvl = parseInt(rackMatch[3], 10);
+      const isRackZone = rackRows.includes(it.zone);
+      const rackMatch = it.locatorCode ? it.locatorCode.match(/DA4D-[23]-([B-K])(?:0)?(\d+)-L(\d)(?:-P([12]))?/i) : null;
+
+      if (isRackZone || rackMatch) {
+        const row = isRackZone ? it.zone : rackMatch![1].toUpperCase();
+        const bay = isRackZone ? (it.bayNumber || 1) : parseInt(rackMatch![2], 10);
+        const lvl = isRackZone ? ((it.level as number) || 1) : parseInt(rackMatch![3], 10);
+        const pos = it.palletPosition || (rackMatch?.[4] ? `P${rackMatch[4]}` : (it.locatorCode?.includes('-P2') ? 'P2' : 'P1'));
+
+        rackItemsMap.set(`${row}-${bay}-${lvl}-${pos}`, it);
+        if (!rackItemsMap.has(`${row}-${bay}-${lvl}`)) {
           rackItemsMap.set(`${row}-${bay}-${lvl}`, it);
         }
+        totalRackOccupied++;
       }
 
       // Check for floor staging (X1 - X8)
-      if (['X1','X2','X3','X4','X5','X6','X7','X8'].includes(it.zone)) {
-        const r = it.bayNumber || 1;
-        const c = (it.level as number) || 1;
-        floorItemsMap.set(`${it.zone}-${r}-${c}`, it);
-      } else if (it.locatorCode && it.locatorCode.includes('DA4D-1')) {
-        const floorMatch = it.locatorCode.match(/X([1-8])-(?:R)?(\d+)-(?:C)?(\d+)/i);
-        if (floorMatch) {
-          const grp = `X${floorMatch[1]}`;
-          const r = parseInt(floorMatch[2], 10);
-          const c = parseInt(floorMatch[3], 10);
-          floorItemsMap.set(`${grp}-${r}-${c}`, it);
-        }
+      const isFloorZone = ['X1','X2','X3','X4','X5','X6','X7','X8'].includes(it.zone);
+      const floorMatch = it.locatorCode ? it.locatorCode.match(/X([1-8])-(?:R)?(\d+)-(?:C)?(\d+)/i) : null;
+
+      if (isFloorZone || floorMatch) {
+        const grp = isFloorZone ? it.zone : `X${floorMatch![1]}`;
+        const r = isFloorZone ? (it.bayNumber || 1) : parseInt(floorMatch![2], 10);
+        const c = isFloorZone ? ((it.level as number) || 1) : parseInt(floorMatch![3], 10);
+        floorItemsMap.set(`${grp}-${r}-${c}`, it);
+        totalFloorOccupied++;
       }
     });
 
-    const totalRackOccupied = rackItemsMap.size;
-    const totalFloorOccupied = floorItemsMap.size;
     const totalOccupied = totalRackOccupied + totalFloorOccupied;
     const totalCap = 680 + 432; // 1,112 PL
 
@@ -421,6 +423,7 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
       zoneName: string;
       desc: string;
       item?: InventoryItem;
+      palletPosition?: string;
       rowName?: string;
       bay?: number;
       level?: number;
@@ -786,15 +789,17 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
           }
 
           // 2 Pallets per Bay Side-by-Side (Pallet 1 at zBay - 0.55, Pallet 2 at zBay + 0.55)
-          const item = a4Data.rackItemsMap.get(`${r.name}-${bay}-${lvl}`);
-          const hasPallet = !!item || ((bay + lvl * 2) % 3 === 0);
+          const palletOffsetsZ = [-0.55, 0.55]; // Pallet 1 (Left/Back) and Pallet 2 (Right/Front)
 
-          const palletOffsetsZ = [-0.55, 0.55]; // Pallet A (Left/Back) and Pallet B (Right/Front)
+          palletOffsetsZ.forEach((zOff, pIdx) => {
+            const pPos: 'P1' | 'P2' = pIdx === 0 ? 'P1' : 'P2';
+            const item = a4Data.rackItemsMap.get(`${r.name}-${bay}-${lvl}-${pPos}`) ||
+                         (pIdx === 0 ? a4Data.rackItemsMap.get(`${r.name}-${bay}-${lvl}`) : undefined);
+            const locatorStr = `DA4D-2-${r.name}${bay < 10 ? '0' + bay : bay}-L${lvl}-${pPos}`;
 
-          if (hasPallet) {
-            let bMat = boxActiveBlue;
-            let statusMode: 'EMPTY' | 'OCCUPIED' | 'AGING' | 'OVERDUE' = 'OCCUPIED';
             if (item) {
+              let bMat = boxActiveBlue;
+              let statusMode: 'EMPTY' | 'OCCUPIED' | 'AGING' | 'OVERDUE' = 'OCCUPIED';
               if (item.agingDays > 45 || item.agingStatus === 'OVERDUE') {
                 bMat = boxLowStockRed;
                 statusMode = 'OVERDUE';
@@ -804,43 +809,6 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
               } else if (item.quantity <= (item.minStock || 10)) {
                 bMat = boxLowStockRed;
                 statusMode = 'OCCUPIED';
-              }
-            } else if ((bay + lvl) % 5 === 0) {
-              bMat = boxAgingAmber;
-              statusMode = 'AGING';
-            }
-
-            // Create 2 Pallets per bay level
-            palletOffsetsZ.forEach((zOff, pIdx) => {
-              // If only partial pallet, skip second pallet occasionally
-              if (!item && pIdx === 1 && (bay + lvl) % 4 === 0) {
-                const emptySlotGrp = new THREE.Mesh(
-                  new THREE.BoxGeometry(RACK_FRAME_DEPTH - 0.1, 0.9, 0.95),
-                  new THREE.MeshBasicMaterial({ visible: false })
-                );
-                emptySlotGrp.position.set(r.x, yLvl + (lvl === 1 ? 0.45 : 0.5), zBayCenter + zOff);
-                rowGroup.add(emptySlotGrp);
-
-                const emptyLocator = `DA4D-2-${r.name}${bay < 10 ? '0' + bay : bay}-L${lvl}-P2`;
-                interactiveMeshes.push({
-                  mesh: emptySlotGrp,
-                  type: 'RACK',
-                  locator: emptyLocator,
-                  zoneName: `แร็ค A4 (Row ${r.name})`,
-                  desc: `[ช่องว่าง] ช่องแร็ค Row ${r.name} เสา ${bay} ชั้น L${lvl} [พาเลท 2]`,
-                  item: undefined,
-                  rowName: r.name,
-                  bay,
-                  level: lvl,
-                  x: r.x,
-                  y: yLvl + (lvl === 1 ? 0.0 : 0.05),
-                  z: zBayCenter + zOff,
-                  w: RACK_FRAME_DEPTH - 0.1,
-                  h: 0.95,
-                  d: 0.95,
-                  statusMode: 'EMPTY'
-                });
-                return;
               }
 
               const palletGrp = new THREE.Group();
@@ -868,14 +836,14 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
 
               rowGroup.add(palletGrp);
 
-              const locatorStr = `DA4D-2-${r.name}${bay < 10 ? '0' + bay : bay}-L${lvl}${pIdx === 0 ? '-P1' : '-P2'}`;
               interactiveMeshes.push({
                 mesh: palletGrp,
                 type: 'RACK',
                 locator: locatorStr,
                 zoneName: `แร็ค A4 (Row ${r.name})`,
-                desc: item ? `${item.partNumber} - ${item.model} (${item.quantity} ชิ้น) [P${pIdx + 1}]` : `ช่องแร็ค Row ${r.name} เสา ${bay} ชั้น L${lvl} [พาเลท ${pIdx + 1}]`,
+                desc: `${item.partNumber} - ${item.model} (${item.quantity} ชิ้น) [${pPos}]`,
                 item,
+                palletPosition: pPos,
                 rowName: r.name,
                 bay,
                 level: lvl,
@@ -887,10 +855,8 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
                 d: 0.95,
                 statusMode
               });
-            });
-          } else {
-            // Both P1 and P2 are empty in this bay level
-            palletOffsetsZ.forEach((zOff, pIdx) => {
+            } else {
+              // Empty slot hit box for scanning / inspection
               const emptyHit = new THREE.Mesh(
                 new THREE.BoxGeometry(RACK_FRAME_DEPTH - 0.1, 0.9, 0.95),
                 new THREE.MeshBasicMaterial({ visible: false })
@@ -898,14 +864,14 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
               emptyHit.position.set(r.x, yLvl + (lvl === 1 ? 0.45 : 0.5), zBayCenter + zOff);
               rowGroup.add(emptyHit);
 
-              const emptyLocator = `DA4D-2-${r.name}${bay < 10 ? '0' + bay : bay}-L${lvl}-P${pIdx + 1}`;
               interactiveMeshes.push({
                 mesh: emptyHit,
                 type: 'RACK',
-                locator: emptyLocator,
+                locator: locatorStr,
                 zoneName: `แร็ค A4 (Row ${r.name})`,
-                desc: `[ช่องว่าง] ช่องแร็ค Row ${r.name} เสา ${bay} ชั้น L${lvl} [พาเลท ${pIdx + 1}]`,
+                desc: `[ช่องว่าง] ช่องแร็ค Row ${r.name} เสา ${bay} ชั้น L${lvl} [${pPos}]`,
                 item: undefined,
+                palletPosition: pPos,
                 rowName: r.name,
                 bay,
                 level: lvl,
@@ -917,8 +883,8 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
                 d: 0.95,
                 statusMode: 'EMPTY'
               });
-            });
-          }
+            }
+          });
         }
       }
     });
@@ -1048,14 +1014,18 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
             }
           }
 
-          const item = a4Data.rackItemsMap.get(`${r.name}-${bay}-${lvl}`);
-          const hasPallet = !!item || ((bay * lvl) % 2 === 0);
+          // 2 Pallets per Bay Side-by-Side (Pallet 1 at zBay - 0.55, Pallet 2 at zBay + 0.55)
           const palletOffsetsZ = [-0.55, 0.55];
 
-          if (hasPallet) {
-            let bMat = boxActiveBlue;
-            let statusMode: 'EMPTY' | 'OCCUPIED' | 'AGING' | 'OVERDUE' = 'OCCUPIED';
+          palletOffsetsZ.forEach((zOff, pIdx) => {
+            const pPos: 'P1' | 'P2' = pIdx === 0 ? 'P1' : 'P2';
+            const item = a4Data.rackItemsMap.get(`${r.name}-${bay}-${lvl}-${pPos}`) ||
+                         (pIdx === 0 ? a4Data.rackItemsMap.get(`${r.name}-${bay}-${lvl}`) : undefined);
+            const locatorStr = `DA4D-3-${r.name}0${bay}-L${lvl}-${pPos}`;
+
             if (item) {
+              let bMat = boxActiveBlue;
+              let statusMode: 'EMPTY' | 'OCCUPIED' | 'AGING' | 'OVERDUE' = 'OCCUPIED';
               if (item.agingDays > 45 || item.agingStatus === 'OVERDUE') {
                 bMat = boxLowStockRed;
                 statusMode = 'OVERDUE';
@@ -1065,39 +1035,6 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
               } else if (item.quantity <= (item.minStock || 10)) {
                 bMat = boxLowStockRed;
                 statusMode = 'OCCUPIED';
-              }
-            }
-
-            // 2 Pallets side-by-side
-            palletOffsetsZ.forEach((zOff, pIdx) => {
-              if (!item && pIdx === 1 && (bay + lvl) % 3 === 0) {
-                const emptyHit = new THREE.Mesh(
-                  new THREE.BoxGeometry(RACK_FRAME_DEPTH - 0.1, 0.9, 0.95),
-                  new THREE.MeshBasicMaterial({ visible: false })
-                );
-                emptyHit.position.set(r.x, yLvl + (lvl === 1 ? 0.45 : 0.5), zBayCenter + zOff);
-                rowGroup.add(emptyHit);
-
-                const emptyLocator = `DA4D-3-${r.name}0${bay}-L${lvl}-P2`;
-                interactiveMeshes.push({
-                  mesh: emptyHit,
-                  type: 'RACK',
-                  locator: emptyLocator,
-                  zoneName: `แร็ค A4 (Row ${r.name})`,
-                  desc: `[ช่องว่าง] ช่องแร็ค Row ${r.name} เสา ${bay} ชั้น L${lvl} [พาเลท 2]`,
-                  item: undefined,
-                  rowName: r.name,
-                  bay,
-                  level: lvl,
-                  x: r.x,
-                  y: yLvl + (lvl === 1 ? 0.0 : 0.05),
-                  z: zBayCenter + zOff,
-                  w: RACK_FRAME_DEPTH - 0.1,
-                  h: 0.95,
-                  d: 0.95,
-                  statusMode: 'EMPTY'
-                });
-                return;
               }
 
               const palletGrp = new THREE.Group();
@@ -1123,14 +1060,14 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
 
               rowGroup.add(palletGrp);
 
-              const locatorStr = `DA4D-3-${r.name}0${bay}-L${lvl}${pIdx === 0 ? '-P1' : '-P2'}`;
               interactiveMeshes.push({
                 mesh: palletGrp,
                 type: 'RACK',
                 locator: locatorStr,
                 zoneName: `แร็ค A4 (Row ${r.name})`,
-                desc: item ? `${item.partNumber} - ${item.model} [P${pIdx + 1}]` : `ช่องแร็ค Row ${r.name} เสา ${bay} ชั้น L${lvl} [พาเลท ${pIdx + 1}]`,
+                desc: `${item.partNumber} - ${item.model} (${item.quantity} ชิ้น) [${pPos}]`,
                 item,
+                palletPosition: pPos,
                 rowName: r.name,
                 bay,
                 level: lvl,
@@ -1142,9 +1079,7 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
                 d: 0.95,
                 statusMode
               });
-            });
-          } else {
-            palletOffsetsZ.forEach((zOff, pIdx) => {
+            } else {
               const emptyHit = new THREE.Mesh(
                 new THREE.BoxGeometry(RACK_FRAME_DEPTH - 0.1, 0.9, 0.95),
                 new THREE.MeshBasicMaterial({ visible: false })
@@ -1152,14 +1087,14 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
               emptyHit.position.set(r.x, yLvl + (lvl === 1 ? 0.45 : 0.5), zBayCenter + zOff);
               rowGroup.add(emptyHit);
 
-              const emptyLocator = `DA4D-3-${r.name}0${bay}-L${lvl}-P${pIdx + 1}`;
               interactiveMeshes.push({
                 mesh: emptyHit,
                 type: 'RACK',
-                locator: emptyLocator,
+                locator: locatorStr,
                 zoneName: `แร็ค A4 (Row ${r.name})`,
-                desc: `[ช่องว่าง] ช่องแร็ค Row ${r.name} เสา ${bay} ชั้น L${lvl} [พาเลท ${pIdx + 1}]`,
+                desc: `[ช่องว่าง] ช่องแร็ค Row ${r.name} เสา ${bay} ชั้น L${lvl} [${pPos}]`,
                 item: undefined,
+                palletPosition: pPos,
                 rowName: r.name,
                 bay,
                 level: lvl,
@@ -1171,8 +1106,8 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
                 d: 0.95,
                 statusMode: 'EMPTY'
               });
-            });
-          }
+            }
+          });
         }
       }
     });
@@ -1280,7 +1215,7 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
 
           // Check if item exists in this floor slot
           const item = a4Data.floorItemsMap.get(`${zone.id}-${r}-${c}`);
-          const hasBox = !!item || ((c + r * 3) % 3 === 0);
+          const hasBox = !!item;
           const cStr = c < 10 ? '0' + c : '' + c;
           const locatorStr = `DA4D-1.01-${zone.id}-R${r}-C${cStr}`;
 
@@ -1437,6 +1372,7 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
             locator: hit.locator,
             desc: hit.desc,
             item: hit.item,
+            palletPosition: hit.palletPosition,
             statusMode: hit.statusMode,
             posDetail: hit.type === 'RACK' ? `เสา ${hit.bay} &bull; ชั้น L${hit.level}` : `${hit.group} R${hit.row}-C${hit.col}`
           });
@@ -1473,21 +1409,29 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
           intersects[0].object.parent?.parent === m.mesh
         );
         if (hit) {
-          setSelectedSlot({
-            type: hit.type,
-            locator: hit.locator,
-            zoneName: hit.zoneName,
-            item: hit.item,
-            rowName: hit.rowName,
-            bay: hit.bay,
-            level: hit.level,
-            group: hit.group,
-            row: hit.row,
-            col: hit.col
-          });
+          if (e.detail === 2 && onOpenScanner) {
+            const targetZone = (hit.rowName || hit.group || 'B') as StorageZone;
+            const targetBay = hit.bay || hit.row || 1;
+            const targetLevel = (hit.level || hit.col || 1) as ShelfLevel;
+            onOpenScanner(targetZone, targetBay, targetLevel, hit.item ? 'OUT' : 'IN', hit.locator, hit.palletPosition, hit.item);
+          } else {
+            setSelectedSlot({
+              type: hit.type,
+              locator: hit.locator,
+              zoneName: hit.zoneName,
+              item: hit.item,
+              palletPosition: hit.palletPosition,
+              rowName: hit.rowName,
+              bay: hit.bay,
+              level: hit.level,
+              group: hit.group,
+              row: hit.row,
+              col: hit.col
+            });
 
-          if (onSelectSlot) {
-            onSelectSlot(hit.type, hit.locator, hit.item);
+            if (onSelectSlot) {
+              onSelectSlot(hit.type, hit.locator, hit.item);
+            }
           }
         }
       }
@@ -1813,9 +1757,9 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
                   <button
                     onClick={() => {
                       if (selectedSlot.type === 'RACK') {
-                        onOpenScanner(selectedSlot.rowName as any, selectedSlot.bay || 1, selectedSlot.level as any, 'IN');
+                        onOpenScanner(selectedSlot.rowName as any, selectedSlot.bay || 1, selectedSlot.level as any, 'IN', selectedSlot.locator, selectedSlot.palletPosition, selectedSlot.item);
                       } else {
-                        onOpenScanner(selectedSlot.group as any, selectedSlot.row || 1, (selectedSlot.col || 1) as any, 'IN');
+                        onOpenScanner(selectedSlot.group as any, selectedSlot.row || 1, (selectedSlot.col || 1) as any, 'IN', selectedSlot.locator, selectedSlot.palletPosition, selectedSlot.item);
                       }
                     }}
                     className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5"
@@ -1828,9 +1772,9 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
                     <button
                       onClick={() => {
                         if (selectedSlot.type === 'RACK') {
-                          onOpenScanner(selectedSlot.rowName as any, selectedSlot.bay || 1, selectedSlot.level as any, 'OUT');
+                          onOpenScanner(selectedSlot.rowName as any, selectedSlot.bay || 1, selectedSlot.level as any, 'OUT', selectedSlot.locator, selectedSlot.palletPosition, selectedSlot.item);
                         } else {
-                          onOpenScanner(selectedSlot.group as any, selectedSlot.row || 1, (selectedSlot.col || 1) as any, 'OUT');
+                          onOpenScanner(selectedSlot.group as any, selectedSlot.row || 1, (selectedSlot.col || 1) as any, 'OUT', selectedSlot.locator, selectedSlot.palletPosition, selectedSlot.item);
                         }
                       }}
                       className="flex-1 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5"

@@ -23,7 +23,14 @@ import {
   Box,
   CheckCircle2,
   AlertTriangle,
-  ArrowRight
+  ArrowRight,
+  Flame,
+  Activity,
+  Play,
+  Pause,
+  SkipForward,
+  SkipBack,
+  Square
 } from 'lucide-react';
 
 interface CampusMasterOverviewProps {
@@ -159,6 +166,131 @@ function createBillboardLabelTexture(title: string, subtitle: string, colorHex: 
   return texture;
 }
 
+interface TourWaypoint {
+  id: string;
+  buildingKey: BuildingKey | 'OVERVIEW';
+  title: string;
+  subtitle: string;
+  description: string;
+  cameraPos: { x: number; y: number; z: number };
+  targetPos: { x: number; y: number; z: number };
+  duration: number; // in seconds
+}
+
+const TOUR_WAYPOINTS: TourWaypoint[] = [
+  {
+    id: 'overview',
+    buildingKey: 'OVERVIEW',
+    title: 'มุมมองรวมแคมปัส HEX WMS LGETH',
+    subtitle: 'Campus 3D Digital Twin Overview',
+    description: 'พื้นที่รวมคลังสินค้า 4 โซนหลัก: A2 Flow Rail, A4 Selective Rack & Floor, CY3 Heavy Rack, A5 Tent Yard ความจุรวม 2,408 พาเลท',
+    cameraPos: { x: -44, y: 55, z: 70 },
+    targetPos: { x: 0, y: 0, z: 0 },
+    duration: 7
+  },
+  {
+    id: 'a2',
+    buildingKey: 'A2',
+    title: '1. อาคาร A2 - Flow Rail 3D Twin',
+    subtitle: 'Roller Flow Rail Lanes (DA2D-1)',
+    description: 'ระบบรางเลื่อนลูกกลิ้ง gravity flow 13 แถว (R01-R13) ความจุ 104 ช่อง ควบคุมระบบ FIFO แบบอัตโนมัติ',
+    cameraPos: { x: -84, y: 26, z: 28 },
+    targetPos: { x: -62, y: 5, z: 0 },
+    duration: 8
+  },
+  {
+    id: 'a4',
+    buildingKey: 'A4',
+    title: '2. อาคาร A4 - Selective Rack & Floor Staging',
+    subtitle: 'Main Indoor Warehouse (DA4D-1/2/3)',
+    description: 'Selective Rack แถว B-K (680P) ร่วมกับลานวางพื้นรูปตัว L (X1-X8, 432P) รวมความจุใหญ่ที่สุดในไซต์ 1,112 พาเลท',
+    cameraPos: { x: -22, y: 38, z: 48 },
+    targetPos: { x: 0, y: 8, z: -4 },
+    duration: 8
+  },
+  {
+    id: 'cy3',
+    buildingKey: 'CY3',
+    title: '3. โซน CY3 - Outdoor Heavy Rack',
+    subtitle: 'Heavy Structural Steel Canopy (DY3T)',
+    description: 'แร็คกลางแจ้งโครงสร้างเหล็กหนาพิเศษ 4 แถว A-D ชั้น L1-L4 เสาสูง 1.5 เท่า รับน้ำหนักชิ้นส่วนเครื่องจักรหนัก ความจุ 400P',
+    cameraPos: { x: 42, y: 36, z: -6 },
+    targetPos: { x: 62, y: 10, z: -32 },
+    duration: 8
+  },
+  {
+    id: 'a5',
+    buildingKey: 'A5',
+    title: '4. โซน A5 - Tent Yard (4 Canvas Tents)',
+    subtitle: 'Arched Canvas Staging Tents (Tent 1-4)',
+    description: 'เต็นท์ผ้าใบโค้ง 4 หลังจัดผังแบบ 2x2 สำหรับพักรอวัตถุดิบและกล่องคาร์บอนด์ ความจุ 784 ช่องวางพื้น',
+    cameraPos: { x: 42, y: 28, z: 62 },
+    targetPos: { x: 62, y: 5, z: 32 },
+    duration: 8
+  }
+];
+
+/**
+ * Generates dynamic heat map texture based on item aging density for 3D overlay
+ */
+function createBuildingHeatmapTexture(
+  buildingKey: BuildingKey,
+  metrics: { occupied: number; total: number; safeCount: number; warningCount: number; overdueCount: number }
+): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.clearRect(0, 0, 256, 256);
+
+  // Background subtle tint
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.55)';
+  ctx.fillRect(0, 0, 256, 256);
+
+  const total = metrics.occupied || 1;
+  let baseColor = '#10b981';
+  if (metrics.overdueCount > 0) {
+    baseColor = '#ef4444';
+  } else if (metrics.warningCount > 0) {
+    baseColor = '#f59e0b';
+  }
+
+  // Draw radial heatmap spots
+  const hotspotsCount = Math.max(8, Math.min(28, metrics.occupied + 6));
+  for (let i = 0; i < hotspotsCount; i++) {
+    const x = 32 + ((i * 37 + 13) % 192);
+    const y = 32 + ((i * 53 + 29) % 192);
+    const r = 24 + ((i * 13) % 32);
+
+    let spotColor = 'rgba(16, 185, 129, 0.75)'; // safe green
+    if (metrics.overdueCount > 0 && i % 3 === 0) {
+      spotColor = 'rgba(239, 68, 68, 0.9)'; // overdue red
+    } else if (metrics.warningCount > 0 && i % 2 === 0) {
+      spotColor = 'rgba(245, 158, 11, 0.85)'; // warning amber
+    }
+
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+    grad.addColorStop(0, spotColor);
+    grad.addColorStop(0.7, spotColor.replace('0.75', '0.3').replace('0.9', '0.35').replace('0.85', '0.3'));
+    grad.addColorStop(1, 'rgba(15, 23, 42, 0)');
+
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Draw luminous grid border
+  ctx.strokeStyle = baseColor;
+  ctx.lineWidth = 10;
+  ctx.strokeRect(5, 5, 246, 246);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
 export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
   items = [],
   logs = [],
@@ -176,15 +308,22 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
   const [showLabels, setShowLabels] = useState<boolean>(true);
   const [showVehicles, setShowVehicles] = useState<boolean>(true);
   const [showRoads, setShowRoads] = useState<boolean>(true);
+  const [showHeatmap, setShowHeatmap] = useState<boolean>(false);
   const [cameraPreset, setCameraPreset] = useState<'ISO_45' | 'TOP_85'>('ISO_45');
 
-  // Compute building specific occupancy metrics
+  // Guided Tour Mode state
+  const [isTourActive, setIsTourActive] = useState<boolean>(false);
+  const [isTourPaused, setIsTourPaused] = useState<boolean>(false);
+  const [tourStep, setTourStep] = useState<number>(0);
+  const [tourProgress, setTourProgress] = useState<number>(0);
+
+  // Compute building specific occupancy & aging status metrics
   const buildingMetrics = useMemo(() => {
-    const metrics: Record<BuildingKey, { occupied: number; total: number; percent: number; inCount: number; outCount: number }> = {
-      A2: { occupied: 0, total: 104, percent: 0, inCount: 0, outCount: 0 },
-      A4: { occupied: 0, total: 1112, percent: 0, inCount: 0, outCount: 0 },
-      CY3: { occupied: 0, total: 400, percent: 0, inCount: 0, outCount: 0 },
-      A5: { occupied: 0, total: 784, percent: 0, inCount: 0, outCount: 0 },
+    const metrics: Record<BuildingKey, { occupied: number; total: number; percent: number; inCount: number; outCount: number; safeCount: number; warningCount: number; overdueCount: number }> = {
+      A2: { occupied: 0, total: 104, percent: 0, inCount: 0, outCount: 0, safeCount: 0, warningCount: 0, overdueCount: 0 },
+      A4: { occupied: 0, total: 1112, percent: 0, inCount: 0, outCount: 0, safeCount: 0, warningCount: 0, overdueCount: 0 },
+      CY3: { occupied: 0, total: 400, percent: 0, inCount: 0, outCount: 0, safeCount: 0, warningCount: 0, overdueCount: 0 },
+      A5: { occupied: 0, total: 784, percent: 0, inCount: 0, outCount: 0, safeCount: 0, warningCount: 0, overdueCount: 0 },
     };
 
     items.forEach(item => {
@@ -192,14 +331,28 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
       const loc = String(item.locatorCode || '');
       const fac = String(item.facilityId || '');
 
+      let bKey: BuildingKey = 'A4';
       if (z.startsWith('R') || z.startsWith('FR') || fac === 'FAC-A2-RAIL' || loc.includes('DA2D')) {
-        metrics.A2.occupied += 1;
+        bKey = 'A2';
       } else if (z.startsWith('CY3') || z.startsWith('DY3T') || fac === 'FAC-CY3-TENT' || loc.includes('DY3T')) {
-        metrics.CY3.occupied += 1;
+        bKey = 'CY3';
       } else if (z.startsWith('A5') || fac === 'FAC-A5-TENT') {
-        metrics.A5.occupied += 1;
+        bKey = 'A5';
       } else {
-        metrics.A4.occupied += 1;
+        bKey = 'A4';
+      }
+
+      metrics[bKey].occupied += 1;
+
+      // Calculate aging category
+      const days = item.agingDays ?? 0;
+      const status = item.agingStatus || (days > 30 ? 'OVERDUE' : (days > 14 ? 'WARNING' : 'SAFE'));
+      if (status === 'OVERDUE' || status === 'CRITICAL' || days > 30) {
+        metrics[bKey].overdueCount += 1;
+      } else if (status === 'WARNING' || days > 14) {
+        metrics[bKey].warningCount += 1;
+      } else {
+        metrics[bKey].safeCount += 1;
       }
     });
 
@@ -228,12 +381,27 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
   const labelSpritesRef = useRef<Map<BuildingKey, THREE.Sprite>>(new Map());
   const buildingMeshesRef = useRef<Map<BuildingKey, THREE.Group>>(new Map());
   const boundingBoxesRef = useRef<Map<BuildingKey, THREE.Mesh>>(new Map());
+  const heatmapMeshesRef = useRef<Map<BuildingKey, THREE.Mesh>>(new Map());
   const vehiclesGroupRef = useRef<THREE.Group | null>(null);
   const roadsGroupRef = useRef<THREE.Group | null>(null);
 
   // Target camera state for smooth damping transition
-  const cameraTargetPos = useRef<THREE.Vector3>(new THREE.Vector3(-60, 75, 95));
+  const cameraTargetPos = useRef<THREE.Vector3>(new THREE.Vector3(-44, 55, 70));
   const controlsTargetPos = useRef<THREE.Vector3>(new THREE.Vector3(0, 0, 0));
+
+  // Sync refs for animation loop
+  const isTourActiveRef = useRef<boolean>(isTourActive);
+  const isTourPausedRef = useRef<boolean>(isTourPaused);
+  const tourStepRef = useRef<number>(tourStep);
+  const tourTimerRef = useRef<number>(0);
+  const showHeatmapRef = useRef<boolean>(showHeatmap);
+  const colorModeRef = useRef(colorMode);
+
+  useEffect(() => { isTourActiveRef.current = isTourActive; }, [isTourActive]);
+  useEffect(() => { isTourPausedRef.current = isTourPaused; }, [isTourPaused]);
+  useEffect(() => { tourStepRef.current = tourStep; }, [tourStep]);
+  useEffect(() => { showHeatmapRef.current = showHeatmap; }, [showHeatmap]);
+  useEffect(() => { colorModeRef.current = colorMode; }, [colorMode]);
 
   // Initialize Three.js Site Scene
   useEffect(() => {
@@ -249,7 +417,7 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(42, width / height, 0.5, 600);
-    camera.position.set(-60, 75, 95);
+    camera.position.set(-44, 55, 70);
     cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -581,6 +749,23 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
       sprite.scale.set(24, 6, 1);
       labelSpritesRef.current.set(bKey, sprite);
       scene.add(sprite);
+
+      // Create 3D Analytics Heatmap Plane Mesh directly above building roof
+      const heatGeo = new THREE.PlaneGeometry(spec.size.w + 2, spec.size.d + 2);
+      const heatTex = createBuildingHeatmapTexture(bKey, buildingMetrics[bKey]);
+      const heatMat = new THREE.MeshBasicMaterial({
+        map: heatTex,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      });
+      const heatMesh = new THREE.Mesh(heatGeo, heatMat);
+      heatMesh.rotation.x = -Math.PI / 2;
+      heatMesh.position.set(spec.position.x, spec.size.h + 0.8, spec.position.z);
+      heatMesh.visible = false;
+      heatmapMeshesRef.current.set(bKey, heatMesh);
+      scene.add(heatMesh);
     });
 
     scene.add(buildingsGroup);
@@ -669,6 +854,39 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
       camera.position.lerp(cameraTargetPos.current, 0.05);
       controls.target.lerp(controlsTargetPos.current, 0.05);
       controls.update();
+
+      // Guided Tour Mode Animation Progression
+      if (isTourActiveRef.current && !isTourPausedRef.current) {
+        tourTimerRef.current += dt;
+        const wp = TOUR_WAYPOINTS[tourStepRef.current];
+        const stepDuration = wp.duration || 7;
+
+        const progressPercent = Math.min(100, Math.round((tourTimerRef.current / stepDuration) * 100));
+        setTourProgress(progressPercent);
+
+        cameraTargetPos.current.set(wp.cameraPos.x, wp.cameraPos.y, wp.cameraPos.z);
+        controlsTargetPos.current.set(wp.targetPos.x, wp.targetPos.y, wp.targetPos.z);
+
+        if (tourTimerRef.current >= stepDuration) {
+          tourTimerRef.current = 0;
+          const nextStep = (tourStepRef.current + 1) % TOUR_WAYPOINTS.length;
+          tourStepRef.current = nextStep;
+          setTourStep(nextStep);
+        }
+      }
+
+      // Heatmap Meshes Visibility & Pulsating Glow
+      const activeHeatmap = showHeatmapRef.current || colorModeRef.current === 'AGING';
+      heatmapMeshesRef.current.forEach(mesh => {
+        if (activeHeatmap) {
+          mesh.visible = true;
+          if (mesh.material instanceof THREE.MeshBasicMaterial) {
+            mesh.material.opacity = 0.65 + Math.sin(time * 3.5) * 0.2;
+          }
+        } else {
+          mesh.visible = false;
+        }
+      });
 
       // Animate Vehicles on roads
       if (vehiclesGroupRef.current && showVehicles) {
@@ -765,7 +983,7 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
   const handleResetView = () => {
     setSelectedBuilding(null);
     setCameraPreset('ISO_45');
-    cameraTargetPos.current.set(-60, 75, 95);
+    cameraTargetPos.current.set(-44, 55, 70);
     controlsTargetPos.current.set(0, 0, 0);
   };
 
@@ -774,6 +992,49 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
     setCameraPreset('TOP_85');
     cameraTargetPos.current.set(0, 140, 5);
     controlsTargetPos.current.set(0, 0, 0);
+  };
+
+  // Guided Tour Control Handlers
+  const handleStartTour = () => {
+    setIsTourActive(true);
+    setIsTourPaused(false);
+    setTourStep(0);
+    tourTimerRef.current = 0;
+    const wp = TOUR_WAYPOINTS[0];
+    cameraTargetPos.current.set(wp.cameraPos.x, wp.cameraPos.y, wp.cameraPos.z);
+    controlsTargetPos.current.set(wp.targetPos.x, wp.targetPos.y, wp.targetPos.z);
+  };
+
+  const handleNextTourStep = () => {
+    const next = (tourStep + 1) % TOUR_WAYPOINTS.length;
+    setTourStep(next);
+    tourTimerRef.current = 0;
+    const wp = TOUR_WAYPOINTS[next];
+    cameraTargetPos.current.set(wp.cameraPos.x, wp.cameraPos.y, wp.cameraPos.z);
+    controlsTargetPos.current.set(wp.targetPos.x, wp.targetPos.y, wp.targetPos.z);
+  };
+
+  const handlePrevTourStep = () => {
+    const prev = (tourStep - 1 + TOUR_WAYPOINTS.length) % TOUR_WAYPOINTS.length;
+    setTourStep(prev);
+    tourTimerRef.current = 0;
+    const wp = TOUR_WAYPOINTS[prev];
+    cameraTargetPos.current.set(wp.cameraPos.x, wp.cameraPos.y, wp.cameraPos.z);
+    controlsTargetPos.current.set(wp.targetPos.x, wp.targetPos.y, wp.targetPos.z);
+  };
+
+  const handleSelectTourStep = (index: number) => {
+    setTourStep(index);
+    tourTimerRef.current = 0;
+    const wp = TOUR_WAYPOINTS[index];
+    cameraTargetPos.current.set(wp.cameraPos.x, wp.cameraPos.y, wp.cameraPos.z);
+    controlsTargetPos.current.set(wp.targetPos.x, wp.targetPos.y, wp.targetPos.z);
+  };
+
+  const handleExitTour = () => {
+    setIsTourActive(false);
+    setIsTourPaused(false);
+    handleResetView();
   };
 
   // Compute Active Zone Key for bottom KPI formal dashboard
@@ -820,6 +1081,33 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
         {/* Camera View Controls & Overlays Switchers */}
         <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
           
+          {/* Guided Tour Mode Button */}
+          <button
+            onClick={isTourActive ? handleExitTour : handleStartTour}
+            className={`px-3 py-1.5 rounded-xl transition-all flex items-center space-x-1.5 cursor-pointer font-black border ${
+              isTourActive 
+                ? 'bg-amber-600 text-white border-amber-400 shadow-lg ring-2 ring-amber-500/50' 
+                : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white border-blue-400 shadow-md'
+            }`}
+          >
+            <Sparkles className="w-4 h-4 text-yellow-300 animate-spin" style={{ animationDuration: '3s' }} />
+            <span>{isTourActive ? 'จบการนำชม (Exit Tour)' : 'นำชมแคมปัส (Tour Mode)'}</span>
+          </button>
+
+          {/* Analytics Heatmap Overlay Toggle */}
+          <button
+            onClick={() => setShowHeatmap(!showHeatmap)}
+            className={`px-3 py-1.5 rounded-xl transition-all flex items-center space-x-1.5 cursor-pointer font-bold border ${
+              showHeatmap 
+                ? 'bg-red-600 text-white border-red-400 shadow-md ring-2 ring-red-500/40 animate-pulse' 
+                : 'bg-slate-950 text-slate-300 border-slate-800 hover:text-white hover:border-slate-700'
+            }`}
+            title="Toggle Dynamic 3D Analytics Heatmap"
+          >
+            <Flame className="w-4 h-4 text-amber-400" />
+            <span>Heatmap Aging</span>
+          </button>
+
           {/* Camera Angle Presets */}
           <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 gap-1">
             <button
@@ -894,6 +1182,127 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
       {/* Main 3D Canvas Container */}
       <div className="flex-1 w-full h-full relative min-h-0">
         <div ref={mountRef} className="w-full h-full" />
+
+        {/* Floating Guided Tour Mode Banner & Controls HUD */}
+        {isTourActive && (
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-30 w-[94%] max-w-2xl bg-slate-950/95 border border-amber-500/50 rounded-2xl p-3.5 shadow-2xl backdrop-blur-xl animate-fadeIn flex flex-col space-y-2.5">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <div className="flex items-center space-x-2">
+                <span className="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono text-xs font-black">
+                  TOUR STEP {tourStep + 1} / {TOUR_WAYPOINTS.length}
+                </span>
+                <span className="font-black text-white text-sm sm:text-base">
+                  {TOUR_WAYPOINTS[tourStep].title}
+                </span>
+              </div>
+              <div className="flex items-center space-x-1.5">
+                <button
+                  onClick={handlePrevTourStep}
+                  className="p-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl border border-slate-700 cursor-pointer transition-all"
+                  title="Step Previous"
+                >
+                  <SkipBack className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setIsTourPaused(!isTourPaused)}
+                  className="p-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl cursor-pointer font-bold transition-all flex items-center space-x-1"
+                  title={isTourPaused ? 'Play' : 'Pause'}
+                >
+                  {isTourPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
+                </button>
+                <button
+                  onClick={handleNextTourStep}
+                  className="p-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl border border-slate-700 cursor-pointer transition-all"
+                  title="Step Next"
+                >
+                  <SkipForward className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={handleExitTour}
+                  className="p-1.5 bg-red-600/80 hover:bg-red-600 text-white rounded-xl cursor-pointer ml-1 transition-all"
+                  title="Exit Tour"
+                >
+                  <Square className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="text-xs text-slate-300 flex justify-between items-center">
+              <span>{TOUR_WAYPOINTS[tourStep].description}</span>
+              <span className="font-mono text-[11px] text-amber-400 font-bold shrink-0 ml-2">
+                {isTourPaused ? 'PAUSED' : `${tourProgress}%`}
+              </span>
+            </div>
+
+            {/* Tour Step Progress Bar */}
+            <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden border border-slate-800">
+              <div
+                className="bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-300 h-full transition-all duration-200 ease-linear"
+                style={{ width: `${tourProgress}%` }}
+              />
+            </div>
+
+            {/* Clickable Step Waypoint Indicator Dots */}
+            <div className="flex items-center justify-center space-x-2 pt-0.5">
+              {TOUR_WAYPOINTS.map((wp, idx) => (
+                <button
+                  key={wp.id}
+                  onClick={() => handleSelectTourStep(idx)}
+                  className={`h-2 rounded-full transition-all cursor-pointer ${
+                    idx === tourStep
+                      ? 'w-7 bg-amber-400 shadow-md'
+                      : 'w-2 bg-slate-700 hover:bg-slate-500'
+                  }`}
+                  title={wp.title}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Analytics Heatmap Legend Panel */}
+        {(showHeatmap || colorMode === 'AGING') && (
+          <div className="absolute top-4 left-4 z-20 bg-slate-950/90 border border-slate-800 rounded-2xl p-3 shadow-2xl backdrop-blur-md text-xs space-y-2 max-w-xs animate-fadeIn">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
+              <span className="font-black text-white flex items-center space-x-1.5">
+                <Flame className="w-4 h-4 text-amber-400" />
+                <span>Analytics Heatmap Legend</span>
+              </span>
+              <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/20 px-1.5 py-0.5 rounded border border-emerald-500/40">
+                REALTIME AGING
+              </span>
+            </div>
+            <div className="space-y-1.5 text-[11px]">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center space-x-1.5 text-slate-300">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shadow-sm" />
+                  <span>ปกติ Safe (&le; 14 วัน)</span>
+                </span>
+                <span className="font-mono text-emerald-400 font-bold">
+                  {(Object.values(buildingMetrics) as any[]).reduce((a, b) => a + (b.safeCount || 0), 0)} P
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="flex items-center space-x-1.5 text-slate-300">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block shadow-sm" />
+                  <span>เตือน Warning (15-30 วัน)</span>
+                </span>
+                <span className="font-mono text-amber-400 font-bold">
+                  {(Object.values(buildingMetrics) as any[]).reduce((a, b) => a + (b.warningCount || 0), 0)} P
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="flex items-center space-x-1.5 text-slate-300">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block shadow-sm" />
+                  <span>เกินกำหนด Overdue (&gt; 30 วัน)</span>
+                </span>
+                <span className="font-mono text-red-400 font-bold">
+                  {(Object.values(buildingMetrics) as any[]).reduce((a, b) => a + (b.overdueCount || 0), 0)} P
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Hover Raycaster Interactive Tooltip */}
         {hoverTooltip && (

@@ -191,64 +191,44 @@ export function filterItemsByZone(items: InventoryItem[] = [], zoneKey: ZoneKey)
   return items.filter(it => {
     const loc = (it.locatorCode || '').toUpperCase();
     const zoneStr = (String(it.zone || '')).toUpperCase();
-    const facId = it.facilityId || '';
+    const facId = (it.facilityId || '').toUpperCase();
 
-    switch (zoneKey) {
-      case 'A2':
-        return isA2InventoryItem(it);
-
-      case 'A4_FLOOR':
-        if (facId && facId !== 'FAC-A4-FLOOR' && facId !== 'FAC-A4-MAIN') return false;
-        if (loc.startsWith('DA2D') || loc.startsWith('DA5T') || loc.startsWith('DY3T')) return false;
-        return (
-          facId === 'FAC-A4-FLOOR' ||
-          (loc.startsWith('DA4D-1') && !['B','C','D','E','F','G','H','I','J','K'].includes(zoneStr)) ||
-          ['X1','X2','X3','X4','X5','X6','X7','X8','FLOOR','STAGING'].includes(zoneStr)
-        );
-
-      case 'A4_RACK':
-        if (facId && facId !== 'FAC-A4-RACK' && facId !== 'FAC-A4-MAIN') return false;
-        if (loc.startsWith('DA2D') || loc.startsWith('DA5T') || loc.startsWith('DY3T')) return false;
-        return (
-          facId === 'FAC-A4-RACK' ||
-          loc.startsWith('DA4D-2') ||
-          loc.startsWith('DA4D-3') ||
-          ['B','C','D','E','F','G','H','I','J','K'].includes(zoneStr)
-        );
-
-      case 'A4':
-        if (facId && facId !== 'FAC-A4-RACK' && facId !== 'FAC-A4-FLOOR' && facId !== 'FAC-A4-MAIN') return false;
-        if (loc.startsWith('DA2D') || loc.startsWith('DA5T') || loc.startsWith('DY3T')) return false;
-        return (
-          facId === 'FAC-A4-RACK' ||
-          facId === 'FAC-A4-FLOOR' ||
-          facId === 'FAC-A4-MAIN' ||
-          loc.startsWith('DA4D') ||
-          ['B','C','D','E','F','G','H','I','J','K','X1','X2','X3','X4','X5','X6','X7','X8'].includes(zoneStr)
-        );
-
-      case 'A5':
-        if (facId && facId !== 'FAC-A5-TENT') return false;
-        if (loc.startsWith('DA2D') || loc.startsWith('DA4D') || loc.startsWith('DY3T')) return false;
-        return (
-          facId === 'FAC-A5-TENT' ||
-          loc.startsWith('DA5T') ||
-          loc.startsWith('DAST') ||
-          zoneStr.startsWith('T')
-        );
-
-      case 'CY3':
-        if (facId && facId !== 'FAC-CY3-TENT') return false;
-        if (loc.startsWith('DA2D') || loc.startsWith('DA4D') || loc.startsWith('DA5T')) return false;
-        return (
-          facId === 'FAC-CY3-TENT' ||
-          loc.startsWith('DY3T') ||
-          zoneStr.startsWith('CY3')
-        );
-
-      default:
-        return true;
+    // 1. Authoritative locator prefix matching
+    if (loc.startsWith('DY3T') || zoneStr.startsWith('CY3') || facId === 'FAC-CY3-TENT') {
+      return zoneKey === 'CY3';
     }
+
+    if (loc.startsWith('DA5T') || loc.startsWith('DAST') || zoneStr.startsWith('T') || facId === 'FAC-A5-TENT' || facId.includes('A5')) {
+      return zoneKey === 'A5';
+    }
+
+    if (loc.startsWith('DA2D') || isA2InventoryItem(it)) {
+      return zoneKey === 'A2';
+    }
+
+    if (
+      loc.startsWith('DA4D-1') ||
+      ['X1','X2','X3','X4','X5','X6','X7','X8','FLOOR','STAGING'].includes(zoneStr) ||
+      facId === 'FAC-A4-FLOOR'
+    ) {
+      return zoneKey === 'A4_FLOOR' || zoneKey === 'A4';
+    }
+
+    if (
+      loc.startsWith('DA4D-2') ||
+      loc.startsWith('DA4D-3') ||
+      ['B','C','D','E','F','G','H','I','J','K'].includes(zoneStr) ||
+      facId === 'FAC-A4-RACK'
+    ) {
+      return zoneKey === 'A4_RACK' || zoneKey === 'A4';
+    }
+
+    // Fallback for general A4 items
+    if (loc.startsWith('DA4D') || facId === 'FAC-A4-MAIN' || facId.includes('A4')) {
+      return zoneKey === 'A4' || zoneKey === 'A4_RACK';
+    }
+
+    return false;
   });
 }
 
@@ -258,30 +238,23 @@ export function filterItemsByZone(items: InventoryItem[] = [], zoneKey: ZoneKey)
 export function filterLogsByZone(logs: MovementLog[] = [], zoneKey: ZoneKey): MovementLog[] {
   if (zoneKey === 'ALL') return logs;
 
-  return logs.filter(log => {
-    const loc = (log.locatorCode || '').toUpperCase();
-    const group = (log.locatorGroup || '').toUpperCase();
-    const useLine = (log.useLine || '').toUpperCase();
+  return logs.filter(l => {
+    const loc = (l.locatorCode || '').toUpperCase();
+    const facId = (l.facilityId || '').toUpperCase();
 
     switch (zoneKey) {
       case 'A2':
-        return loc.startsWith('DA2D') || group.includes('A2') || useLine.includes('A2');
-
+        return loc.startsWith('DA2D') || facId === 'FAC-A2-RAIL' || loc.includes('-R');
       case 'A4_FLOOR':
-        return (loc.startsWith('DA4D-1') && !loc.includes('RACK')) || group.includes('A4 FLOOR') || group.includes('DA4D-1');
-
+        return loc.startsWith('DA4D-1') || loc.includes('-X') || facId === 'FAC-A4-FLOOR';
       case 'A4_RACK':
-        return loc.startsWith('DA4D-2') || loc.startsWith('DA4D-3') || group.includes('A4 RACK') || group.includes('SELECTIVE');
-
+        return loc.startsWith('DA4D-2') || loc.startsWith('DA4D-3') || facId === 'FAC-A4-RACK';
       case 'A4':
-        return loc.startsWith('DA4D') || group.includes('A4');
-
+        return loc.startsWith('DA4D') || facId.includes('A4');
       case 'A5':
-        return loc.startsWith('DA5T') || loc.startsWith('DAST') || group.includes('A5');
-
+        return loc.startsWith('DA5T') || loc.startsWith('DAST') || facId === 'FAC-A5-TENT' || facId.includes('A5');
       case 'CY3':
-        return loc.startsWith('DY3T') || group.includes('CY3');
-
+        return loc.startsWith('DY3T') || loc.includes('CY3') || facId === 'FAC-CY3-TENT';
       default:
         return true;
     }

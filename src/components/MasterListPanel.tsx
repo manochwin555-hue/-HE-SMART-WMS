@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MasterDataItem, UseLineMaster, ZoneCapacityMaster, StorageZone, InventoryItem, CustomRackSlot, StorageLocationType, WarehouseFacility, AgingThresholdConfig } from '../types';
+import { MasterDataItem, UseLineMaster, TargetUseLineMaster, ZoneCapacityMaster, StorageZone, InventoryItem, CustomRackSlot, StorageLocationType, WarehouseFacility, AgingThresholdConfig } from '../types';
 import { FacilityManager } from './FacilityManager';
 import { DynamicLegendPanel } from './DynamicLegendPanel';
 import { AgingFifoPanel } from './AgingFifoPanel';
@@ -29,7 +29,8 @@ import {
   Flame,
   Clock,
   Sliders,
-  ShieldAlert
+  ShieldAlert,
+  Target
 } from 'lucide-react';
 
 interface MasterListPanelProps {
@@ -37,6 +38,8 @@ interface MasterListPanelProps {
   setMasterData: React.Dispatch<React.SetStateAction<MasterDataItem[]>>;
   useLines: UseLineMaster[];
   setUseLines: React.Dispatch<React.SetStateAction<UseLineMaster[]>>;
+  targetUseLines?: TargetUseLineMaster[];
+  setTargetUseLines?: React.Dispatch<React.SetStateAction<TargetUseLineMaster[]>>;
   zoneCapacities: ZoneCapacityMaster[];
   setZoneCapacities: React.Dispatch<React.SetStateAction<ZoneCapacityMaster[]>>;
   items: InventoryItem[];
@@ -60,6 +63,8 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
   setMasterData,
   useLines,
   setUseLines,
+  targetUseLines: propTargetUseLines,
+  setTargetUseLines: propSetTargetUseLines,
   zoneCapacities,
   setZoneCapacities,
   items,
@@ -77,7 +82,21 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
   onLoadSampleData
 }) => {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<'FACILITIES' | 'AGING_CONFIG' | 'GUIDE_LEGEND' | 'ITEMS' | 'LINES' | 'ZONE_CAPACITY' | 'RACK_LOCATIONS' | 'DATA_CLEANUP'>('AGING_CONFIG');
+  const [activeTab, setActiveTab] = useState<'FACILITIES' | 'AGING_CONFIG' | 'GUIDE_LEGEND' | 'ITEMS' | 'LINES' | 'TARGET_LINES' | 'RACK_LOCATIONS'>('AGING_CONFIG');
+
+  // Local fallback for targetUseLines if not provided
+  const [localTargetUseLines, setLocalTargetUseLines] = useState<TargetUseLineMaster[]>([
+    { id: 'A2', name: 'Line A2', description: 'สายการประกอบหลัก A2 (Main Assembly Plant A2)' },
+    { id: 'A4', name: 'Line A4', description: 'สายการประกอบหลัก A4 (Main Assembly Plant A4)' },
+    { id: 'A6', name: 'Line A6', description: 'สายการประกอบ A6 (Assembly Line A6)' },
+    { id: 'A7', name: 'Line A7', description: 'สายการประกอบ A7 (Assembly Line A7)' },
+    { id: 'A8', name: 'Line A8', description: 'สายการประกอบ A8 (Assembly Line A8)' },
+    { id: 'A9', name: 'Line A9', description: 'สายการประกอบ A9 (Assembly Line A9)' },
+    { id: 'SUB_LINE', name: 'Sub Line', description: 'สายงานย่อยเตรียมชิ้นส่วน (Sub-Assembly Staging Line)' }
+  ]);
+
+  const activeTargetUseLines = propTargetUseLines || localTargetUseLines;
+  const setActiveTargetUseLines = propSetTargetUseLines || setLocalTargetUseLines;
 
   // States for Master Item list
   const [search, setSearch] = useState('');
@@ -89,6 +108,12 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
   const [editLineForm, setEditLineForm] = useState<UseLineMaster | null>(null);
   const [lineSuccessMsg, setLineSuccessMsg] = useState<string | null>(null);
+
+  // States for Target Use Lines list (Red-Orange theme)
+  const [targetLineSearch, setTargetLineSearch] = useState('');
+  const [editingTargetLineId, setEditingTargetLineId] = useState<string | null>(null);
+  const [editTargetLineForm, setEditTargetLineForm] = useState<TargetUseLineMaster | null>(null);
+  const [targetLineSuccessMsg, setTargetLineSuccessMsg] = useState<string | null>(null);
 
   // States for Zone Capacities list
   const [editingZone, setEditingZone] = useState<StorageZone | null>(null);
@@ -268,6 +293,89 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
     }
   };
 
+  // Filter Target Lines
+  const filteredTargetLines = activeTargetUseLines.filter(l =>
+    l.id.toLowerCase().includes(targetLineSearch.toLowerCase()) ||
+    l.name.toLowerCase().includes(targetLineSearch.toLowerCase()) ||
+    (l.description && l.description.toLowerCase().includes(targetLineSearch.toLowerCase()))
+  );
+
+  // Target Use Line Handlers (Red-Orange Theme)
+  const handleEditTargetLine = (line: TargetUseLineMaster) => {
+    setEditingTargetLineId(line.id);
+    setEditTargetLineForm({ ...line });
+  };
+
+  const handleCancelTargetLine = () => {
+    setEditingTargetLineId(null);
+    setEditTargetLineForm(null);
+  };
+
+  const handleSaveTargetLine = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (editTargetLineForm) {
+      const trimmedId = editTargetLineForm.id.trim().toUpperCase();
+      const trimmedName = editTargetLineForm.name.trim();
+      if (!trimmedId) {
+        alert('กรุณากรอกรหัสไลน์ที่นำไปใช้ (Line ID เช่น A2, A4, A6, A8, SUB_LINE)');
+        return;
+      }
+      if (!trimmedName) {
+        alert('กรุณากรอกชื่อไลน์ที่นำไปใช้ (Line Name เช่น Line A2)');
+        return;
+      }
+      if (editingTargetLineId === 'new') {
+        if (activeTargetUseLines.some(l => l.id.toUpperCase() === trimmedId)) {
+          alert(`รหัสไลน์ที่นำไปใช้ "${trimmedId}" นี้มีอยู่แล้วในระบบ กรุณาใช้รหัสอื่น`);
+          return;
+        }
+        const newLine: TargetUseLineMaster = {
+          id: trimmedId,
+          name: trimmedName,
+          description: editTargetLineForm.description?.trim() || ''
+        };
+        setActiveTargetUseLines([...activeTargetUseLines, newLine]);
+        setTargetLineSuccessMsg(`✅ เพิ่มไลน์ที่นำไปใช้ใหม่ [${trimmedId} - ${trimmedName}] เรียบร้อยแล้ว!`);
+      } else {
+        const oldId = editingTargetLineId;
+        const updatedLine: TargetUseLineMaster = {
+          id: trimmedId,
+          name: trimmedName,
+          description: editTargetLineForm.description?.trim() || ''
+        };
+        setActiveTargetUseLines(activeTargetUseLines.map(l => l.id === oldId ? updatedLine : l));
+        if (oldId && oldId !== trimmedId) {
+          setItems(prevItems => prevItems.map(it => it.useLine === oldId ? { ...it, useLine: trimmedId } : it));
+        }
+        setTargetLineSuccessMsg(`✅ บันทึกการแก้ไขไลน์ที่นำไปใช้ [${trimmedId}] เรียบร้อยแล้ว!`);
+      }
+      setEditingTargetLineId(null);
+      setEditTargetLineForm(null);
+
+      setTimeout(() => setTargetLineSuccessMsg(null), 4000);
+    }
+  };
+
+  const handleDeleteTargetLine = (id: string) => {
+    const allocatedCount = items.filter(it => it.useLine === id).length;
+    const warningExtra = allocatedCount > 0 ? ` (คำเตือน: มีสินค้า/พาเลทในระบบ ${allocatedCount} รายการที่กำลังอ้างอิงไลน์นี้)` : '';
+    if (confirm(`คุณต้องการลบไลน์ที่นำไปใช้ ${id} ใช่หรือไม่?${warningExtra}`)) {
+      setActiveTargetUseLines(activeTargetUseLines.filter(l => l.id !== id));
+      setTargetLineSuccessMsg(`🗑️ ลบไลน์ที่นำไปใช้ [${id}] สำเร็จ`);
+      setTimeout(() => setTargetLineSuccessMsg(null), 3000);
+    }
+  };
+
+  const handleAddNewTargetLine = () => {
+    if (editingTargetLineId === 'new') {
+      setEditingTargetLineId(null);
+      setEditTargetLineForm(null);
+    } else {
+      setEditingTargetLineId('new');
+      setEditTargetLineForm({ id: '', name: '', description: '' });
+    }
+  };
+
   // Zone Capacity Handlers
   const handleEditZone = (zc: ZoneCapacityMaster) => {
     setEditingZone(zc.zone);
@@ -386,6 +494,20 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
             </button>
 
             <button
+              id="tab-btn-target-lines"
+              onClick={() => setActiveTab('TARGET_LINES')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
+                activeTab === 'TARGET_LINES'
+                  ? 'bg-orange-600 text-white shadow-md ring-2 ring-orange-400 font-black shadow-orange-900/50'
+                  : 'bg-slate-900 hover:bg-slate-850 text-slate-300 hover:text-white border border-slate-800 hover:border-slate-700 shadow-2xs'
+              }`}
+            >
+              <Target className={`w-3.5 h-3.5 ${activeTab === 'TARGET_LINES' ? 'text-white' : 'text-amber-400'}`} />
+              <span>🎯 ไลน์ที่นำไปใช้ ({activeTargetUseLines.length})</span>
+              {activeTab === 'TARGET_LINES' && <span className="w-1.5 h-1.5 rounded-full bg-amber-300 animate-pulse ml-0.5" />}
+            </button>
+
+            <button
               id="tab-btn-items"
               onClick={() => setActiveTab('ITEMS')}
               className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
@@ -416,20 +538,6 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
             </button>
 
             <button
-              id="tab-btn-zone-capacity"
-              onClick={() => setActiveTab('ZONE_CAPACITY')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
-                activeTab === 'ZONE_CAPACITY'
-                  ? 'bg-purple-600 text-white shadow-md ring-2 ring-purple-400 font-black shadow-purple-900/50'
-                  : 'bg-slate-900 hover:bg-slate-850 text-slate-300 hover:text-white border border-slate-800 hover:border-slate-700 shadow-2xs'
-              }`}
-            >
-              <Layers className={`w-3.5 h-3.5 ${activeTab === 'ZONE_CAPACITY' ? 'text-white' : 'text-purple-400'}`} />
-              <span>ความจุ Rack ({zoneCapacities.length})</span>
-              {activeTab === 'ZONE_CAPACITY' && <span className="w-1.5 h-1.5 rounded-full bg-purple-200 animate-pulse ml-0.5" />}
-            </button>
-
-            <button
               id="tab-btn-aging-config"
               onClick={() => setActiveTab('AGING_CONFIG')}
               className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
@@ -455,21 +563,6 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
               <BookOpen className={`w-3.5 h-3.5 ${activeTab === 'GUIDE_LEGEND' ? 'text-white' : 'text-indigo-400'}`} />
               <span>📘 คู่มือโค้ดสี &amp; รหัสพิกัด</span>
               {activeTab === 'GUIDE_LEGEND' && <span className="w-1.5 h-1.5 rounded-full bg-slate-300 animate-pulse ml-0.5" />}
-            </button>
-
-            <button
-              id="tab-btn-data-cleanup"
-              onClick={() => setActiveTab('DATA_CLEANUP')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
-                activeTab === 'DATA_CLEANUP'
-                  ? 'bg-red-600 text-white shadow-md ring-2 ring-red-400 font-black shadow-red-900/50'
-                  : 'bg-slate-900 hover:bg-slate-850 text-slate-300 hover:text-white border border-slate-800 hover:border-slate-700 shadow-2xs'
-              }`}
-              title="ล้างข้อมูลสต็อกและประวัติการเคลื่อนย้ายทั้งหมด เพื่อเตรียมพร้อมกรอกข้อมูลจริง"
-            >
-              <Trash2 className={`w-3.5 h-3.5 ${activeTab === 'DATA_CLEANUP' ? 'text-white' : 'text-red-400'}`} />
-              <span>🧹 ล้างข้อมูลจริง / Load Sim</span>
-              {activeTab === 'DATA_CLEANUP' && <span className="w-1.5 h-1.5 rounded-full bg-red-200 animate-pulse ml-0.5" />}
             </button>
           </div>
         </div>
@@ -535,6 +628,30 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
             >
               <Plus className="w-4 h-4" />
               <span>เพิ่มไลน์ผลิตใหม่</span>
+            </button>
+          </div>
+        )}
+
+        {activeTab === 'TARGET_LINES' && (
+          <div className="flex items-center justify-between gap-3 pt-2">
+            <div className="relative flex-1 max-w-md">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-slate-400" />
+              </div>
+              <input
+                type="text"
+                className="block w-full pl-9 pr-3 py-2 border border-slate-700 rounded-xl text-xs bg-slate-950 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                placeholder="ค้นหาไลน์ที่นำไปใช้ (e.g. A2, A4, A6, A8, Sub Line)..."
+                value={targetLineSearch}
+                onChange={(e) => setTargetLineSearch(e.target.value)}
+              />
+            </div>
+            <button
+              onClick={handleAddNewTargetLine}
+              className="flex items-center justify-center space-x-1.5 bg-orange-600 hover:bg-orange-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 shadow-md active:scale-95 border border-orange-400/30"
+            >
+              <Plus className="w-4 h-4" />
+              <span>เพิ่มไลน์ที่นำไปใช้ใหม่</span>
             </button>
           </div>
         )}
@@ -903,38 +1020,192 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
           </div>
         )}
 
-        {/* TAB 3: ZONE CAPACITIES */}
-        {activeTab === 'ZONE_CAPACITY' && (
-          <div className="space-y-4">
+        {/* TAB 2.5: TARGET USE LINES (ไลน์ที่นำไปใช้ - Red-Orange Theme) */}
+        {activeTab === 'TARGET_LINES' && (
+          <div className="space-y-4 animate-fadeIn">
+            {targetLineSuccessMsg && (
+              <div className="p-3 bg-orange-950/70 border border-orange-500/50 text-amber-200 rounded-xl text-xs font-bold animate-fadeIn flex items-center justify-between shadow-xs">
+                <div className="flex items-center space-x-2">
+                  <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>{targetLineSuccessMsg}</span>
+                </div>
+                <button 
+                  onClick={() => setTargetLineSuccessMsg(null)} 
+                  className="text-amber-400 hover:text-white font-bold text-xs p-1"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
+            {/* Add / Edit Target Line Form Card */}
+            {editingTargetLineId !== null && editTargetLineForm && (
+              <form onSubmit={handleSaveTargetLine} className="p-4 bg-slate-950 border-2 border-orange-500/60 rounded-2xl shadow-xl space-y-3.5 animate-scaleUp">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2.5">
+                    <div className="p-2 bg-orange-600 text-white rounded-xl shadow-xs">
+                      {editingTargetLineId === 'new' ? <Plus className="w-4 h-4" /> : <Edit2 className="w-4 h-4" />}
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-white flex items-center space-x-2">
+                        <span>{editingTargetLineId === 'new' ? '🎯 เพิ่มไลน์ที่นำไปใช้ใหม่ (Add Target Line)' : `✏️ แก้ไขข้อมูลไลน์ที่นำไปใช้ [${editingTargetLineId}]`}</span>
+                        <span className="px-2 py-0.5 rounded bg-orange-950/80 text-amber-300 font-mono text-[10px] font-bold border border-orange-500/40">
+                          {editingTargetLineId === 'new' ? 'NEW TARGET RECORD' : 'EDIT TARGET LINE'}
+                        </span>
+                      </h3>
+                      <p className="text-[11px] text-slate-400">
+                        {editingTargetLineId === 'new' 
+                          ? 'ระบุรหัสไลน์ที่นำไปใช้ (เช่น A2, A4, A6, A7, A8, A9, SUB_LINE) เพื่ออ้างอิงสายการผลิตเป้าหมาย' 
+                          : 'สามารถแก้ไขรหัสไลน์ที่นำไปใช้ ชื่อเรียก และรายละเอียดสายงาน'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCancelTargetLine}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                    title="ยกเลิก"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 pt-1">
+                  <div className="sm:col-span-3">
+                    <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                      รหัสไลน์ที่นำไปใช้ (LINE ID) <span className="text-rose-400">*</span>:
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono font-black uppercase text-amber-300 focus:outline-none focus:ring-2 focus:ring-orange-500 shadow-2xs"
+                      placeholder="e.g. A2, A4, A6, A8, SUB_LINE"
+                      value={editTargetLineForm.id}
+                      onChange={e => setEditTargetLineForm({ ...editTargetLineForm, id: e.target.value.toUpperCase() })}
+                      required
+                    />
+                    <p className="text-[10px] text-slate-500 mt-1 font-mono">ตัวพิมพ์ใหญ่ เช่น A2, A4, A6, A8, SUB_LINE</p>
+                  </div>
+
+                  <div className="sm:col-span-4">
+                    <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                      ชื่อไลน์ที่นำไปใช้ (LINE NAME) <span className="text-rose-400">*</span>:
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs font-bold text-white focus:outline-none focus:ring-2 focus:ring-orange-500 shadow-2xs"
+                      placeholder="e.g. Line A2 (Main Assembly)"
+                      value={editTargetLineForm.name}
+                      onChange={e => setEditTargetLineForm({ ...editTargetLineForm, name: e.target.value })}
+                      required
+                    />
+                    <p className="text-[10px] text-slate-500 mt-1">ชื่อเรียกสายการผลิตปลายทางที่นำไปใช้</p>
+                  </div>
+
+                  <div className="sm:col-span-5">
+                    <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                      คำอธิบาย / รายละเอียด (Description):
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-orange-500 shadow-2xs"
+                      placeholder="e.g. สายการประกอบหลัก A2 โรงงานเตรียมชิ้นส่วน"
+                      value={editTargetLineForm.description || ''}
+                      onChange={e => setEditTargetLineForm({ ...editTargetLineForm, description: e.target.value })}
+                    />
+                    <p className="text-[10px] text-slate-500 mt-1">รายละเอียดแผนกหรืออาคารการประกอบ</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-800">
+                  <button
+                    type="button"
+                    onClick={handleCancelTargetLine}
+                    className="px-3.5 py-1.5 rounded-lg border border-slate-700 text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-850 transition-colors"
+                  >
+                    ยกเลิก (Cancel)
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-xs font-black shadow-md flex items-center space-x-1.5 transition-all active:scale-95 border border-orange-400/30"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>{editingTargetLineId === 'new' ? 'บันทึกและเพิ่มไลน์ใหม่' : 'บันทึกการแก้ไขไลน์'}</span>
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Table matching Screenshot image_9155bb7d.png but in Red-Orange Theme */}
             <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950 shadow-md">
               <table className="w-full text-left text-xs text-slate-200">
                 <thead className="bg-slate-900/90 text-slate-300 font-bold uppercase text-[11px] border-b border-slate-800">
                   <tr>
-                    <th className="px-3.5 py-3">Rack Zone</th>
-                    <th className="px-3.5 py-3 text-center">ความจุมาตรฐาน (Pallets/Bay)</th>
-                    <th className="px-3.5 py-3 text-center">มาตรฐานชิ้นต่อพาเลท</th>
-                    <th className="px-3.5 py-3">รายละเอียด</th>
-                    <th className="px-3.5 py-3 text-right">แก้ไข</th>
+                    <th className="px-3.5 py-3">#</th>
+                    <th className="px-3.5 py-3">รหัสไลน์ที่นำไปใช้ (LINE ID)</th>
+                    <th className="px-3.5 py-3">ชื่อไลน์นำไปใช้ (LINE NAME)</th>
+                    <th className="px-3.5 py-3">คำอธิบาย / รายละเอียด</th>
+                    <th className="px-3.5 py-3 text-center">พาเลทที่ใช้งานในคลัง</th>
+                    <th className="px-3.5 py-3 text-right">จัดการรายการ</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/80">
-                  {zoneCapacities.map((zc) => (
-                    <tr key={zc.zone} className="hover:bg-slate-900/60 transition-colors">
-                      <td className="px-3.5 py-2.5">
-                        <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-extrabold text-[10px] border border-blue-500/30">
-                          Zone {zc.zone}
-                        </span>
-                      </td>
-                      <td className="px-3.5 py-2.5 text-center font-mono font-bold text-emerald-400">{zc.standardPalletsPerBay} พาเลท</td>
-                      <td className="px-3.5 py-2.5 text-center font-mono font-bold text-cyan-400">{zc.defaultStdQtyPerPallet} ตัว</td>
-                      <td className="px-3.5 py-2.5 text-slate-400">{zc.description || '-'}</td>
-                      <td className="px-3.5 py-2.5 text-right">
-                        <button onClick={() => handleEditZone(zc)} className="p-1.5 rounded-lg text-blue-400 hover:text-white hover:bg-blue-600/30 border border-transparent hover:border-blue-500/30 transition-all" title="แก้ไข">
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
+                  {filteredTargetLines.map((line, idx) => {
+                    const allocatedItemsCount = items.filter(it => it.useLine === line.id).length;
+                    const isEditingThis = editingTargetLineId === line.id;
+                    return (
+                      <tr 
+                        key={line.id} 
+                        className={`transition-colors ${
+                          isEditingThis ? 'bg-orange-950/40 ring-1 ring-orange-500/40' : 'hover:bg-slate-900/60'
+                        }`}
+                      >
+                        <td className="px-3.5 py-2.5 text-slate-500 font-mono">{idx + 1}</td>
+                        <td className="px-3.5 py-2.5">
+                          <span className="px-2.5 py-1 rounded-md bg-orange-950/80 text-amber-300 font-mono font-black text-xs border border-orange-500/40 inline-flex items-center space-x-1 shadow-2xs">
+                            <Target className="w-3 h-3 text-amber-400" />
+                            <span>{line.id}</span>
+                          </span>
+                        </td>
+                        <td className="px-3.5 py-2.5 font-bold text-white">{line.name}</td>
+                        <td className="px-3.5 py-2.5 text-slate-400">{line.description || '-'}</td>
+                        <td className="px-3.5 py-2.5 text-center">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10.5px] font-mono font-bold ${
+                            allocatedItemsCount > 0 
+                              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' 
+                              : 'bg-slate-800 text-slate-400'
+                          }`}>
+                            {allocatedItemsCount} พาเลท
+                          </span>
+                        </td>
+                        <td className="px-3.5 py-2.5 text-right">
+                          <div className="inline-flex items-center space-x-1.5">
+                            <button
+                              onClick={() => handleEditTargetLine(line)}
+                              className="px-2.5 py-1.5 rounded-lg text-amber-300 hover:text-white bg-orange-950/70 hover:bg-orange-600 border border-orange-500/40 transition-all font-bold text-[11px] flex items-center space-x-1 shadow-2xs"
+                              title="แก้ไขข้อมูลไลน์ที่นำไปใช้"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                              <span>แก้ไข</span>
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteTargetLine(line.id)} 
+                              className="p-1.5 rounded-lg text-rose-400 hover:text-rose-200 hover:bg-rose-950/60 border border-transparent hover:border-rose-800/50 transition-all" 
+                              title="ลบไลน์นี้"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {filteredTargetLines.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="text-center py-8 text-slate-500">
+                        ไม่พบข้อมูลไลน์ที่นำไปใช้ที่ตรงกับการค้นหา
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1115,51 +1386,6 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
         )}
 
 
-        {activeTab === 'DATA_CLEANUP' && (
-          <div className="p-4 sm:p-6 space-y-6 animate-fadeIn">
-            <div className="bg-slate-800/80 rounded-2xl border border-slate-700/80 p-5 sm:p-6 space-y-5 shadow-xl">
-              <div className="flex items-center space-x-3 text-red-400">
-                <div className="p-3 bg-red-500/20 rounded-xl border border-red-500/30">
-                  <Trash2 className="w-6 h-6 text-red-400" />
-                </div>
-                <div>
-                  <h3 className="text-base font-black text-white tracking-tight">ล้างข้อมูลสต็อกสินค้า &amp; ประวัติทั้งหมด (System Reset State)</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">เตรียมความพร้อมสำหรับเริ่มคีย์ลงข้อมูลสินค้าจริงของโรงงาน HE Smart WMS</p>
-                </div>
-              </div>
-
-              <div className="bg-slate-900/90 rounded-xl p-4 border border-slate-800 text-xs text-slate-300 space-y-2.5">
-                <p className="font-bold text-amber-300 flex items-center space-x-1.5">
-                  <AlertCircle className="w-4 h-4 text-amber-400" />
-                  <span>คำชี้แจงการปรับสภาวะข้อมูลเตรียมลงข้อมูลจริง:</span>
-                </p>
-                <ul className="list-disc list-inside space-y-1.5 text-slate-300 pl-1 leading-relaxed">
-                  <li>การล้างข้อมูลจะทำการลบ **รายการสินค้าสต็อกปัจจุบัน ({items.length} รายการ)** ออกทั้งหมด</li>
-                  <li>การล้างข้อมูลจะทำการลบ **ประวัติการบันทึกสแกนเข้า-ออก (Movement History Logs)** ออกทั้งหมด</li>
-                  <li>**Master Data สำคัญยังอยู่ครบ 100%**: โครงสร้างอาคาร A2 / A4 / A5 / CY3, รหัส Model HE, รายชื่อไลน์ผลิต (Line HE1-HE5, Repair) และเกณฑ์ FIFO Aging จะยังคงอยู่ครบถ้วนพร้อมกรอกข้อมูลทันที</li>
-                </ul>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3 pt-2">
-                <button
-                  onClick={onClearAllData}
-                  className="px-5 py-3 bg-red-600 hover:bg-red-500 text-white font-black text-xs rounded-xl shadow-lg flex items-center space-x-2 transition-all active:scale-95 border border-red-400/30"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>🧹 ล้างข้อมูลสต็อกและประวัติทั้งหมด (ปรับเป็น 0 รายการ)</span>
-                </button>
-
-                <button
-                  onClick={onLoadSampleData}
-                  className="px-5 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold text-xs rounded-xl shadow-md flex items-center space-x-2 transition-all active:scale-95 border border-slate-700"
-                >
-                  <RefreshCw className="w-4 h-4 text-blue-400" />
-                  <span>🔄 โหลดข้อมูลจำลองตัวอย่าง (Load Sample Simulation Data)</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
