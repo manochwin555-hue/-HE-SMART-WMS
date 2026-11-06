@@ -258,18 +258,13 @@ export const FacilityManager: React.FC<FacilityManagerProps> = ({
 
   // Delete Facility
   const handleDeleteFacility = (fac: WarehouseFacility) => {
-    const stats = facilityStats[fac.id];
-    if (stats && stats.totalItems > 0) {
-      if (!confirm(`คลังสินค้า "${fac.name}" มีสินค้าจัดเก็บอยู่จำนวน ${stats.totalItems} รายการ (${stats.totalQty} ชิ้น)\nคุณแน่ใจหรือไม่ที่จะลบสถานที่นี้?`)) {
-        return;
-      }
-    } else {
-      if (!confirm(`คุณต้องการลบสถานที่จัดเก็บ "${fac.name}" (${fac.code}) ใช่หรือไม่?`)) {
-        return;
-      }
-    }
-
-    setFacilities(prev => prev.filter(f => f.id !== fac.id));
+    setFacilities(prev => {
+      const updated = prev.filter(f => f.id !== fac.id);
+      try {
+        localStorage.setItem('lge_wms_facilities', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
     if (activeFacilityId === fac.id) {
       setActiveFacilityId('ALL');
     }

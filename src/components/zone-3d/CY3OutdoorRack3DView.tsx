@@ -18,6 +18,7 @@ import {
   Sun,
   Sparkles
 } from 'lucide-react';
+import { CameraControlOverlay } from './CameraControlOverlay';
 
 interface CY3OutdoorRack3DViewProps {
   items: InventoryItem[];
@@ -48,24 +49,36 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
   const cy3ItemMap = useMemo(() => {
     const map = new Map<string, InventoryItem>();
     items.forEach(it => {
+      if (!it || typeof it.quantity !== 'number' || it.quantity <= 0) return;
+
+      const locUpper = (it.locatorCode || '').toUpperCase();
+      const zoneUpper = (String(it.zone || '')).toUpperCase();
+      const facId = (it.facilityId || '').toUpperCase();
+
+      if (!locUpper.includes('DY3T') && !zoneUpper.startsWith('CY3') && facId !== 'FAC-CY3-TENT') {
+        return;
+      }
+
       let r: 'A' | 'B' | 'C' | 'D' = 'A';
+      if (locUpper.includes('DY3T-1.01')) r = 'A';
+      else if (locUpper.includes('DY3T-1.02')) r = 'B';
+      else if (locUpper.includes('DY3T-1.03')) r = 'C';
+      else if (locUpper.includes('DY3T-1.04')) r = 'D';
+      else if (zoneUpper === 'CY3-A' || zoneUpper === 'A') r = 'A';
+      else if (zoneUpper === 'CY3-B' || zoneUpper === 'B') r = 'B';
+      else if (zoneUpper === 'CY3-C' || zoneUpper === 'C') r = 'C';
+      else if (zoneUpper === 'CY3-D' || zoneUpper === 'D') r = 'D';
+
       let b = it.bayNumber || 1;
       let l: ShelfLevel = it.level || 1;
 
-      if (it.zone === 'CY3-A' || it.zone === 'A') r = 'A';
-      else if (it.zone === 'CY3-B' || it.zone === 'B') r = 'B';
-      else if (it.zone === 'CY3-C' || it.zone === 'C') r = 'C';
-      else if (it.zone === 'CY3-D' || it.zone === 'D') r = 'D';
-
-      const m = it.locatorCode?.match(/DY3T-1\.0([1-4])-(?:[A-D])?0?(\d+)-L(\d)(?:-P([12]))?/i);
+      const m = locUpper.match(/DY3T-1\.0[1-4]-(?:[A-D])?0*(\d+)-L(\d)(?:-P([12]))?/i);
       let pos = it.palletPosition || 'P1';
       if (m) {
-        const num = parseInt(m[1], 10);
-        r = num === 1 ? 'A' : num === 2 ? 'B' : num === 3 ? 'C' : 'D';
-        b = parseInt(m[2], 10);
-        l = parseInt(m[3], 10) as ShelfLevel;
-        if (m[4]) pos = `P${m[4]}`;
-      } else if (it.locatorCode?.includes('-P2')) {
+        b = parseInt(m[1], 10);
+        l = parseInt(m[2], 10) as ShelfLevel;
+        if (m[3]) pos = `P${m[3]}`;
+      } else if (locUpper.includes('-P2')) {
         pos = 'P2';
       }
 
@@ -253,6 +266,31 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
       return tex;
     };
 
+    // Helper: Create Floating Bay Label TextSprite
+    const createBayLabelSprite = (text: string) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 128;
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#0f172a'; // Dark blue background
+        ctx.fillRect(0, 0, 128, 64);
+        ctx.strokeStyle = '#facc15'; // Yellow border
+        ctx.lineWidth = 4;
+        ctx.strokeRect(2, 2, 124, 60);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 32px "Segoe UI", Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, 64, 32);
+      }
+      const texture = new THREE.CanvasTexture(canvas);
+      const spriteMat = new THREE.SpriteMaterial({ map: texture });
+      const sprite = new THREE.Sprite(spriteMat);
+      sprite.scale.set(2, 1, 1);
+      return sprite;
+    };
+
     // Helper: Add diagonal & horizontal steel bracing on a side frame
     const addSideBracingAtX = (group: THREE.Group, xPos: number, zCenter: number, depth = 1.2, height = 5.6) => {
       const numPanels = 4;
@@ -425,6 +463,13 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
               wire.position.set(xPos + w * 0.45, yPos + 0.02, rConfig.z);
               rowGroup.add(wire);
             }
+          }
+
+          // Add floating bay label above L4 (only once per bay)
+          if (l === 4) {
+            const label = createBayLabelSprite(`${rConfig.code}-${String(b).padStart(2, '0')}`);
+            label.position.set(xPos, RACK_HEIGHT + 0.5, rConfig.z);
+            rowGroup.add(label);
           }
 
           const locator = `${rConfig.sign}-${rConfig.code}${String(b).padStart(2, '0')}-L${l}`;
@@ -600,7 +645,8 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
         if (hit) {
           if (e.detail === 2 && onOpenScanner) {
             const cy3Zone = `CY3-${hit.row}` as StorageZone;
-            onOpenScanner(cy3Zone, hit.bay, hit.lvl, hit.item ? 'OUT' : 'IN');
+            const pPos = hit.locator.includes('-P2') ? 'P2' : 'P1';
+            onOpenScanner(cy3Zone, hit.bay, hit.lvl, hit.item ? 'OUT' : 'IN', hit.locator, pPos, hit.item || null);
           } else {
             onSelectSlot(hit.row, hit.bay, hit.locator, hit.lvl, hit.item);
           }
@@ -726,18 +772,54 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
       // 85° Top-down blueprint view scaled to fill frame nicely
       flyCameraTo(new THREE.Vector3(0, 52, 0.05), new THREE.Vector3(0, 0, 0));
     } else if (preset === 'ROW_A') {
-      // Focus on Row A (z = -12) - distance adjusted so all 25 bays fit in frame
-      flyCameraTo(new THREE.Vector3(0, 22, 22), new THREE.Vector3(0, 2.5, -12));
+      // Focus on Row A (z = -12) - perspective front view
+      flyCameraTo(new THREE.Vector3(-5, 5, 35), new THREE.Vector3(0, 2.5, -12));
     } else if (preset === 'ROW_B') {
-      // Focus on Row B (z = -4.5) - distance adjusted so all 25 bays fit in frame
-      flyCameraTo(new THREE.Vector3(0, 22, 29.5), new THREE.Vector3(0, 2.5, -4.5));
+      // Focus on Row B (z = -4.5) - perspective front view
+      flyCameraTo(new THREE.Vector3(-5, 5, 42.5), new THREE.Vector3(0, 2.5, -4.5));
     } else if (preset === 'ROW_C') {
-      // Focus on Row C (z = +4.5) - distance adjusted so all 25 bays fit in frame
-      flyCameraTo(new THREE.Vector3(0, 22, 38.5), new THREE.Vector3(0, 2.5, 4.5));
+      // Focus on Row C (z = +4.5) - perspective front view
+      flyCameraTo(new THREE.Vector3(-5, 5, 51.5), new THREE.Vector3(0, 2.5, 4.5));
     } else if (preset === 'ROW_D') {
-      // Focus on Row D (z = +12) - distance adjusted so all 25 bays fit in frame
-      flyCameraTo(new THREE.Vector3(0, 22, 46), new THREE.Vector3(0, 2.5, 12));
+      // Focus on Row D (z = +12) - perspective front view
+      flyCameraTo(new THREE.Vector3(-5, 5, 59), new THREE.Vector3(0, 2.5, 12));
     }
+  };
+
+  const handlePan = (dx: number, dz: number) => {
+    if (!controlsRef.current || !cameraRef.current) return;
+    const cam = cameraRef.current;
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion);
+    right.y = 0;
+    right.normalize();
+
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
+    forward.y = 0;
+    forward.normalize();
+
+    const panVector = new THREE.Vector3();
+    panVector.addScaledVector(right, dx);
+    panVector.addScaledVector(forward, -dz);
+
+    controlsRef.current.target.add(panVector);
+    cam.position.add(panVector);
+    controlsRef.current.update();
+  };
+
+  const handleZoom = (zoomIn: boolean) => {
+    if (!cameraRef.current || !controlsRef.current) return;
+    const cam = cameraRef.current;
+    const dir = new THREE.Vector3().subVectors(controlsRef.current.target, cam.position);
+    const dist = dir.length();
+    if (zoomIn && dist > 10) {
+      cam.position.addScaledVector(dir, 0.2);
+    } else if (!zoomIn && dist < 160) {
+      cam.position.addScaledVector(dir, -0.2);
+    }
+  };
+
+  const handleReset = () => {
+    setCameraPreset('ALL');
   };
 
   return (
@@ -761,53 +843,36 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
         </div>
       </div>
 
-      {/* Row shortcuts & camera presets (Top Right) */}
-      <div className="absolute top-3 right-3 pointer-events-auto z-20 flex items-center gap-1.5">
-        {/* Level Filter */}
-        <div className="flex items-center bg-slate-900/90 backdrop-blur-md p-1 rounded-xl text-[11px] font-bold border border-slate-800 shadow-lg">
-          {(['ALL', 1, 2, 3, 4] as const).map(lvl => (
-            <button
-              key={lvl}
-              onClick={() => setActiveLevelFilter(lvl)}
-              className={`px-2 py-0.5 rounded-lg transition-all ${
-                activeLevelFilter === lvl ? 'bg-orange-600 text-white shadow-xs' : 'text-slate-300 hover:text-white'
-              }`}
-            >
-              {lvl === 'ALL' ? 'ทุกชั้น' : `L${lvl}`}
-            </button>
-          ))}
-        </div>
+      {/* Unified Camera Navigation Control Overlay (D-Pad + Presets) */}
+      <CameraControlOverlay
+        onPan={handlePan}
+        onZoom={handleZoom}
+        onReset={handleReset}
+        onPreset={(presetKey) => setCameraPreset(presetKey as any)}
+        activePreset={activePreset}
+        presets={[
+          { key: 'ALL', label: 'ภาพรวม 45°' },
+          { key: 'TOP_DOWN', label: 'แปลนบน 85°' },
+          { key: 'ROW_A', label: 'แถว A' },
+          { key: 'ROW_B', label: 'แถว B' },
+          { key: 'ROW_C', label: 'แถว C' },
+          { key: 'ROW_D', label: 'แถว D' }
+        ]}
+      />
 
-        {/* Camera View Presets Bar */}
-        <div className="flex items-center gap-1 bg-slate-900/90 backdrop-blur-md border border-slate-800 p-1 rounded-xl shadow-lg max-w-full overflow-x-auto">
+      {/* Level Filter (Top Left / Center) */}
+      <div className="absolute top-3 left-1/2 -translate-x-1/2 pointer-events-auto z-20 flex items-center bg-slate-900/90 backdrop-blur-md p-1 rounded-xl text-[11px] font-bold border border-slate-800 shadow-lg">
+        {(['ALL', 1, 2, 3, 4] as const).map(lvl => (
           <button
-            onClick={() => setCameraPreset('ALL')}
-            className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all shrink-0 ${
-              activePreset === 'ALL' ? 'bg-orange-600 text-white shadow-xs' : 'text-slate-300 hover:text-white hover:bg-slate-800'
+            key={lvl}
+            onClick={() => setActiveLevelFilter(lvl)}
+            className={`px-2.5 py-1 rounded-lg transition-all ${
+              activeLevelFilter === lvl ? 'bg-orange-600 text-white shadow-xs' : 'text-slate-300 hover:text-white'
             }`}
           >
-            ภาพรวม 45°
+            {lvl === 'ALL' ? 'ทุกชั้น' : `L${lvl}`}
           </button>
-          <button
-            onClick={() => setCameraPreset('TOP_DOWN')}
-            className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all shrink-0 ${
-              activePreset === 'TOP_DOWN' ? 'bg-orange-600 text-white shadow-xs' : 'text-slate-300 hover:text-white hover:bg-slate-800'
-            }`}
-          >
-            แปลนบน 85°
-          </button>
-          {(['ROW_A', 'ROW_B', 'ROW_C', 'ROW_D'] as const).map(rk => (
-            <button
-              key={rk}
-              onClick={() => setCameraPreset(rk)}
-              className={`px-2 py-1 text-[11px] font-bold rounded-lg transition-all shrink-0 ${
-                activePreset === rk ? 'bg-orange-600 text-white shadow-xs' : 'text-slate-300 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              {rk.replace('ROW_', 'แถว ')}
-            </button>
-          ))}
-        </div>
+        ))}
       </div>
 
       {/* Hover Info */}

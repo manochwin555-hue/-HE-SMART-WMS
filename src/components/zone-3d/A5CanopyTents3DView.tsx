@@ -5,6 +5,7 @@ import { InventoryItem, MovementType, ShelfLevel, StorageZone } from '../../type
 import { createRealisticForklift } from './forkliftModel';
 import { createHologramGhostTarget } from './hologramGhost';
 import { createRackBayNeonHighlight, applyFaintEmissiveHighlight } from './neonEdgeHighlight';
+import { CameraControlOverlay } from './CameraControlOverlay';
 import { 
   RotateCcw, 
   Layers, 
@@ -26,7 +27,7 @@ interface A5CanopyTents3DViewProps {
   items: InventoryItem[];
   searchQuery?: string;
   onSelectSlot: (tentNum: number, groupNum: number, row: number, col: number, item?: InventoryItem) => void;
-  onOpenScanner?: (zone: StorageZone, bay: number, level: ShelfLevel, mode: MovementType) => void;
+  onOpenScanner?: (zone: StorageZone, bay: number, level: ShelfLevel, mode: MovementType, locatorCode?: string, palletPosition?: string, item?: InventoryItem) => void;
 }
 
 export const A5CanopyTents3DView: React.FC<A5CanopyTents3DViewProps> = ({
@@ -60,6 +61,7 @@ export const A5CanopyTents3DView: React.FC<A5CanopyTents3DViewProps> = ({
   const a5ItemMap = useMemo(() => {
     const map = new Map<string, InventoryItem>();
     items.forEach(it => {
+      if (!it || typeof it.quantity !== 'number' || it.quantity <= 0) return;
       const loc = (it.locatorCode || '').toUpperCase();
       if (!loc.includes('DA5T') && it.facilityId !== 'FAC-A5-TENT' && !it.zone?.startsWith('T')) {
         return;
@@ -373,7 +375,7 @@ export const A5CanopyTents3DView: React.FC<A5CanopyTents3DViewProps> = ({
         ctx.font = '900 52px "Segoe UI", Arial, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`เส้นหน้าผ้าใบ ${tentId}`, 256, 45);
+        ctx.fillText(`เต็นท์ผ้าใบ ${tentId}`, 256, 45);
 
         ctx.fillStyle = '#38bdf8';
         ctx.font = 'bold 24px "Segoe UI", Arial, sans-serif';
@@ -558,13 +560,16 @@ export const A5CanopyTents3DView: React.FC<A5CanopyTents3DViewProps> = ({
         });
       }
 
-      // 5. TENT NAME ENGRAVED FLOOR DECAL (สลักชื่อเต็นท์ตรงพื้นหน้าเต็นท์ - วางห่างออกมาตรงถนนไม่ทับกลุ่ม 4)
+      // 5. TENT NAME ENGRAVED FLOOR DECAL (สลักชื่อเต็นท์ตรงพื้น)
+      // สำหรับเต็นท์ 1 และ 3 (ฝั่งล่าง): ย้ายป้ายชื่อมาแสดงด้านล่างของเต็นท์ (หันออกด้านล่าง) เพื่อให้อ่านง่าย ชัดเจน ไม่โดนตัวเต็นท์หรือทางเดินทับ
       const floorNameTex = createA5TentFloorDecalTexture(tent.id, tent.signCode);
       const tentNameFloorMesh = new THREE.Mesh(
         new THREE.PlaneGeometry(6.4, 1.5),
         new THREE.MeshBasicMaterial({ map: floorNameTex, side: THREE.DoubleSide })
       );
-      const nameDecalZ = tent.z > 0 ? -TENT_DEPTH / 2 - 2.8 : TENT_DEPTH / 2 + 2.8;
+      const nameDecalZ = (tent.id === 1 || tent.id === 3) 
+        ? TENT_DEPTH / 2 + 2.8 
+        : (tent.z > 0 ? -TENT_DEPTH / 2 - 2.8 : TENT_DEPTH / 2 + 2.8);
       tentNameFloorMesh.position.set(0, 0.235, nameDecalZ);
       tentNameFloorMesh.rotation.x = -Math.PI / 2;
       tentGroup.add(tentNameFloorMesh);
@@ -602,13 +607,16 @@ export const A5CanopyTents3DView: React.FC<A5CanopyTents3DViewProps> = ({
         grpBorder.position.set(grpCenterX, 0.23, 0);
         tentGroup.add(grpBorder);
 
-        // Group Head Floor Decal (สลักพื้นหัวกลุ่มช่อง G01 - G07 วางตรงลานด้านหน้ากลุ่ม ไม่โดนบล็อกสินค้าบัง)
+        // Group Head Floor Decal (สลักพื้นหัวกลุ่มช่อง G01 - G07)
+        // สำหรับเต็นท์ 1 และ 3 (ฝั่งล่าง): ย้ายป้ายบอกแต่ละกลุ่ม (กลุ่ม 1-7) มาแสดงฝั่งล่างเพื่อให้อ่านง่าย ชัดเจน ไม่โดนโครงหลังคาบัง
         const grpDecalMat = new THREE.MeshBasicMaterial({
           map: createA5GroupFloorTexture(g),
           side: THREE.DoubleSide
         });
         const grpFloorDecal = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 0.95), grpDecalMat);
-        const grpDecalZ = tent.z > 0 ? -TENT_DEPTH / 2 - 0.75 : TENT_DEPTH / 2 + 0.75;
+        const grpDecalZ = (tent.id === 1 || tent.id === 3)
+          ? TENT_DEPTH / 2 + 0.85
+          : (tent.z > 0 ? -TENT_DEPTH / 2 - 0.75 : TENT_DEPTH / 2 + 0.75);
         grpFloorDecal.position.set(grpCenterX, 0.24, grpDecalZ);
         grpFloorDecal.rotation.x = -Math.PI / 2;
         tentGroup.add(grpFloorDecal);
@@ -819,7 +827,12 @@ export const A5CanopyTents3DView: React.FC<A5CanopyTents3DViewProps> = ({
           intersects[0].object.parent?.parent === c.mesh
         );
         if (hit) {
-          onSelectSlot(hit.tent, hit.grp, hit.r, hit.c, hit.item);
+          if (e.detail === 2 && onOpenScanner) {
+            const tentZone = `T${hit.tent}-01` as StorageZone;
+            onOpenScanner(tentZone, hit.grp, 1, hit.item ? 'OUT' : 'IN', hit.locator, 'P1', hit.item || null);
+          } else {
+            onSelectSlot(hit.tent, hit.grp, hit.r, hit.c, hit.item);
+          }
         }
       }
     };
@@ -875,76 +888,88 @@ export const A5CanopyTents3DView: React.FC<A5CanopyTents3DViewProps> = ({
     };
   }, [a5ItemMap, roofMode]);
 
+  const handlePan = (dx: number, dz: number) => {
+    if (!controlsRef.current || !cameraRef.current) return;
+    const cam = cameraRef.current;
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion);
+    right.y = 0;
+    right.normalize();
+
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
+    forward.y = 0;
+    forward.normalize();
+
+    const panVector = new THREE.Vector3();
+    panVector.addScaledVector(right, dx);
+    panVector.addScaledVector(forward, -dz);
+
+    controlsRef.current.target.add(panVector);
+    cam.position.add(panVector);
+    controlsRef.current.update();
+  };
+
+  const handleZoom = (zoomIn: boolean) => {
+    if (!cameraRef.current || !controlsRef.current) return;
+    const cam = cameraRef.current;
+    const dir = new THREE.Vector3().subVectors(controlsRef.current.target, cam.position);
+    const dist = dir.length();
+    if (zoomIn && dist > 10) {
+      cam.position.addScaledVector(dir, 0.2);
+    } else if (!zoomIn && dist < 160) {
+      cam.position.addScaledVector(dir, -0.2);
+    }
+  };
+
+  const handleReset = () => {
+    handleCameraPreset('ALL_A5');
+  };
+
   return (
     <div ref={containerRef} className="relative w-full h-full min-h-0 rounded-2xl overflow-hidden border border-slate-300 bg-[#f8fafc] shadow-2xl flex flex-col">
       {/* 3D WebGL Canvas */}
       <div ref={mountRef} className="w-full flex-1 min-h-[300px] cursor-grab active:cursor-grabbing" />
 
-      {/* Top Floating Multi-Perspective Camera Focus Bar (Top Right) */}
-      <div className="absolute top-3 right-3 pointer-events-auto z-20 flex items-center gap-1.5">
-        {/* Roof Mode 2-Segment Selector Bar (Translucent vs Hidden) */}
-        <div className="bg-slate-900/90 backdrop-blur-md border border-slate-800 p-1 rounded-xl shadow-lg flex items-center gap-1 shrink-0">
-          <button
-            onClick={() => setRoofMode('TRANSLUCENT')}
-            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
-              roofMode === 'TRANSLUCENT' ? 'bg-cyan-600 text-white shadow-xs' : 'text-slate-300 hover:text-white hover:bg-slate-800'
-            }`}
-            title="แสดงหลังคาแบบใส มองทะลุเห็นสินค้า + โครงสร้าง"
-          >
-            <Eye className="w-3 h-3 text-cyan-200" />
-            <span>หลังคา: ใส</span>
-          </button>
-          <button
-            onClick={() => setRoofMode('HIDDEN')}
-            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
-              roofMode === 'HIDDEN' ? 'bg-rose-600 text-white shadow-xs' : 'text-slate-300 hover:text-white hover:bg-slate-800'
-            }`}
-            title="ซ่อนหลังคาและโครงเหล็กหลังคาออกทั้งหมด เห็นผังสินค้าเต็มตา"
-          >
-            <EyeOff className="w-3 h-3 text-rose-200" />
-            <span>หลังคา: ซ่อน</span>
-          </button>
-        </div>
+      {/* Unified Camera Navigation Control Overlay (D-Pad + Presets) */}
+      <CameraControlOverlay
+        onPan={handlePan}
+        onZoom={handleZoom}
+        onReset={handleReset}
+        onPreset={(presetKey) => handleCameraPreset(presetKey as any)}
+        activePreset={cameraFocus}
+        presets={[
+          { key: 'ALL_A5', label: 'ภาพรวม 45°' },
+          { key: 'TOP_DOWN', label: 'แปลนบน 85°' },
+          { key: 'TENT_1', label: 'เต็นท์ 1' },
+          { key: 'TENT_2', label: 'เต็นท์ 2' },
+          { key: 'TENT_3', label: 'เต็นท์ 3' },
+          { key: 'TENT_4', label: 'เต็นท์ 4' }
+        ]}
+      />
 
-        {/* View Preset Bar */}
-        <div className="bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-xl p-1 shadow-lg flex items-center gap-1 max-w-full overflow-x-auto">
-          <button
-            onClick={() => handleCameraPreset('ALL_A5')}
-            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 shrink-0 ${
-              cameraFocus === 'ALL_A5'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-slate-300 hover:text-white hover:bg-slate-800'
-            }`}
-          >
-            <span>ภาพรวม 45°</span>
-          </button>
-
-          <button
-            onClick={() => handleCameraPreset('TOP_DOWN')}
-            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 shrink-0 ${
-              cameraFocus === 'TOP_DOWN'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-slate-300 hover:text-white hover:bg-slate-800'
-            }`}
-          >
-            <span>แปลนบน 85°</span>
-          </button>
-
-          {[1, 2, 3, 4].map(t => (
-            <button
-              key={t}
-              onClick={() => handleCameraPreset(`TENT_${t}` as any)}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 shrink-0 ${
-                cameraFocus === `TENT_${t}`
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              <span>เต็นท์ {t}</span>
-            </button>
-          ))}
-        </div>
+      {/* Roof Mode 2-Segment Selector Bar (Top Left) */}
+      <div className="absolute top-3 left-3 pointer-events-auto z-20 flex items-center bg-slate-900/90 backdrop-blur-md border border-slate-800 p-1 rounded-xl shadow-lg shrink-0">
+        <button
+          onClick={() => setRoofMode('TRANSLUCENT')}
+          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
+            roofMode === 'TRANSLUCENT' ? 'bg-cyan-600 text-white shadow-xs' : 'text-slate-300 hover:text-white hover:bg-slate-800'
+          }`}
+          title="แสดงหลังคาแบบใส มองทะลุเห็นสินค้า + โครงสร้าง"
+        >
+          <Eye className="w-3 h-3 text-cyan-200" />
+          <span>หลังคา: ใส</span>
+        </button>
+        <button
+          onClick={() => setRoofMode('HIDDEN')}
+          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
+            roofMode === 'HIDDEN' ? 'bg-rose-600 text-white shadow-xs' : 'text-slate-300 hover:text-white hover:bg-slate-800'
+          }`}
+          title="ซ่อนหลังคาและโครงเหล็กหลังคาออกทั้งหมด เห็นผังสินค้าเต็มตา"
+        >
+          <EyeOff className="w-3 h-3 text-rose-200" />
+          <span>หลังคา: ซ่อน</span>
+        </button>
       </div>
+
 
       {/* 3D Holographic Ghost HUD Target Tooltip */}
       {hoveredSlot && (

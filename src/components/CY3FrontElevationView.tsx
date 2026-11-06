@@ -82,20 +82,25 @@ export const CY3FrontElevationView: React.FC<CY3FrontElevationViewProps> = ({
   const slotMap = useMemo(() => {
     const map = new Map<string, InventoryItem>();
     items.forEach(it => {
-      let rCode = 'A';
-      let bNum = it.bayNumber;
-      let lvl = it.level;
+      if (!it || typeof it.quantity !== 'number' || it.quantity <= 0) return;
 
-      if (it.zone === 'CY3-A' || it.zone === 'A') rCode = 'A';
-      else if (it.zone === 'CY3-B' || it.zone === 'B') rCode = 'B';
-      else if (it.zone === 'CY3-C' || it.zone === 'C') rCode = 'C';
-      else if (it.zone === 'CY3-D' || it.zone === 'D') rCode = 'D';
-      else if (it.locatorCode.includes('DY3T-1.01')) rCode = 'A';
-      else if (it.locatorCode.includes('DY3T-1.02')) rCode = 'B';
-      else if (it.locatorCode.includes('DY3T-1.03')) rCode = 'C';
-      else if (it.locatorCode.includes('DY3T-1.04')) rCode = 'D';
+      let rCode: 'A' | 'B' | 'C' | 'D' = 'A';
+      const locUpper = (it.locatorCode || '').toUpperCase();
+      const zoneUpper = (String(it.zone || '')).toUpperCase();
 
-      const locMatch = it.locatorCode.match(/DY3T-1\.0[1-4]-(?:[A-D])?0?(\d+)-L(\d)/i);
+      if (locUpper.includes('DY3T-1.01')) rCode = 'A';
+      else if (locUpper.includes('DY3T-1.02')) rCode = 'B';
+      else if (locUpper.includes('DY3T-1.03')) rCode = 'C';
+      else if (locUpper.includes('DY3T-1.04')) rCode = 'D';
+      else if (zoneUpper === 'CY3-A' || zoneUpper === 'A') rCode = 'A';
+      else if (zoneUpper === 'CY3-B' || zoneUpper === 'B') rCode = 'B';
+      else if (zoneUpper === 'CY3-C' || zoneUpper === 'C') rCode = 'C';
+      else if (zoneUpper === 'CY3-D' || zoneUpper === 'D') rCode = 'D';
+
+      let bNum = it.bayNumber || 1;
+      let lvl = it.level || 1;
+
+      const locMatch = locUpper.match(/DY3T-1\.0[1-4]-(?:[A-D])?0*(\d+)-L(\d)/i);
       if (locMatch) {
         bNum = parseInt(locMatch[1], 10);
         lvl = parseInt(locMatch[2], 10) as ShelfLevel;
@@ -265,7 +270,9 @@ export const CY3FrontElevationView: React.FC<CY3FrontElevationViewProps> = ({
                                   e.stopPropagation();
                                   if (onOpenScanner) {
                                     const cy3Zone = `CY3-${row.rowCode}` as StorageZone;
-                                    onOpenScanner(cy3Zone, bayNum, lvl as ShelfLevel, hasItem ? 'OUT' : 'IN');
+                                    const pPos = item?.palletPosition || 'P1';
+                                    const canonicalLoc = `${row.locatorSign}-${row.rowCode}${String(bayNum).padStart(2, '0')}-L${lvl}-${pPos}`;
+                                    onOpenScanner(cy3Zone, bayNum, lvl as ShelfLevel, hasItem ? 'OUT' : 'IN', canonicalLoc, pPos, item || null);
                                   }
                                 }}
                                 onMouseEnter={(e) => onSlotHover(e, row.rowCode, bayNum, row.locatorSign)}

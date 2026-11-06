@@ -42,6 +42,7 @@ import {
 import { QRCodeSVG } from 'qrcode.react';
 import { QRScanner } from './QRScanner';
 import { getModelStdCapacity, evaluatePalletCapacity, validateSlotPlacement } from '../utils/inventoryConsistency';
+import { resolveCanonicalCoordinate } from '../utils/locatorUtils';
 
 interface QuickScannerModalProps {
   isOpen: boolean;
@@ -107,29 +108,12 @@ const getSavedLearnedParts = (): LearnedPart[] => {
 
 // Helper to format proper locator code across campus zones
 export const formatLocatorCode = (z: StorageZone | string, bay: number, lvl: ShelfLevel | number, palletPos?: string): string => {
-  const zStr = String(z);
-  const pSuffix = palletPos ? `-${palletPos}` : '';
-  if (zStr.startsWith('CY3') || zStr.startsWith('DY3T')) {
-    let rowCode = 'A';
-    if (zStr.includes('B') || zStr.includes('1.02')) rowCode = 'B';
-    else if (zStr.includes('C') || zStr.includes('1.03')) rowCode = 'C';
-    else if (zStr.includes('D') || zStr.includes('1.04')) rowCode = 'D';
-    const rowNum = rowCode === 'A' ? '1.01' : rowCode === 'B' ? '1.02' : rowCode === 'C' ? '1.03' : '1.04';
-    return `DY3T-${rowNum}-${rowCode}${String(bay).padStart(2, '0')}-L${lvl}${pSuffix || '-P1'}`;
-  }
-  if (zStr.startsWith('X')) {
-    return `DA4D-1.01-${zStr}-R${bay}-C${String(lvl).padStart(2, '0')}`;
-  }
-  if (zStr.startsWith('R') || zStr.startsWith('FR')) {
-    const railNum = zStr.replace(/\D/g, '') || '1';
-    return `DA2D-1-R${String(railNum).padStart(2, '0')}-${String(bay).padStart(2, '0')}`;
-  }
-  if (zStr.startsWith('T') || zStr.startsWith('DA5T')) {
-    const tentNum = zStr.replace(/\D/g, '') || '1';
-    return `DA5T-${tentNum}-01-R${lvl}-C${String(bay).padStart(2, '0')}`;
-  }
-  const prefix = ['G', 'H', 'I', 'J', 'K'].includes(zStr) ? 'DA4D-3' : 'DA4D-2';
-  return `${prefix}-${zStr}${String(bay).padStart(2, '0')}-L${lvl}${pSuffix || '-P1'}`;
+  return resolveCanonicalCoordinate({
+    zone: z as StorageZone,
+    bayNumber: bay,
+    level: lvl as ShelfLevel,
+    palletPosition: palletPos
+  }).canonicalLocator;
 };
 
 export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({

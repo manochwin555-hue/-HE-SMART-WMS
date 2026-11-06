@@ -20,7 +20,6 @@ import { VinylWrappingActionModal } from './components/VinylWrappingActionModal'
 import { MovementLogsTable } from './components/MovementLogsTable';
 import { AgingFifoPanel } from './components/AgingFifoPanel';
 import { InventoryListPanel } from './components/InventoryListPanel';
-import { LabelPrinterPanel } from './components/LabelPrinterPanel';
 import { MasterListPanel } from './components/MasterListPanel';
 import { FlowRailFloorMap } from './components/FlowRailFloorMap';
 import { A5TentFloorStagingMap } from './components/A5TentFloorStagingMap';
@@ -72,14 +71,29 @@ export default function App() {
   }, [themeMode]);
 
   const [masterData, setMasterData] = useState<MasterDataItem[]>(initialMasterData);
-  const [useLines, setUseLines] = useState<UseLineMaster[]>([
-    { id: 'HE1', name: 'Line HE1', description: 'สายการผลิตเครื่องทำความร้อน HE1 (โรง A2)' },
-    { id: 'HE2', name: 'Line HE2', description: 'สายการผลิตเครื่องทำความร้อน HE2 (โรง A2)' },
-    { id: 'HE3', name: 'Line HE3', description: 'สายการผลิตเครื่องทำความร้อน HE3 (โรง A2)' },
-    { id: 'HE4', name: 'Line HE4', description: 'สายการผลิตเครื่องทำความร้อน HE4 (โรง A4)' },
-    { id: 'HE5', name: 'Line HE5', description: 'สายการผลิตเครื่องทำความร้อน HE5 (โรง A4)' },
-    { id: 'REPAIR', name: 'Line Repair', description: 'โซนงานซ่อมแก้ไข (Repair Station)' },
-  ]);
+  const [useLines, setUseLines] = useState<UseLineMaster[]>(() => {
+    const saved = localStorage.getItem('lge_wms_use_lines');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        // ignore
+      }
+    }
+    return [
+      { id: 'HE1', name: 'Line HE1', description: 'สายการผลิตเครื่องทำความร้อน HE1 (โรง A2)' },
+      { id: 'HE2', name: 'Line HE2', description: 'สายการผลิตเครื่องทำความร้อน HE2 (โรง A2)' },
+      { id: 'HE3', name: 'Line HE3', description: 'สายการผลิตเครื่องทำความร้อน HE3 (โรง A2)' },
+      { id: 'HE4', name: 'Line HE4', description: 'สายการผลิตเครื่องทำความร้อน HE4 (โรง A4)' },
+      { id: 'HE5', name: 'Line HE5', description: 'สายการผลิตเครื่องทำความร้อน HE5 (โรง A4)' },
+      { id: 'REPAIR', name: 'Line Repair', description: 'โซนงานซ่อมแก้ไข (Repair Station)' },
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('lge_wms_use_lines', JSON.stringify(useLines));
+  }, [useLines]);
+
   const [targetUseLines, setTargetUseLines] = useState<TargetUseLineMaster[]>(() => {
     const saved = localStorage.getItem('lge_wms_target_use_lines');
     if (saved) {
@@ -111,12 +125,15 @@ export default function App() {
     const saved = localStorage.getItem('lge_wms_items');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return recalculateInventoryConsistency(parsed, initialMasterData);
+        }
       } catch (e) {
         // ignore
       }
     }
-    return INITIAL_ITEMS;
+    return recalculateInventoryConsistency(INITIAL_ITEMS, initialMasterData);
   });
 
   const [logs, setLogs] = useState<MovementLog[]>(() => {
@@ -1078,21 +1095,6 @@ export default function App() {
                 logs={logs}
                 auditLogs={auditLogs}
                 onOpen3DForLocator={(z, b) => handleOpen3DForBay(z, b)}
-              />
-            </div>
-          )}
-
-          {activeTab === 'printer' && (
-            <div className="animate-fadeIn">
-              <LabelPrinterPanel
-                items={items}
-                agingConfig={agingConfig}
-                facilities={facilities}
-                customSlots={customSlots}
-                masterData={masterData}
-                useLines={useLines}
-                initialSelectedItemId={selectedPrintItemId}
-                onOpenScanner={(z, b, l, m) => handleOpenScanner(z, b, l, m)}
               />
             </div>
           )}

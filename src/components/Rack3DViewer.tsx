@@ -120,7 +120,7 @@ export const Rack3DViewer: React.FC<Rack3DViewerProps> = ({
   };
 
   // Get items in this bay
-  const bayItems = items.filter((it) => it.zone === selectedZone && it.bayNumber === selectedBayNumber);
+  const bayItems = items.filter((it) => it && typeof it.quantity === 'number' && it.quantity > 0 && it.zone === selectedZone && it.bayNumber === selectedBayNumber);
 
   // Helper to find item at specific level (ชั้น 1 - 4)
   const getItemAtLevel = (level: ShelfLevel): InventoryItem | undefined => {

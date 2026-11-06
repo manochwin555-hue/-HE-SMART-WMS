@@ -8,7 +8,6 @@ import {
   ShieldCheck,
   ShieldAlert,
   Search,
-  Printer,
   Maximize,
   Minimize,
   Moon,
@@ -98,7 +97,6 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'cy3_layout', label: t('navigation.cy3'), icon: TentTree },
     { id: 'inventory', label: t('navigation.inventory'), icon: PackageSearch, count: lowStockCount },
     { id: 'logs', label: t('navigation.logs'), icon: History },
-    { id: 'printer', label: t('navigation.printer'), icon: Printer },
     { id: 'master', label: 'ตั้งค่าระบบ & Master Data', icon: Database },
   ];
 

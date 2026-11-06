@@ -4,12 +4,13 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { InventoryItem, MovementType, ShelfLevel, StorageZone } from '../../types';
 import { createRackBayNeonHighlight } from './neonEdgeHighlight';
 import { isA2InventoryItem } from '../../utils/zoneKpiHelper';
+import { CameraControlOverlay } from './CameraControlOverlay';
 
 interface A2FlowRail3DViewProps {
   items: InventoryItem[];
   searchQuery?: string;
   onSelectSlot: (railNum: number, posNum: number, item?: InventoryItem) => void;
-  onOpenScanner?: (zone: StorageZone, bay: number, level: ShelfLevel, mode: MovementType) => void;
+  onOpenScanner?: (zone: StorageZone, bay: number, level: ShelfLevel, mode: MovementType, locatorCode?: string, palletPosition?: string, item?: InventoryItem) => void;
 }
 
 interface PalletNode {
@@ -41,6 +42,8 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
   const palletNodesRef = useRef<Map<string, PalletNode>>(new Map());
   const onSelectSlotRef = useRef(onSelectSlot);
   onSelectSlotRef.current = onSelectSlot;
+  const onOpenScannerRef = useRef(onOpenScanner);
+  onOpenScannerRef.current = onOpenScanner;
 
   const [selectedSlot, setSelectedSlot] = useState<{ rail: number; pos: number; item?: InventoryItem } | null>(null);
   const [cameraFocus, setCameraFocus] = useState<'OVERVIEW' | 'TOP' | 'OUTFEED'>('OUTFEED');
@@ -91,6 +94,7 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
   const slotItemMap = useMemo(() => {
     const map = new Map<string, InventoryItem>();
     items.forEach(it => {
+      if (!it || typeof it.quantity !== 'number' || it.quantity <= 0) return;
       if (!isA2InventoryItem(it)) return;
 
       let rail = 0;
@@ -605,8 +609,14 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
       if (intersects.length > 0) {
         const hitNode = nodes.find(n => n.hitBox === intersects[0].object);
         if (hitNode) {
-          setSelectedSlot({ rail: hitNode.rail, pos: hitNode.pos, item: hitNode.item });
-          onSelectSlotRef.current(hitNode.rail, hitNode.pos, hitNode.item);
+          if (event.detail === 2 && onOpenScannerRef.current) {
+            const railZone = `R${hitNode.rail}` as StorageZone;
+            const loc = `DA2D-1-R${String(hitNode.rail).padStart(2, '0')}-${String(hitNode.pos).padStart(2, '0')}`;
+            onOpenScannerRef.current(railZone, hitNode.pos, 1, hitNode.item ? 'OUT' : 'IN', loc, 'P1', hitNode.item || null);
+          } else {
+            setSelectedSlot({ rail: hitNode.rail, pos: hitNode.pos, item: hitNode.item });
+            onSelectSlotRef.current(hitNode.rail, hitNode.pos, hitNode.item);
+          }
         }
       }
     };
@@ -768,51 +778,60 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
     });
   }, [slotItemMap, searchQuery]);
 
+  const handlePan = (dx: number, dz: number) => {
+    if (!controlsRef.current || !cameraRef.current) return;
+    const cam = cameraRef.current;
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion);
+    right.y = 0;
+    right.normalize();
+
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
+    forward.y = 0;
+    forward.normalize();
+
+    const panVector = new THREE.Vector3();
+    panVector.addScaledVector(right, dx);
+    panVector.addScaledVector(forward, -dz);
+
+    controlsRef.current.target.add(panVector);
+    cam.position.add(panVector);
+    controlsRef.current.update();
+  };
+
+  const handleZoom = (zoomIn: boolean) => {
+    if (!cameraRef.current || !controlsRef.current) return;
+    const cam = cameraRef.current;
+    const dir = new THREE.Vector3().subVectors(controlsRef.current.target, cam.position);
+    const dist = dir.length();
+    if (zoomIn && dist > 10) {
+      cam.position.addScaledVector(dir, 0.2);
+    } else if (!zoomIn && dist < 160) {
+      cam.position.addScaledVector(dir, -0.2);
+    }
+  };
+
+  const handleReset = () => {
+    setCameraView('OVERVIEW');
+  };
+
   return (
     <div ref={containerRef} className="relative w-full h-full min-h-0 rounded-2xl overflow-hidden border shadow-2xl transition-colors duration-300 border-slate-300 bg-[#f8fafc] flex flex-col">
       {/* 3D Canvas Mount */}
       <div ref={mountRef} className="w-full flex-1 h-full min-h-[300px]" />
 
-      {/* Multi-Perspective Camera Toolbar (Top Right) */}
-      <div className="absolute top-3 right-3 pointer-events-auto z-20">
-        <div className="flex items-center gap-1 backdrop-blur-md p-1 rounded-xl shadow-lg border bg-slate-900/90 border-slate-800">
-          <button
-            onClick={() => setCameraView('OVERVIEW')}
-            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 shrink-0 cursor-pointer ${
-              cameraFocus === 'OVERVIEW'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-slate-300 hover:text-white hover:bg-slate-800'
-            }`}
-            title="มุมมองเฉียงรวม 45°"
-          >
-            <span>ภาพรวม 45°</span>
-          </button>
-
-          <button
-            onClick={() => setCameraView('TOP')}
-            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 shrink-0 cursor-pointer ${
-              cameraFocus === 'TOP'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-slate-300 hover:text-white hover:bg-slate-800'
-            }`}
-            title="มุมมองแบบแปลนด้านบน 85°"
-          >
-            <span>แปลนบน 85°</span>
-          </button>
-
-          <button
-            onClick={() => setCameraView('OUTFEED')}
-            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 shrink-0 cursor-pointer ${
-              cameraFocus === 'OUTFEED'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-slate-300 hover:text-white hover:bg-slate-800'
-            }`}
-            title="มุมมองหน้าไลน์จ่ายออก"
-          >
-            <span>หน้าไลน์</span>
-          </button>
-        </div>
-      </div>
+      {/* Unified Camera Navigation Control Overlay (D-Pad + Presets) */}
+      <CameraControlOverlay
+        onPan={handlePan}
+        onZoom={handleZoom}
+        onReset={handleReset}
+        onPreset={(presetKey) => setCameraView(presetKey as any)}
+        activePreset={cameraFocus}
+        presets={[
+          { key: 'OVERVIEW', label: 'ภาพรวม 45°' },
+          { key: 'TOP', label: 'แปลนบน 85°' },
+          { key: 'OUTFEED', label: 'หน้าไลน์' }
+        ]}
+      />
 
       {/* Bottom Floating Info Pill */}
       {hoveredInfo && (

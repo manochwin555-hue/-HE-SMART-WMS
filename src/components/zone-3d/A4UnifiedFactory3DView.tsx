@@ -29,6 +29,7 @@ import {
   Sparkles,
   Grid
 } from 'lucide-react';
+import { CameraControlOverlay } from './CameraControlOverlay';
 
 type CameraPresetKey = 
   | 'ALL_A4' | 'TOP_DOWN' | 'RACKS' | 'RACKS_B_F' | 'RACKS_G_K' | 'FLOOR' | 'FRONT_35'
@@ -48,16 +49,17 @@ const PRESET_CONFIGS: Record<CameraPresetKey, { pos: [number, number, number]; t
   FLOOR: { pos: [22, 28, 14], target: [-14, 1, 14] },
   FRONT_35: { pos: [-8, 36, 68], target: [-3, 2, -4] },
   // Row B to K focus positions - isolated view
-  ROW_B: { pos: [-14.5, 15, -10], target: [-23.5, 2.5, -24.5] },
-  ROW_C: { pos: [-9.2, 15, -10], target: [-18.2, 2.5, -24.5] },
-  ROW_D: { pos: [-7.4, 15, -10], target: [-16.4, 2.5, -24.5] },
-  ROW_E: { pos: [-2.0, 15, -10], target: [-11.0, 2.5, -24.5] },
-  ROW_F: { pos: [-0.2, 15, -10], target: [-9.2, 2.5, -24.5] },
-  ROW_G: { pos: [7.5, 14, -14], target: [-1.5, 2.5, -28.5] },
-  ROW_H: { pos: [13.0, 14, -14], target: [4.0, 2.5, -28.5] },
-  ROW_I: { pos: [14.8, 14, -14], target: [5.8, 2.5, -28.5] },
-  ROW_J: { pos: [20.2, 14, -14], target: [11.2, 2.5, -28.5] },
-  ROW_K: { pos: [22.0, 14, -14], target: [13.0, 2.5, -28.5] },
+  // Row B to K focus positions - perspective front view (adjusted for depth)
+  ROW_B: { pos: [-23.5, 4.5, 25], target: [-23.5, 2.5, -24.5] },
+  ROW_C: { pos: [-18.2, 4.5, 25], target: [-18.2, 2.5, -24.5] },
+  ROW_D: { pos: [-16.4, 4.5, 25], target: [-16.4, 2.5, -24.5] },
+  ROW_E: { pos: [-11.0, 4.5, 25], target: [-11.0, 2.5, -24.5] },
+  ROW_F: { pos: [-9.2, 4.5, 25], target: [-9.2, 2.5, -24.5] },
+  ROW_G: { pos: [-1.5, 4.5, 25], target: [-1.5, 2.5, -28.5] },
+  ROW_H: { pos: [4.0, 4.5, 25], target: [4.0, 2.5, -28.5] },
+  ROW_I: { pos: [5.8, 4.5, 25], target: [5.8, 2.5, -28.5] },
+  ROW_J: { pos: [11.2, 4.5, 25], target: [11.2, 2.5, -28.5] },
+  ROW_K: { pos: [13.0, 4.5, 25], target: [13.0, 2.5, -28.5] },
   // Floor Staging X1 to X8 focus positions - front horizontal isolated view
   ZONE_X8: { pos: [0.0, 14, -5.0], target: [-16.3, 0.5, -5.0] },
   ZONE_X7: { pos: [0.0, 14, -0.5], target: [-16.3, 0.5, -0.5] },
@@ -139,6 +141,8 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
     let totalFloorOccupied = 0;
 
     items.forEach(it => {
+      if (!it || typeof it.quantity !== 'number' || it.quantity <= 0) return;
+
       // Check for rack
       const isRackZone = rackRows.includes(it.zone);
       const rackMatch = it.locatorCode ? it.locatorCode.match(/DA4D-[23]-([B-K])(?:0)?(\d+)-L(\d)(?:-P([12]))?/i) : null;
@@ -380,10 +384,7 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
       opacity: 0.3
     });
 
-    // Back Wall (Top, Behind Racks)
-    const backWall = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth, 8, 0.4), wallMat);
-    backWall.position.set(0, 4, -buildingDepth / 2);
-    scene.add(backWall);
+    // Back Wall removed per user request to prevent rack protrusion
 
     // Left Wall (Along Floor Staging & Racks)
     const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.4, 8, buildingDepth), wallMat);
@@ -610,6 +611,31 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
       return tex;
     };
 
+    // Helper: Create Floating Bay Label TextSprite
+    const createBayLabelSprite = (text: string) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 128;
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#0f172a'; // Dark blue background
+        ctx.fillRect(0, 0, 128, 64);
+        ctx.strokeStyle = '#facc15'; // Yellow border
+        ctx.lineWidth = 4;
+        ctx.strokeRect(2, 2, 124, 60);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 32px "Segoe UI", Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, 64, 32);
+      }
+      const texture = new THREE.CanvasTexture(canvas);
+      const spriteMat = new THREE.SpriteMaterial({ map: texture });
+      const sprite = new THREE.Sprite(spriteMat);
+      sprite.scale.set(1.5, 0.75, 1);
+      return sprite;
+    };
+
     // Helper: Add diagonal & horizontal steel bracing between front and rear upright posts (at a specific Z line)
     const addSideBracingAtZ = (group: THREE.Group, xCenter: number, zPos: number, depth = 1.2, height = 5.8) => {
       const numPanels = 4;
@@ -788,6 +814,13 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
             }
           }
 
+          // Add floating bay label above L4 (only once per bay)
+          if (lvl === 4) {
+            const label = createBayLabelSprite(`${r.name}-${String(bay).padStart(2, '0')}`);
+            label.position.set(r.x, RACK_TOTAL_HEIGHT + 0.5, zBayCenter);
+            rowGroup.add(label);
+          }
+
           // 2 Pallets per Bay Side-by-Side (Pallet 1 at zBay - 0.55, Pallet 2 at zBay + 0.55)
           const palletOffsetsZ = [-0.55, 0.55]; // Pallet 1 (Left/Back) and Pallet 2 (Right/Front)
 
@@ -917,27 +950,29 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
       const isOuterRight = ['I', 'K'].includes(r.name);
       const headDecalX = isInnerLeft ? r.x - 1.45 : isOuterRight ? r.x + 1.45 : r.x;
 
-      // 1. Large Floor Decal at Front of Rack Row (Clear forklift road at z = -19.5, well out from under rack at z = -22.3)
+      // 1. Large Floor Decal at Front of Rack Row (Clear forklift road at z = -8.0, well out from under rack at z = -10.8)
       const frontFloorDecal = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.9), rackHeadMat);
-      frontFloorDecal.position.set(headDecalX, 0.025, -19.5);
+      frontFloorDecal.position.set(headDecalX, 0.025, -8.0);
       frontFloorDecal.rotation.x = -Math.PI / 2;
       rowGroup.add(frontFloorDecal);
 
-      // 2. Large Floor Decal at Rear of Rack Row (Clear rear walkway at z = -37.0, well clear of rear uprights at z = -34.3)
+      // 2. Large Floor Decal at Rear of Rack Row (Clear rear walkway at z = -25.5, well clear of rear uprights)
       const rearFloorDecal = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.9), rackHeadMat);
-      rearFloorDecal.position.set(headDecalX, 0.025, -37.0);
+      rearFloorDecal.position.set(headDecalX, 0.025, -25.5);
       rearFloorDecal.rotation.x = -Math.PI / 2;
       rowGroup.add(rearFloorDecal);
 
       // 3. Overhead End Sign Plate (Facing front aisle +Z)
       const overheadSign = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.6), rackHeadMat);
-      overheadSign.position.set(r.x, 4.5, -22.1);
+      overheadSign.position.set(r.x, 4.5, -10.6);
       overheadSign.rotation.y = 0; // Fixed: 0 faces +Z so it is not mirrored
       rowGroup.add(overheadSign);
 
       // 5 Bays running along Z
       for (let bay = 1; bay <= 5; bay++) {
-        const zBayCenter = -23.5 - (bay - 1) * BAY_SPAN_Z;
+        // Shift to align G-K tail with B-F tail (-38.4 end position for B-F)
+        // G-K has 5 bays, span 2.4. Target Z_start: -38.4 + 4 * 2.4 = -28.8
+        const zBayCenter = -28.8 - (bay - 1) * BAY_SPAN_Z;
         const zStart = zBayCenter + BAY_SPAN_Z / 2;
         const zEnd = zBayCenter - BAY_SPAN_Z / 2;
 
@@ -1012,6 +1047,13 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
               wire.position.set(r.x, yLvl + 0.02, zBayCenter + w * 0.45);
               rowGroup.add(wire);
             }
+          }
+
+          // Add floating bay label above L4 (only once per bay)
+          if (lvl === 4) {
+            const label = createBayLabelSprite(`${r.name}-${String(bay).padStart(2, '0')}`);
+            label.position.set(r.x, RACK_TOTAL_HEIGHT + 0.5, zBayCenter);
+            rowGroup.add(label);
           }
 
           // 2 Pallets per Bay Side-by-Side (Pallet 1 at zBay - 0.55, Pallet 2 at zBay + 0.55)
@@ -1487,122 +1529,63 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
     };
   }, [items]);
 
+  const handlePan = (dx: number, dz: number) => {
+    if (!controlsRef.current || !cameraRef.current) return;
+    const cam = cameraRef.current;
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion);
+    right.y = 0;
+    right.normalize();
+
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
+    forward.y = 0;
+    forward.normalize();
+
+    const panVector = new THREE.Vector3();
+    panVector.addScaledVector(right, dx);
+    panVector.addScaledVector(forward, -dz);
+
+    controlsRef.current.target.add(panVector);
+    cam.position.add(panVector);
+    controlsRef.current.update();
+  };
+
+  const handleZoom = (zoomIn: boolean) => {
+    if (!cameraRef.current || !controlsRef.current) return;
+    const cam = cameraRef.current;
+    const dir = new THREE.Vector3().subVectors(controlsRef.current.target, cam.position);
+    const dist = dir.length();
+    if (zoomIn && dist > 10) {
+      cam.position.addScaledVector(dir, 0.2);
+    } else if (!zoomIn && dist < 180) {
+      cam.position.addScaledVector(dir, -0.2);
+    }
+  };
+
+  const handleReset = () => {
+    handleCameraPreset('ALL_A4');
+  };
+
   return (
     <div ref={containerRef} className="w-full h-full flex flex-col min-h-0 space-y-1.5 font-sans text-slate-100">
       
-      {/* 1. TOP TOOLBAR: UNIFIED A4 CONTROLS */}
-      <div className="bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-2xl p-2.5 shadow-lg flex flex-wrap items-center justify-between gap-2.5">
-        
-        {/* Left Info */}
-        <div className="flex items-center gap-2.5">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-black text-white flex items-center gap-1.5">
-                <span>อาคาร A4 WAREHOUSE 3D TWIN</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/40 font-mono">
-                  1,112 PL
-                </span>
-              </h2>
-            </div>
-            <p className="text-[11px] text-slate-400">
-              Selective Rack แถว B–K (680P) + ลานวางพื้น X1–X8 รูปตัว L (432P) ตาม Blueprint จริง
-            </p>
-          </div>
-        </div>
-
-        {/* Center Live KPI summary */}
-        <div className="flex items-center gap-2">
-          {/* Rack Stats */}
-          <div className="bg-slate-950/80 border border-blue-500/30 px-2.5 py-1 rounded-xl text-xs">
-            <span className="text-slate-400">แร็ค B–K: </span>
-            <span className="font-mono font-bold text-blue-400">{a4Data.totalRackOccupied}/680 P</span>
-          </div>
-
-          {/* Floor Stats */}
-          <div className="bg-slate-950/80 border border-amber-500/30 px-2.5 py-1 rounded-xl text-xs">
-            <span className="text-slate-400">วางพื้น X1–X8: </span>
-            <span className="font-mono font-bold text-amber-400">{a4Data.totalFloorOccupied}/432 P</span>
-          </div>
-
-          {/* Total Occupancy */}
-          <div className="bg-slate-950/80 border border-emerald-500/30 px-2.5 py-1 rounded-xl text-xs font-bold flex items-center gap-2">
-            <span className="text-slate-400">รวมจัดเก็บ: </span>
-            <span className="font-mono text-emerald-400">{a4Data.totalOccupied}/{a4Data.totalCap} P ({a4Data.pct}%)</span>
-          </div>
-        </div>
-
-        {/* Right Mode Actions: รีเซ็ตกล้อง และ ขยายเต็มจอ */}
-        <div className="flex items-center gap-1.5">
-          {/* Reset Camera */}
-          <button
-            onClick={() => handleCameraPreset((initialFocus as CameraPresetKey) || 'ALL_A4')}
-            className="h-8 w-8 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-all shadow-sm shrink-0"
-            title="รีเซ็ตมุมมอง"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-          </button>
-
-          {/* Fullscreen */}
-          <button
-            onClick={toggleFullscreen}
-            className="h-8 w-8 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-all shadow-sm shrink-0"
-            title="ขยายเต็มจอ"
-          >
-            {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-          </button>
-        </div>
-      </div>
-
       {/* 2. 3D VIEWPORT CONTAINER */}
       <div className="relative w-full flex-1 min-h-[350px] bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col">
         
-        {/* Top Floating Camera Focus Bar & Row/Zone Isolator - Compact Top Right Placement */}
-        <div className="absolute top-3 right-3 z-20 flex flex-col items-end gap-1.5 max-w-[90vw]">
-          {/* Main Presets Bar */}
-          <div className="bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-xl p-1 shadow-lg flex flex-col items-stretch gap-1">
-            <button
-              onClick={() => handleCameraPreset('ALL_A4')}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all shrink-0 ${
-                cameraFocus === 'ALL_A4'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              ภาพรวม 45°
-            </button>
-            <button
-              onClick={() => handleCameraPreset('TOP_DOWN')}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all shrink-0 ${
-                cameraFocus === 'TOP_DOWN'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              แปลนบน 85°
-            </button>
-            <button
-              onClick={() => handleCameraPreset('RACKS')}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all shrink-0 ${
-                cameraFocus === 'RACKS'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              แร็ค B–K
-            </button>
-            <button
-              onClick={() => handleCameraPreset('FLOOR')}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all shrink-0 ${
-                cameraFocus === 'FLOOR'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              ลานพื้น X1–X8
-            </button>
+        {/* Unified Camera Navigation Control Overlay (D-Pad + Presets) */}
+        <CameraControlOverlay
+          onPan={handlePan}
+          onZoom={handleZoom}
+          onReset={handleReset}
+          onPreset={(presetKey) => handleCameraPreset(presetKey as CameraPresetKey)}
+          activePreset={cameraFocus}
+          presets={[
+            { key: 'ALL_A4', label: 'ภาพรวม 45°' },
+            { key: 'TOP_DOWN', label: 'แปลนบน 85°' },
+            { key: 'RACKS', label: 'มุมมองแร็ค B-K' },
+            { key: 'FLOOR', label: 'ลานกองพื้น X1-X8' }
+          ]}
+        />
 
-          </div>
-        </div>
 
         {/* Individual Row & Floor Zone Isolator Pills Bar (Moved to Top Left) */}
         <div className="absolute top-3 left-3 z-20 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-xl p-2 shadow-lg flex flex-row items-center gap-1.5 text-[11px] font-bold flex-wrap max-w-[60vw]">

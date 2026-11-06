@@ -115,9 +115,14 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
   // Filter items that belong to CY3 facility or have DY3T locators
   const cy3Items = useMemo(() => {
     return items.filter(it => 
-      it.facilityId === 'FAC-CY3-TENT' || 
-      it.locatorCode.includes('DY3T') ||
-      (typeof it.zone === 'string' && it.zone.startsWith('CY3'))
+      it && 
+      typeof it.quantity === 'number' && 
+      it.quantity > 0 &&
+      (
+        it.facilityId === 'FAC-CY3-TENT' || 
+        (it.locatorCode && it.locatorCode.toUpperCase().includes('DY3T')) ||
+        (typeof it.zone === 'string' && (it.zone.toUpperCase().startsWith('CY3') || it.zone.toUpperCase().startsWith('DY3T')))
+      )
     );
   }, [items]);
 
@@ -125,21 +130,24 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
   const slotMap = useMemo(() => {
     const map = new Map<string, InventoryItem>();
     cy3Items.forEach(it => {
-      let rCode = 'A';
-      let bNum = it.bayNumber;
-      let lvl = it.level;
+      let rCode: 'A' | 'B' | 'C' | 'D' = 'A';
+      const locUpper = (it.locatorCode || '').toUpperCase();
+      const zoneUpper = (String(it.zone || '')).toUpperCase();
 
-      if (it.zone === 'CY3-A' || it.zone === 'A') rCode = 'A';
-      else if (it.zone === 'CY3-B' || it.zone === 'B') rCode = 'B';
-      else if (it.zone === 'CY3-C' || it.zone === 'C') rCode = 'C';
-      else if (it.zone === 'CY3-D' || it.zone === 'D') rCode = 'D';
-      else if (it.locatorCode.includes('DY3T-1.01')) rCode = 'A';
-      else if (it.locatorCode.includes('DY3T-1.02')) rCode = 'B';
-      else if (it.locatorCode.includes('DY3T-1.03')) rCode = 'C';
-      else if (it.locatorCode.includes('DY3T-1.04')) rCode = 'D';
+      if (locUpper.includes('DY3T-1.01')) rCode = 'A';
+      else if (locUpper.includes('DY3T-1.02')) rCode = 'B';
+      else if (locUpper.includes('DY3T-1.03')) rCode = 'C';
+      else if (locUpper.includes('DY3T-1.04')) rCode = 'D';
+      else if (zoneUpper === 'CY3-A' || zoneUpper === 'A') rCode = 'A';
+      else if (zoneUpper === 'CY3-B' || zoneUpper === 'B') rCode = 'B';
+      else if (zoneUpper === 'CY3-C' || zoneUpper === 'C') rCode = 'C';
+      else if (zoneUpper === 'CY3-D' || zoneUpper === 'D') rCode = 'D';
+
+      let bNum = it.bayNumber || 1;
+      let lvl = it.level || 1;
 
       // Parse locator if bay/level not explicitly in item
-      const locMatch = it.locatorCode.match(/DY3T-1\.0[1-4]-(?:[A-D])?0?(\d+)-L(\d)/i);
+      const locMatch = locUpper.match(/DY3T-1\.0[1-4]-(?:[A-D])?0*(\d+)-L(\d)/i);
       if (locMatch) {
         bNum = parseInt(locMatch[1], 10);
         lvl = parseInt(locMatch[2], 10) as ShelfLevel;

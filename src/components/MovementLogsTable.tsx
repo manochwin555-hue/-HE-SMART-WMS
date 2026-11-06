@@ -232,30 +232,9 @@ export const MovementLogsTable: React.FC<MovementLogsTableProps> = ({
               ประวัติการสแกนรับเข้า - เบิกออก (Scan Movement Logs)
             </h2>
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">
-            บันทึกประวัติยิงบาร์โค้ด QR ล่าสุด แก้ไขปัญหา <span className="text-amber-700 font-mono font-bold">#BAD_EXPR</span> เดิมของระบบ Odoo
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center bg-slate-100 rounded-lg p-1 border border-slate-200">
-            <button
-              onClick={() => setActiveView('MOVEMENT')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
-                activeView === 'MOVEMENT' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              Movement Logs
-            </button>
-            <button
-              onClick={() => setActiveView('AUDIT')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
-                activeView === 'AUDIT' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              Audit Logs
-            </button>
-          </div>
           <button
             onClick={() => handleExportCSV('Excel')}
             className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm flex items-center space-x-1.5 transition-all"
@@ -564,7 +543,6 @@ export const MovementLogsTable: React.FC<MovementLogsTableProps> = ({
               <th className="px-3.5 py-3 text-right">Balance Qty</th>
               <th className="px-3.5 py-3">Line</th>
               <th className="px-3.5 py-3">สถานะ (Status)</th>
-              <th className="px-3.5 py-3 text-center">ส่อง 3D</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -654,27 +632,12 @@ export const MovementLogsTable: React.FC<MovementLogsTableProps> = ({
                         </span>
                       )}
                     </td>
-
-                    {/* 3D Action */}
-                    <td className="px-3.5 py-2.5 text-center">
-                      {locInfo ? (
-                        <button
-                          onClick={() => onOpen3DForLocator(locInfo.zone, locInfo.bay)}
-                          className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 transition-all border border-blue-200 inline-flex items-center justify-center"
-                          title="ส่องช่องนี้ในรูปแบบ 3D"
-                        >
-                          <Layers className="w-4 h-4" />
-                        </button>
-                      ) : (
-                        <span className="text-slate-400 text-[10px]">-</span>
-                      )}
-                    </td>
                   </tr>
                 );
               })
             ) : (
               <tr>
-                <td colSpan={11} className="py-8 text-center text-slate-500 font-medium">
+                <td colSpan={10} className="py-8 text-center text-slate-500 font-medium">
                   ไม่พบรายการสแกนตรงกับเงื่อนไขการค้นหา
                 </td>
               </tr>

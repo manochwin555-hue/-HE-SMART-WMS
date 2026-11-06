@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { MasterDataItem, UseLineMaster, TargetUseLineMaster, ZoneCapacityMaster, StorageZone, InventoryItem, CustomRackSlot, StorageLocationType, WarehouseFacility, AgingThresholdConfig } from '../types';
-import { FacilityManager } from './FacilityManager';
 import { DynamicLegendPanel } from './DynamicLegendPanel';
 import { AgingFifoPanel } from './AgingFifoPanel';
 import { useTranslation } from '../i18n/i18nContext';
@@ -82,7 +81,7 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
   onLoadSampleData
 }) => {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<'FACILITIES' | 'AGING_CONFIG' | 'GUIDE_LEGEND' | 'ITEMS' | 'LINES' | 'TARGET_LINES' | 'RACK_LOCATIONS'>('AGING_CONFIG');
+  const [activeTab, setActiveTab] = useState<'LINES' | 'TARGET_LINES' | 'AGING_CONFIG' | 'GUIDE_LEGEND'>('LINES');
 
   // Local fallback for targetUseLines if not provided
   const [localTargetUseLines, setLocalTargetUseLines] = useState<TargetUseLineMaster[]>([
@@ -108,12 +107,23 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
   const [editLineForm, setEditLineForm] = useState<UseLineMaster | null>(null);
   const [lineSuccessMsg, setLineSuccessMsg] = useState<string | null>(null);
+  const [lastDeletedLine, setLastDeletedLine] = useState<UseLineMaster | null>(null);
 
   // States for Target Use Lines list (Red-Orange theme)
   const [targetLineSearch, setTargetLineSearch] = useState('');
   const [editingTargetLineId, setEditingTargetLineId] = useState<string | null>(null);
   const [editTargetLineForm, setEditTargetLineForm] = useState<TargetUseLineMaster | null>(null);
   const [targetLineSuccessMsg, setTargetLineSuccessMsg] = useState<string | null>(null);
+  const [lastDeletedTargetLine, setLastDeletedTargetLine] = useState<TargetUseLineMaster | null>(null);
+
+  // In-app Delete Confirmation Modal State (replaces blocked native window.confirm)
+  const [confirmDeleteModal, setConfirmDeleteModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    itemName: string;
+    warningText?: string;
+    onConfirm: () => void;
+  } | null>(null);
 
   // States for Zone Capacities list
   const [editingZone, setEditingZone] = useState<StorageZone | null>(null);
@@ -159,6 +169,8 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
   });
 
   const [isAddingSlot, setIsAddingSlot] = useState(false);
+  const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
+  const [editSlotForm, setEditSlotForm] = useState<CustomRackSlot | null>(null);
 
 
 
@@ -202,8 +214,12 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
   };
 
   const handleDelete = (modelHE: string) => {
-    if (confirm(`คุณต้องการลบรหัส ${modelHE} ใช่หรือไม่?`)) {
-      setMasterData(masterData.filter(d => d.modelHE !== modelHE));
+    const updated = masterData.filter(d => d.modelHE !== modelHE);
+    setMasterData(updated);
+    try {
+      localStorage.setItem('lge_wms_master_data', JSON.stringify(updated));
+    } catch (e) {
+      // ignore
     }
   };
 
@@ -273,12 +289,53 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
     }
   };
 
+  const executeDeleteLine = (id: string, targetLine: UseLineMaster) => {
+    const updated = useLines.filter(l => l.id !== id);
+    setUseLines(updated);
+    try {
+      localStorage.setItem('lge_wms_use_lines', JSON.stringify(updated));
+    } catch (e) {
+      // ignore
+    }
+    setLastDeletedLine(targetLine);
+    setLineSuccessMsg(`🗑️ ลบไลน์ผลิต [${id} - ${targetLine.name}] ออกจากระบบเรียบร้อยแล้ว`);
+    setTimeout(() => setLineSuccessMsg(null), 5000);
+  };
+
   const handleDeleteLine = (id: string) => {
+    const targetLine = useLines.find(l => l.id === id);
+    if (!targetLine) return;
+
     const allocatedCount = items.filter(it => it.useLine === id).length;
-    const warningExtra = allocatedCount > 0 ? ` (คำเตือน: มีสินค้า/พาเลทในระบบ ${allocatedCount} รายการที่กำลังอ้างอิงไลน์นี้)` : '';
-    if (confirm(`คุณต้องการลบไลน์ ${id} ใช่หรือไม่?${warningExtra}`)) {
-      setUseLines(useLines.filter(l => l.id !== id));
-      setLineSuccessMsg(`🗑️ ลบไลน์ผลิต [${id}] สำเร็จ`);
+    if (allocatedCount > 0) {
+      // Show in-app custom modal if items are currently stored under this line
+      setConfirmDeleteModal({
+        isOpen: true,
+        title: 'ยืนยันการลบไลน์ผลิต',
+        itemName: `${id} - ${targetLine.name}`,
+        warningText: `คำเตือน: มีสินค้า/พาเลทในระบบ ${allocatedCount} รายการที่กำลังระบุไลน์นี้ (พาเลทจะยังคงอยู่ในคลัง)`,
+        onConfirm: () => {
+          executeDeleteLine(id, targetLine);
+          setConfirmDeleteModal(null);
+        }
+      });
+    } else {
+      // Direct delete without blocking iframe
+      executeDeleteLine(id, targetLine);
+    }
+  };
+
+  const handleUndoDeleteLine = () => {
+    if (lastDeletedLine) {
+      const restored = [...useLines, lastDeletedLine];
+      setUseLines(restored);
+      try {
+        localStorage.setItem('lge_wms_use_lines', JSON.stringify(restored));
+      } catch (e) {
+        // ignore
+      }
+      setLastDeletedLine(null);
+      setLineSuccessMsg(`✅ กู้คืนไลน์ผลิต [${lastDeletedLine.id} - ${lastDeletedLine.name}] เรียบร้อยแล้ว`);
       setTimeout(() => setLineSuccessMsg(null), 3000);
     }
   };
@@ -334,7 +391,11 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
           name: trimmedName,
           description: editTargetLineForm.description?.trim() || ''
         };
-        setActiveTargetUseLines([...activeTargetUseLines, newLine]);
+        const updatedList = [...activeTargetUseLines, newLine];
+        setActiveTargetUseLines(updatedList);
+        try {
+          localStorage.setItem('lge_wms_target_use_lines', JSON.stringify(updatedList));
+        } catch (err) {}
         setTargetLineSuccessMsg(`✅ เพิ่มไลน์ที่นำไปใช้ใหม่ [${trimmedId} - ${trimmedName}] เรียบร้อยแล้ว!`);
       } else {
         const oldId = editingTargetLineId;
@@ -343,7 +404,11 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
           name: trimmedName,
           description: editTargetLineForm.description?.trim() || ''
         };
-        setActiveTargetUseLines(activeTargetUseLines.map(l => l.id === oldId ? updatedLine : l));
+        const updatedList = activeTargetUseLines.map(l => l.id === oldId ? updatedLine : l);
+        setActiveTargetUseLines(updatedList);
+        try {
+          localStorage.setItem('lge_wms_target_use_lines', JSON.stringify(updatedList));
+        } catch (err) {}
         if (oldId && oldId !== trimmedId) {
           setItems(prevItems => prevItems.map(it => it.useLine === oldId ? { ...it, useLine: trimmedId } : it));
         }
@@ -356,12 +421,51 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
     }
   };
 
+  const executeDeleteTargetLine = (id: string, targetLine: TargetUseLineMaster) => {
+    const updated = activeTargetUseLines.filter(l => l.id !== id);
+    setActiveTargetUseLines(updated);
+    try {
+      localStorage.setItem('lge_wms_target_use_lines', JSON.stringify(updated));
+    } catch (e) {
+      // ignore
+    }
+    setLastDeletedTargetLine(targetLine);
+    setTargetLineSuccessMsg(`🗑️ ลบไลน์ที่นำไปใช้ [${id} - ${targetLine.name}] ออกจากระบบเรียบร้อยแล้ว`);
+    setTimeout(() => setTargetLineSuccessMsg(null), 5000);
+  };
+
   const handleDeleteTargetLine = (id: string) => {
+    const targetLine = activeTargetUseLines.find(l => l.id === id);
+    if (!targetLine) return;
+
     const allocatedCount = items.filter(it => it.useLine === id).length;
-    const warningExtra = allocatedCount > 0 ? ` (คำเตือน: มีสินค้า/พาเลทในระบบ ${allocatedCount} รายการที่กำลังอ้างอิงไลน์นี้)` : '';
-    if (confirm(`คุณต้องการลบไลน์ที่นำไปใช้ ${id} ใช่หรือไม่?${warningExtra}`)) {
-      setActiveTargetUseLines(activeTargetUseLines.filter(l => l.id !== id));
-      setTargetLineSuccessMsg(`🗑️ ลบไลน์ที่นำไปใช้ [${id}] สำเร็จ`);
+    if (allocatedCount > 0) {
+      setConfirmDeleteModal({
+        isOpen: true,
+        title: 'ยืนยันการลบไลน์ที่นำไปใช้',
+        itemName: `${id} - ${targetLine.name}`,
+        warningText: `คำเตือน: มีสินค้า/พาเลทในระบบ ${allocatedCount} รายการที่กำลังระบุไลน์นี้`,
+        onConfirm: () => {
+          executeDeleteTargetLine(id, targetLine);
+          setConfirmDeleteModal(null);
+        }
+      });
+    } else {
+      executeDeleteTargetLine(id, targetLine);
+    }
+  };
+
+  const handleUndoDeleteTargetLine = () => {
+    if (lastDeletedTargetLine) {
+      const restored = [...activeTargetUseLines, lastDeletedTargetLine];
+      setActiveTargetUseLines(restored);
+      try {
+        localStorage.setItem('lge_wms_target_use_lines', JSON.stringify(restored));
+      } catch (e) {
+        // ignore
+      }
+      setLastDeletedTargetLine(null);
+      setTargetLineSuccessMsg(`✅ กู้คืนไลน์ที่นำไปใช้ [${lastDeletedTargetLine.id} - ${lastDeletedTargetLine.name}] เรียบร้อยแล้ว`);
       setTimeout(() => setTargetLineSuccessMsg(null), 3000);
     }
   };
@@ -439,6 +543,31 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
     alert(`สร้างช่องจัดเก็บ Zone ${cleanZone} สำเร็จเรียบร้อย!`);
   };
 
+  const handleEditSlot = (slot: CustomRackSlot) => {
+    setEditingSlotId(slot.id);
+    setEditSlotForm({ ...slot });
+  };
+
+  const handleSaveSlot = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editSlotForm || !editingSlotId) return;
+
+    setCustomSlots(customSlots.map(s => s.id === editingSlotId ? editSlotForm : s));
+    setEditingSlotId(null);
+    setEditSlotForm(null);
+    alert('อัปเดตข้อมูลช่องจัดเก็บเรียบร้อยแล้ว');
+  };
+
+  const handleDeleteSlot = (id: string, _zone: string) => {
+    const updated = customSlots.filter(s => s.id !== id);
+    setCustomSlots(updated);
+    try {
+      localStorage.setItem('lge_wms_custom_slots', JSON.stringify(updated));
+    } catch (e) {
+      // ignore
+    }
+  };
+
 
 
   return (
@@ -457,28 +586,11 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
                   WMS HUB
                 </span>
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                จัดการรหัสวัตถุดิบ (Model HE), เพิ่ม/แก้ไขไลน์ผลิต (Production Lines), สร้างช่อง Rack และการจัดการระบบคลังสินค้า
-              </p>
             </div>
           </div>
 
           {/* Sub Tab Buttons - Dark Theme & High Contrast */}
           <div className="flex overflow-x-auto sm:flex-wrap bg-slate-950 p-1.5 rounded-xl border border-slate-800 gap-1.5 scrollbar-thin shadow-inner">
-            <button
-              id="tab-btn-facilities"
-              onClick={() => setActiveTab('FACILITIES')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
-                activeTab === 'FACILITIES'
-                  ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-400 font-black shadow-blue-900/50'
-                  : 'bg-slate-900 hover:bg-slate-850 text-slate-300 hover:text-white border border-slate-800 hover:border-slate-700 shadow-2xs'
-              }`}
-            >
-              <Building2 className={`w-3.5 h-3.5 ${activeTab === 'FACILITIES' ? 'text-white' : 'text-blue-400'}`} />
-              <span>🏢 จัดการคลัง &amp; อาคาร</span>
-              {activeTab === 'FACILITIES' && <span className="w-1.5 h-1.5 rounded-full bg-cyan-300 animate-pulse ml-0.5" />}
-            </button>
-
             <button
               id="tab-btn-lines"
               onClick={() => setActiveTab('LINES')}
@@ -505,36 +617,6 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
               <Target className={`w-3.5 h-3.5 ${activeTab === 'TARGET_LINES' ? 'text-white' : 'text-amber-400'}`} />
               <span>🎯 ไลน์ที่นำไปใช้ ({activeTargetUseLines.length})</span>
               {activeTab === 'TARGET_LINES' && <span className="w-1.5 h-1.5 rounded-full bg-amber-300 animate-pulse ml-0.5" />}
-            </button>
-
-            <button
-              id="tab-btn-items"
-              onClick={() => setActiveTab('ITEMS')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
-                activeTab === 'ITEMS'
-                  ? 'bg-cyan-600 text-white shadow-md ring-2 ring-cyan-400 font-black shadow-cyan-900/50'
-                  : 'bg-slate-900 hover:bg-slate-850 text-slate-300 hover:text-white border border-slate-800 hover:border-slate-700 shadow-2xs'
-              }`}
-            >
-              <Database className={`w-3.5 h-3.5 ${activeTab === 'ITEMS' ? 'text-white' : 'text-cyan-400'}`} />
-              <span>📦 Master Items ({masterData.length})</span>
-              {activeTab === 'ITEMS' && <span className="w-1.5 h-1.5 rounded-full bg-cyan-200 animate-pulse ml-0.5" />}
-            </button>
-
-
-
-            <button
-              id="tab-btn-rack-locations"
-              onClick={() => setActiveTab('RACK_LOCATIONS')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
-                activeTab === 'RACK_LOCATIONS'
-                  ? 'bg-indigo-600 text-white shadow-md ring-2 ring-indigo-400 font-black shadow-indigo-900/50'
-                  : 'bg-slate-900 hover:bg-slate-850 text-slate-300 hover:text-white border border-slate-800 hover:border-slate-700 shadow-2xs'
-              }`}
-            >
-              <FolderPlus className={`w-3.5 h-3.5 ${activeTab === 'RACK_LOCATIONS' ? 'text-white' : 'text-indigo-400'}`} />
-              <span>🏗️ สร้างช่อง Rack ({customSlots.length})</span>
-              {activeTab === 'RACK_LOCATIONS' && <span className="w-1.5 h-1.5 rounded-full bg-indigo-200 animate-pulse ml-0.5" />}
             </button>
 
             <button
@@ -568,43 +650,12 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
         </div>
 
         {/* Toolbar per tab */}
-        {activeTab === 'FACILITIES' && (
-          <div className="flex items-center justify-between gap-3 pt-1">
-            <div className="text-xs text-slate-400 font-medium flex items-center space-x-2">
-              <span className="font-bold text-slate-200">ศูนย์ควบคุมสถานที่จัดเก็บ (Warehouse Facility Hub):</span>
-              <span>เพิ่ม/แก้ไข อาคารคลังสินค้าและรูปแบบการจัดเก็บ (Rack, Flow Rail, Floor Staging)</span>
-            </div>
-          </div>
-        )}
         {activeTab === 'GUIDE_LEGEND' && (
           <div className="flex items-center justify-between gap-3 pt-1">
             <div className="text-xs text-slate-400 font-medium flex items-center space-x-2">
               <span className="font-bold text-slate-200">📘 คู่มือโค้ดสี &amp; โครงสร้างรหัสตำแหน่ง (Dynamic Legend &amp; Naming Convention):</span>
               <span>มาตรฐานรหัสพิกัดทั้ง 3 โซน (A4 แร็ค/พื้น, A2 รางเลื่อน FIFO, A5 ลานกองเต็นท์) และโค้ดสีแสดงความหนาแน่น</span>
             </div>
-          </div>
-        )}
-        {activeTab === 'ITEMS' && (
-          <div className="flex items-center justify-between gap-3 pt-2">
-            <div className="relative flex-1 max-w-md">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-4 w-4 text-slate-400" />
-              </div>
-              <input
-                type="text"
-                className="block w-full pl-9 pr-3 py-2 border border-slate-700 rounded-xl text-xs bg-slate-950 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                placeholder="ค้นหา Model HE, Tool Name..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-            <button
-              onClick={handleAddNew}
-              className="flex items-center justify-center space-x-1.5 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 shadow-md active:scale-95"
-            >
-              <Plus className="w-4 h-4" />
-              <span>เพิ่ม Model HE ใหม่</span>
-            </button>
           </div>
         )}
 
@@ -655,39 +706,10 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
             </button>
           </div>
         )}
-
-        {activeTab === 'RACK_LOCATIONS' && (
-          <div className="flex items-center justify-between gap-3 pt-1">
-            <div className="text-xs text-slate-400 font-medium">
-              💡 สามารถเพิ่ม Rack ใหม่, รางเลื่อน Flow Rail หรือพื้นที่วางบนพื้น Floor Staging พร้อมระบุความจุและจำนวน Bay
-            </div>
-            <button
-              onClick={() => setIsAddingSlot(!isAddingSlot)}
-              className="flex items-center space-x-1.5 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95"
-            >
-              <Plus className="w-4 h-4" />
-              <span>{isAddingSlot ? 'ปิดแบบฟอร์ม' : 'สร้างช่องจัดเก็บ / Rack ใหม่'}</span>
-            </button>
-          </div>
-        )}
-
-
       </div>
 
       {/* Main Tab Content */}
       <div className="overflow-x-auto flex-1 p-4">
-        {/* TAB 0: FACILITY MANAGER */}
-        {activeTab === 'FACILITIES' && (
-          <FacilityManager 
-            facilities={facilities}
-            setFacilities={setFacilities}
-            activeFacilityId={activeFacilityId}
-            setActiveFacilityId={setActiveFacilityId}
-            items={items}
-            onNavigateToLayout={onNavigateToLayout}
-          />
-        )}
-
         {/* TAB 0.1: DYNAMIC AGING THRESHOLD CONFIGURATION */}
         {activeTab === 'AGING_CONFIG' && (
           <AgingFifoPanel
@@ -725,124 +747,35 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
           </div>
         )}
 
-        {/* TAB 1: MASTER ITEMS */}
-        {activeTab === 'ITEMS' && (
-          <div className="space-y-4">
-            {editingId === 'new' && (
-              <div className="bg-slate-950 p-4 rounded-xl border border-cyan-500/30 space-y-3 shadow-md">
-                <h3 className="text-xs font-bold text-cyan-300">เพิ่มรายการ Model HE ใหม่</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-300 mb-1">Model HE Code:</label>
-                    <input
-                      type="text"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold uppercase text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none"
-                      placeholder="e.g. ADL99999999"
-                      value={editForm?.modelHE || ''}
-                      onChange={e => setEditForm(prev => prev ? { ...prev, modelHE: e.target.value } : null)}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-300 mb-1">Tool / Part Name:</label>
-                    <input
-                      type="text"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none"
-                      placeholder="e.g. Plate Cover"
-                      value={editForm?.partName || ''}
-                      onChange={e => setEditForm(prev => prev ? { ...prev, partName: e.target.value } : null)}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-300 mb-1">Safety Stock (Min):</label>
-                    <input
-                      type="number"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none"
-                      value={editForm?.safetyStock || 0}
-                      onChange={e => setEditForm(prev => prev ? { ...prev, safetyStock: Number(e.target.value) } : null)}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-300 mb-1">Std Qty Per Pallet:</label>
-                    <input
-                      type="number"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none"
-                      value={editForm?.stdQtyPerPallet || 80}
-                      onChange={e => setEditForm(prev => prev ? { ...prev, stdQtyPerPallet: Number(e.target.value) } : null)}
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-end space-x-2 pt-2">
-                  <button onClick={() => setEditingId(null)} className="px-3 py-1 text-xs text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg">
-                    ยกเลิก
-                  </button>
-                  <button onClick={handleSave} className="px-4 py-1.5 bg-cyan-600 text-white rounded-lg text-xs font-bold hover:bg-cyan-500 shadow-md transition-all active:scale-95">
-                    บันทึก Model HE
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950 shadow-md">
-              <table className="w-full text-left text-xs text-slate-200">
-                <thead className="bg-slate-900/90 text-slate-300 font-bold uppercase text-[11px] border-b border-slate-800">
-                  <tr>
-                    <th className="px-3.5 py-3">#</th>
-                    <th className="px-3.5 py-3">Model HE</th>
-                    <th className="px-3.5 py-3">Tool Name</th>
-                    <th className="px-3.5 py-3 text-center">Safety Stock (Min)</th>
-                    <th className="px-3.5 py-3 text-center">Std Qty / Pallet</th>
-                    <th className="px-3.5 py-3 text-right">จัดการ</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/80">
-                  {filteredData.map((item, idx) => (
-                    <tr key={item.modelHE} className="hover:bg-slate-900/60 transition-colors">
-                      <td className="px-3.5 py-2.5 text-slate-500 font-mono">{idx + 1}</td>
-                      <td className="px-3.5 py-2.5 font-mono font-black text-white">{item.modelHE}</td>
-                      <td className="px-3.5 py-2.5 font-medium text-slate-200">{item.partName}</td>
-                      <td className="px-3.5 py-2.5 text-center font-mono font-bold text-amber-400">{item.safetyStock.toLocaleString()} U</td>
-                      <td className="px-3.5 py-2.5 text-center font-mono font-bold text-emerald-400">{item.stdQtyPerPallet || 80} U</td>
-                      <td className="px-3.5 py-2.5 text-right">
-                        <div className="inline-flex items-center space-x-1">
-                          <button 
-                            onClick={() => {
-                              setEditingId(item.modelHE);
-                              setEditForm({ ...item });
-                            }} 
-                            className="px-2.5 py-1 rounded-lg text-cyan-300 hover:text-white bg-cyan-950/60 hover:bg-cyan-600 border border-cyan-800/60 transition-all font-bold text-[10.5px] flex items-center space-x-1" 
-                            title="แก้ไขข้อมูล Item"
-                          >
-                            <Edit2 className="w-3 h-3" />
-                            <span>แก้ไข</span>
-                          </button>
-                          <button onClick={() => handleDelete(item.modelHE)} className="p-1.5 rounded-lg text-rose-400 hover:text-rose-200 hover:bg-rose-950/60 border border-transparent hover:border-rose-800/50 transition-all" title="ลบรายการ">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
         {/* TAB 2: USE LINES (ไลน์ผลิต) */}
         {activeTab === 'LINES' && (
           <div className="space-y-4 animate-fadeIn">
             {lineSuccessMsg && (
-              <div className="p-3 bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 rounded-xl text-xs font-bold animate-fadeIn flex items-center justify-between shadow-xs">
+              <div className="p-3 bg-emerald-950/80 border border-emerald-500/50 text-emerald-200 rounded-xl text-xs font-bold animate-fadeIn flex items-center justify-between shadow-md">
                 <div className="flex items-center space-x-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                   <span>{lineSuccessMsg}</span>
                 </div>
-                <button 
-                  onClick={() => setLineSuccessMsg(null)} 
-                  className="text-emerald-400 hover:text-white font-bold text-xs p-1"
-                >
-                  ✕
-                </button>
+                <div className="flex items-center space-x-2">
+                  {lastDeletedLine && (
+                    <button
+                      type="button"
+                      onClick={handleUndoDeleteLine}
+                      className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold shadow-xs transition-all active:scale-95 flex items-center space-x-1"
+                      title="กู้คืนไลน์ที่เพิ่งลบ"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      <span>เลิกทำ (Undo)</span>
+                    </button>
+                  )}
+                  <button 
+                    type="button"
+                    onClick={() => setLineSuccessMsg(null)} 
+                    className="text-emerald-400 hover:text-white font-bold text-xs p-1"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
             )}
 
@@ -1024,17 +957,31 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
         {activeTab === 'TARGET_LINES' && (
           <div className="space-y-4 animate-fadeIn">
             {targetLineSuccessMsg && (
-              <div className="p-3 bg-orange-950/70 border border-orange-500/50 text-amber-200 rounded-xl text-xs font-bold animate-fadeIn flex items-center justify-between shadow-xs">
+              <div className="p-3 bg-orange-950/80 border border-orange-500/50 text-amber-200 rounded-xl text-xs font-bold animate-fadeIn flex items-center justify-between shadow-md">
                 <div className="flex items-center space-x-2">
                   <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
                   <span>{targetLineSuccessMsg}</span>
                 </div>
-                <button 
-                  onClick={() => setTargetLineSuccessMsg(null)} 
-                  className="text-amber-400 hover:text-white font-bold text-xs p-1"
-                >
-                  ✕
-                </button>
+                <div className="flex items-center space-x-2">
+                  {lastDeletedTargetLine && (
+                    <button
+                      type="button"
+                      onClick={handleUndoDeleteTargetLine}
+                      className="px-2.5 py-1 bg-orange-700 hover:bg-orange-600 text-white rounded-lg text-xs font-bold shadow-xs transition-all active:scale-95 flex items-center space-x-1"
+                      title="กู้คืนไลน์ที่เพิ่งลบ"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      <span>เลิกทำ (Undo)</span>
+                    </button>
+                  )}
+                  <button 
+                    type="button"
+                    onClick={() => setTargetLineSuccessMsg(null)} 
+                    className="text-amber-400 hover:text-white font-bold text-xs p-1"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
             )}
 
@@ -1212,181 +1159,53 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
           </div>
         )}
 
-        {/* TAB 4: CREATE RACK & LOCATION MANAGER */}
-        {activeTab === 'RACK_LOCATIONS' && (
-          <div className="space-y-6">
-            {/* Create Rack Form */}
-            {isAddingSlot && (
-              <form onSubmit={handleCreateRackSlot} className="p-4 bg-slate-950 border border-indigo-500/30 rounded-2xl space-y-4 animate-scaleUp shadow-xl">
-                <h3 className="text-sm font-black text-white flex items-center space-x-2">
-                  <FolderPlus className="w-4 h-4 text-indigo-400" />
-                  <span>สร้างช่องจัดเก็บ / Rack / รางเลื่อน / ลานกองพื้นใหม่</span>
-                </h3>
+      </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-300 mb-1">สถานที่ / สถานี (Station):</label>
-                    <select
-                      value={newSlotForm.stationId}
-                      onChange={e => setNewSlotForm({ ...newSlotForm, stationId: e.target.value })}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold text-white focus:ring-2 focus:ring-indigo-500"
-                    >
-                      <option value="STATION_1">🏢 อาคารหลัก: Rack Zone B-K</option>
-                      <option value="STATION_2">🛤️ สถานี 2: รางเลื่อน Flow Rail &amp; ลานกองพื้น</option>
-                      <option value="STATION_3">🏗️ สถานี 3: ลานรับสินค้า &amp; Buffer Staging</option>
-                    </select>
-                  </div>
+      {/* In-app Custom Delete Confirmation Modal */}
+      {confirmDeleteModal && confirmDeleteModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-slate-900 border-2 border-rose-500/50 rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4 text-white animate-scaleUp">
+            <div className="flex items-center space-x-3">
+              <div className="p-3 bg-rose-500/20 text-rose-400 rounded-xl border border-rose-500/30">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-white">{confirmDeleteModal.title}</h3>
+                <p className="text-xs text-rose-300 font-mono font-bold mt-0.5">{confirmDeleteModal.itemName}</p>
+              </div>
+            </div>
 
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-300 mb-1">ประเภทพื้นที่จัดเก็บ (Storage Type):</label>
-                    <select
-                      value={newSlotForm.storageType}
-                      onChange={e => setNewSlotForm({ ...newSlotForm, storageType: e.target.value as StorageLocationType })}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold text-white focus:ring-2 focus:ring-indigo-500"
-                    >
-                      <option value="RACK">📦 Selective Rack (ชั้นวาง 4 ชั้น)</option>
-                      <option value="FLOW_RAIL">🛤️ Flow Rail (รางเลื่อนลูกกลิ้ง FIFO)</option>
-                      <option value="FLOOR_STAGING">🏗️ Floor Staging (ลานวางกองบนพื้น)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-300 mb-1">รหัส Zone / ชื่อช่อง:</label>
-                    <input
-                      type="text"
-                      placeholder="เช่น L, M, RAIL-09, FL-E"
-                      value={newSlotForm.zone}
-                      onChange={e => setNewSlotForm({ ...newSlotForm, zone: e.target.value })}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold uppercase text-white focus:ring-2 focus:ring-indigo-500"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-300 mb-1">จำนวน Bay / Lanes / Blocks:</label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={30}
-                      value={newSlotForm.baysCount}
-                      onChange={e => setNewSlotForm({ ...newSlotForm, baysCount: Number(e.target.value) })}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold text-white focus:ring-2 focus:ring-indigo-500"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-300 mb-1">จำนวนชั้น (Max Levels):</label>
-                    <select
-                      value={newSlotForm.maxLevels}
-                      onChange={e => setNewSlotForm({ ...newSlotForm, maxLevels: Number(e.target.value) })}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold text-white focus:ring-2 focus:ring-indigo-500"
-                    >
-                      <option value={1}>1 ชั้น (Ground / Floor / Flow Rail)</option>
-                      <option value={2}>2 ชั้น (Heavy 2-Tier)</option>
-                      <option value={3}>3 ชั้น (3-Tier Rack)</option>
-                      <option value={4}>4 ชั้น (Standard Selective Rack)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-300 mb-1">ความจุต่อชั้น (Pallets / Level):</label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={10}
-                      value={newSlotForm.capacityPerLevel}
-                      onChange={e => setNewSlotForm({ ...newSlotForm, capacityPerLevel: Number(e.target.value) })}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold text-white focus:ring-2 focus:ring-indigo-500"
-                      required
-                    />
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <label className="block text-[11px] font-bold text-slate-300 mb-1">คำอธิบายเพิ่มเติม:</label>
-                    <input
-                      type="text"
-                      placeholder="เช่น ช่องจัดเก็บส่วนต่อขยาย สำหรับชิ้นส่วนพิเศษ"
-                      value={newSlotForm.description}
-                      onChange={e => setNewSlotForm({ ...newSlotForm, description: e.target.value })}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:ring-2 focus:ring-indigo-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end space-x-2 pt-2 border-t border-slate-800">
-                  <button
-                    type="button"
-                    onClick={() => setIsAddingSlot(false)}
-                    className="px-3 py-1.5 text-xs text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg"
-                  >
-                    ยกเลิก
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold shadow-md transition-all active:scale-95"
-                  >
-                    บันทึกสร้างช่องใหม่
-                  </button>
-                </div>
-              </form>
+            {confirmDeleteModal.warningText && (
+              <div className="p-3 bg-amber-950/40 border border-amber-500/40 rounded-xl text-xs text-amber-200 flex items-start space-x-2">
+                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <span>{confirmDeleteModal.warningText}</span>
+              </div>
             )}
 
-            {/* Existing Custom Slots Table */}
-            <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950 shadow-md">
-              <table className="w-full text-left text-xs text-slate-200">
-                <thead className="bg-slate-900/90 text-slate-300 font-bold uppercase text-[11px] border-b border-slate-800">
-                  <tr>
-                    <th className="px-3.5 py-3">รหัสช่อง / Zone</th>
-                    <th className="px-3.5 py-3">ประเภทพื้นที่</th>
-                    <th className="px-3.5 py-3">สถานีจัดเก็บ</th>
-                    <th className="px-3.5 py-3 text-center">จำนวน Bay</th>
-                    <th className="px-3.5 py-3 text-center">ชั้น (Levels)</th>
-                    <th className="px-3.5 py-3 text-center">ความจุรวม (Pallets)</th>
-                    <th className="px-3.5 py-3">สถานะ</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/80">
-                  {customSlots.map((slot) => (
-                    <tr key={slot.id} className="hover:bg-slate-900/60 transition-colors">
-                      <td className="px-3.5 py-2.5 font-mono font-bold text-white">
-                        {slot.zone} <span className="text-slate-500 font-normal text-[10px]">({slot.id})</span>
-                      </td>
-                      <td className="px-3.5 py-2.5">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                          slot.storageType === 'RACK' 
-                            ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' 
-                            : slot.storageType === 'FLOW_RAIL'
-                            ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-                            : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                        }`}>
-                          {slot.storageType === 'RACK' ? '📦 Selective Rack' : slot.storageType === 'FLOW_RAIL' ? '🛤️ Flow Rail' : '🏗️ Floor Staging'}
-                        </span>
-                      </td>
-                      <td className="px-3.5 py-2.5 text-slate-300 font-medium">
-                        {slot.stationId === 'STATION_1' ? '🏢 อาคารหลัก' : '🛤️ สถานี 2'}
-                      </td>
-                      <td className="px-3.5 py-2.5 text-center font-mono font-bold text-white">{slot.bayNumber}</td>
-                      <td className="px-3.5 py-2.5 text-center font-mono font-bold text-white">{slot.maxLevels}</td>
-                      <td className="px-3.5 py-2.5 text-center font-mono font-bold text-blue-400">
-                        {slot.bayNumber * slot.maxLevels * slot.capacityPerLevel} P
-                      </td>
-                      <td className="px-3.5 py-2.5">
-                        <span className="inline-flex items-center space-x-1 px-2 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded text-[10px] font-extrabold">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                          <span>พร้อมใช้งาน</span>
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <p className="text-xs text-slate-300">
+              คุณแน่ใจหรือไม่ว่าต้องการลบรายการนี้ออกจากระบบอย่างถาวร?
+            </p>
+
+            <div className="flex items-center justify-end space-x-2.5 pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteModal(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 transition-colors"
+              >
+                ยกเลิก (Cancel)
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteModal.onConfirm}
+                className="px-4 py-2 rounded-xl text-xs font-black text-white bg-rose-600 hover:bg-rose-500 shadow-md flex items-center space-x-1.5 transition-all active:scale-95 border border-rose-400/30"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>ยืนยันการลบ (Delete)</span>
+              </button>
             </div>
           </div>
-        )}
-
-
-      </div>
+        </div>
+      )}
     </div>
   );
 };
