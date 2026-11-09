@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { InventoryItem, MovementLog, WmsStats, AgingThresholdConfig } from '../types';
 import { 
   ZoneKey, 
@@ -44,10 +44,42 @@ export const ZoneKpiFormalDashboard: React.FC<ZoneKpiFormalDashboardProps> = ({
   agingConfig,
   className = ''
 }) => {
+  // Dynamic state for aging configuration from props or localStorage
+  const [activeAgingConfig, setActiveAgingConfig] = useState<AgingThresholdConfig | undefined>(() => {
+    if (agingConfig) return agingConfig;
+    try {
+      const saved = localStorage.getItem('lge_wms_aging_config');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return undefined;
+  });
+
+  // Sync state if agingConfig prop changes or custom event fires
+  useEffect(() => {
+    if (agingConfig) {
+      setActiveAgingConfig(agingConfig);
+      return;
+    }
+    const updateFromStorage = () => {
+      try {
+        const saved = localStorage.getItem('lge_wms_aging_config');
+        if (saved) {
+          setActiveAgingConfig(JSON.parse(saved));
+        }
+      } catch {}
+    };
+    window.addEventListener('lge_aging_config_updated', updateFromStorage as EventListener);
+    window.addEventListener('storage', updateFromStorage);
+    return () => {
+      window.removeEventListener('lge_aging_config_updated', updateFromStorage as EventListener);
+      window.removeEventListener('storage', updateFromStorage);
+    };
+  }, [agingConfig]);
+
   // Calculate zone-specific KPI values
   const kpiData: ZoneKpiData = useMemo(() => {
-    return calculateZoneKpis(items, logs, zoneKey, agingConfig, stats);
-  }, [items, logs, zoneKey, agingConfig, stats]);
+    return calculateZoneKpis(items, logs, zoneKey, activeAgingConfig, stats);
+  }, [items, logs, zoneKey, activeAgingConfig, stats]);
 
   const netMovement = kpiData.todayInScans - kpiData.todayOutScans;
 
@@ -62,6 +94,9 @@ export const ZoneKpiFormalDashboard: React.FC<ZoneKpiFormalDashboardProps> = ({
       return next;
     });
   };
+
+  const safeDaysMax = activeAgingConfig?.safeDaysMax ?? 14;
+  const criticalDays = activeAgingConfig?.criticalDays ?? 30;
 
   return (
     <footer 
@@ -162,19 +197,19 @@ export const ZoneKpiFormalDashboard: React.FC<ZoneKpiFormalDashboardProps> = ({
             <div className="min-w-0 text-sm flex-1">
               <div className="flex items-center justify-between mb-1">
                 <span className="font-black text-slate-100 text-sm sm:text-base">อายุสต็อก (FIFO/Aging)</span>
-                <span className="text-rose-300 text-xs font-mono font-black">เกิน 30 วัน: {kpiData.agingOverdueCount} P</span>
+                <span className="text-rose-300 text-xs font-mono font-black">เกิน {criticalDays} วัน: {kpiData.agingOverdueCount} P</span>
               </div>
               <div className="grid grid-cols-3 gap-1.5 font-mono text-xs sm:text-sm font-black tabular-nums">
                 <div className="bg-slate-900/80 border border-emerald-500/40 rounded-lg px-2 py-1 text-center">
-                  <span className="text-[10px] text-slate-300 block font-normal">&lt;14วัน</span>
+                  <span className="text-[10px] text-slate-300 block font-normal">&le;{safeDaysMax}วัน</span>
                   <span className="text-emerald-300">{kpiData.agingSafeCount}</span>
                 </div>
                 <div className="bg-slate-900/80 border border-amber-500/40 rounded-lg px-2 py-1 text-center">
-                  <span className="text-[10px] text-slate-300 block font-normal">15-30</span>
+                  <span className="text-[10px] text-slate-300 block font-normal">{safeDaysMax + 1}-{criticalDays}</span>
                   <span className="text-amber-300">{kpiData.agingWarningCount}</span>
                 </div>
                 <div className="bg-slate-900/80 border border-rose-500/40 rounded-lg px-2 py-1 text-center">
-                  <span className="text-[10px] text-slate-300 block font-normal">&gt;30วัน</span>
+                  <span className="text-[10px] text-slate-300 block font-normal">&gt;{criticalDays}วัน</span>
                   <span className="text-rose-300">{kpiData.agingOverdueCount}</span>
                 </div>
               </div>

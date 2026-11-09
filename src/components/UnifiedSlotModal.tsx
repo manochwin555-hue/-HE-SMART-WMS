@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { InventoryItem, MovementType, ShelfLevel, StorageZone } from '../types';
 import { useTranslation } from '../i18n/i18nContext';
 import { 
@@ -23,6 +23,7 @@ import {
   LayoutGrid
 } from 'lucide-react';
 import { getModelStdCapacity, evaluatePalletCapacity } from '../utils/inventoryConsistency';
+import { resolveCanonicalCoordinate } from '../utils/locatorUtils';
 
 export interface UnifiedSlotData {
   sectorType: 'RACK' | 'FLOOR_STAGING' | 'FLOW_RAIL' | 'TENT';
@@ -54,7 +55,6 @@ interface UnifiedSlotModalProps {
   ) => void;
   onRelocateItem?: (item: InventoryItem) => void;
   onOpen3D?: (zone: StorageZone, bay: number) => void;
-  onPrintLabel?: (item: InventoryItem) => void;
 }
 
 export const UnifiedSlotModal: React.FC<UnifiedSlotModalProps> = ({
@@ -63,21 +63,62 @@ export const UnifiedSlotModal: React.FC<UnifiedSlotModalProps> = ({
   slotData,
   onOpenScanner,
   onRelocateItem,
-  onOpen3D,
-  onPrintLabel
+  onOpen3D
 }) => {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const [selectedLevel, setSelectedLevel] = useState<ShelfLevel>(1);
+  const [selectedPalletPos, setSelectedPalletPos] = useState<'P1' | 'P2'>('P1');
 
-  // Sync selectedLevel when slotData changes
+  // Sync selectedLevel and selectedPalletPos when slotData changes
   useEffect(() => {
     if (slotData?.level) {
-      setSelectedLevel(slotData.level);
+      setSelectedLevel(slotData.level as ShelfLevel);
     } else {
       setSelectedLevel(1);
     }
-  }, [slotData?.level, slotData?.locatorCode]);
+    if (slotData?.locatorCode) {
+      const upper = slotData.locatorCode.toUpperCase();
+      if (upper.includes('-P2')) setSelectedPalletPos('P2');
+      else setSelectedPalletPos('P1');
+    } else if (slotData?.item?.palletPosition) {
+      setSelectedPalletPos(slotData.item.palletPosition === 'P2' ? 'P2' : 'P1');
+    } else {
+      setSelectedPalletPos('P1');
+    }
+  }, [slotData?.level, slotData?.locatorCode, slotData?.item]);
+
+  // Determine active item strictly matching selectedLevel AND selectedPalletPos
+  const currentItem = useMemo(() => {
+    if (!slotData) return null;
+    const { sectorType, item, bayItems = [] } = slotData;
+    if (sectorType === 'RACK' && bayItems && bayItems.length > 0) {
+      const match = bayItems.find(it => {
+        const res = resolveCanonicalCoordinate({
+          zone: it.zone,
+          bayNumber: it.bayNumber,
+          level: it.level,
+          palletPosition: it.palletPosition,
+          locatorCode: it.locatorCode
+        });
+        return res.level === selectedLevel && (res.palletPosition || 'P1') === selectedPalletPos;
+      });
+      if (match) return match;
+    }
+    if (slotData.item) {
+      const res = resolveCanonicalCoordinate({
+        zone: slotData.item.zone,
+        bayNumber: slotData.item.bayNumber,
+        level: slotData.item.level,
+        palletPosition: slotData.item.palletPosition,
+        locatorCode: slotData.item.locatorCode
+      });
+      if (res.level === selectedLevel && (res.palletPosition || 'P1') === selectedPalletPos) {
+        return slotData.item;
+      }
+    }
+    return null;
+  }, [slotData, selectedLevel, selectedPalletPos]);
 
   if (!isOpen || !slotData) return null;
 
@@ -94,12 +135,6 @@ export const UnifiedSlotModal: React.FC<UnifiedSlotModalProps> = ({
     item,
     bayItems = []
   } = slotData;
-
-  // Determine active item if multi-level bay
-  const isMultiLevel = sectorType === 'RACK' && bayItems.length > 0;
-  const currentItem = isMultiLevel 
-    ? (bayItems.find(it => it.level === selectedLevel) || null)
-    : item;
 
   const handleCopyLocator = () => {
     navigator.clipboard.writeText(locatorCode);
@@ -156,13 +191,15 @@ export const UnifiedSlotModal: React.FC<UnifiedSlotModalProps> = ({
   const theme = getSectorTheme();
   const IconComponent = theme.icon;
 
-  // Active locator code that dynamically reflects selected level (computed directly without conditional hook)
-  let activeLocatorCode = locatorCode || '';
-  if (locatorCode && isMultiLevel) {
-    if (locatorCode.match(/-L[1-4]$/i)) {
-      activeLocatorCode = locatorCode.replace(/-L[1-4]$/i, `-L${selectedLevel}`);
+  let activeLocatorCode = (locatorCode || '').trim();
+  if (activeLocatorCode && sectorType === 'RACK') {
+    const levelPattern = /-L\d+(?:-P[12])?$/i;
+    const levelMatch = activeLocatorCode.match(levelPattern);
+    
+    if (levelMatch) {
+      activeLocatorCode = activeLocatorCode.replace(levelPattern, `-L${selectedLevel}-${selectedPalletPos}`);
     } else {
-      activeLocatorCode = `${locatorCode}-L${selectedLevel}`;
+      activeLocatorCode = `${activeLocatorCode}-L${selectedLevel}-${selectedPalletPos}`;
     }
   }
 
@@ -171,22 +208,21 @@ export const UnifiedSlotModal: React.FC<UnifiedSlotModalProps> = ({
     let z: StorageZone = 'B';
     let b = 1;
     let l: ShelfLevel = (selectedLevel as ShelfLevel) || (level as ShelfLevel) || 1;
-    let pPos: string | undefined = undefined;
+    let pPos: string = selectedPalletPos;
 
     if (activeLocatorCode.includes('-P2')) pPos = 'P2';
     else if (activeLocatorCode.includes('-P1')) pPos = 'P1';
-    else if (currentItem?.palletPosition) pPos = currentItem.palletPosition;
 
     if (sectorType === 'RACK') {
-      // Check CY3 locator: e.g. DY3T-1.01-A1-L1 or CY3-A
       if (activeLocatorCode.includes('DY3T') || (facilityId && facilityId.includes('CY3')) || zoneName.includes('CY3')) {
-        const cy3Match = activeLocatorCode.match(/DY3T-1\.0([1-4])-(?:([A-D]))?(\d+)(?:-L(\d))?/i);
+        const cy3Match = activeLocatorCode.match(/DY3T-1\.0([1-4])-(?:([A-D]))?(\d+)(?:-L(\d))?(?:-P([12]))?/i);
         if (cy3Match) {
           const numCode = cy3Match[1];
           const letter = cy3Match[2] || (numCode === '1' ? 'A' : numCode === '2' ? 'B' : numCode === '3' ? 'C' : 'D');
           z = `CY3-${letter}` as StorageZone;
           b = parseInt(cy3Match[3], 10);
           if (cy3Match[4]) l = parseInt(cy3Match[4], 10) as ShelfLevel;
+          if (cy3Match[5]) pPos = `P${cy3Match[5]}`;
         } else if (zoneName.includes('Row A') || zoneName.includes('1.01')) {
           z = 'CY3-A';
           b = typeof bayOrGroupNumber === 'number' ? bayOrGroupNumber : 1;
@@ -201,11 +237,12 @@ export const UnifiedSlotModal: React.FC<UnifiedSlotModalProps> = ({
           b = typeof bayOrGroupNumber === 'number' ? bayOrGroupNumber : 1;
         }
       } else {
-        const match = activeLocatorCode.match(/([B-K])(\d+)(?:-L(\d))?/i);
+        const match = activeLocatorCode.match(/([B-K])(\d+)(?:-L(\d))?(?:-P([12]))?/i);
         if (match) {
           z = match[1].toUpperCase() as StorageZone;
           b = parseInt(match[2], 10);
           if (match[3]) l = parseInt(match[3], 10) as ShelfLevel;
+          if (match[4]) pPos = `P${match[4]}`;
         }
       }
     } else if (sectorType === 'FLOW_RAIL') {
@@ -288,34 +325,88 @@ export const UnifiedSlotModal: React.FC<UnifiedSlotModalProps> = ({
           </button>
         </div>
 
-        {/* MULTI-LEVEL RACK SELECTOR (If multi-level bay) */}
-        {isMultiLevel && (
-          <div className="bg-slate-950/60 px-3 py-1.5 border-b border-slate-800 flex items-center justify-between text-xs shrink-0">
-            <span className="text-slate-400 font-bold text-[11px] flex items-center gap-1">
-              <Layers className="w-3.5 h-3.5 text-blue-400" />
-              <span>เลือกระดับชั้น (Rack L1-L4):</span>
-            </span>
-            <div className="flex items-center gap-1">
-              {([4, 3, 2, 1] as ShelfLevel[]).map((lvl) => {
-                const lvlItem = bayItems.find(it => it.level === lvl);
-                const isSelected = selectedLevel === lvl;
-                return (
-                  <button
-                    key={lvl}
-                    onClick={() => setSelectedLevel(lvl)}
-                    className={`h-6 px-2 rounded font-mono font-bold text-[11px] transition-all flex items-center gap-1 ${
-                      isSelected
-                        ? 'bg-blue-600 text-white shadow-xs ring-1 ring-blue-400'
-                        : lvlItem
-                        ? 'bg-slate-800 text-slate-200 border border-slate-700 hover:bg-slate-700'
-                        : 'bg-slate-900 text-slate-500 border border-slate-800 hover:text-slate-300'
-                    }`}
-                  >
-                    <span>L{lvl}</span>
-                    <span className={`w-1.5 h-1.5 rounded-full ${lvlItem ? 'bg-amber-400' : 'bg-slate-600'}`} />
-                  </button>
-                );
-              })}
+        {/* MULTI-LEVEL RACK & PALLET POSITION SELECTOR */}
+        {sectorType === 'RACK' && (
+          <div className="bg-slate-950/80 px-3 py-2 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs shrink-0">
+            {/* Level Selector */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400 font-bold text-[11px] flex items-center gap-1">
+                <Layers className="w-3.5 h-3.5 text-blue-400" />
+                <span>ระดับชั้น:</span>
+              </span>
+              <div className="flex items-center gap-1">
+                {([4, 3, 2, 1] as ShelfLevel[]).map((lvl) => {
+                  const isSelected = selectedLevel === lvl;
+                  const hasItemAtLvl = bayItems.some(it => {
+                    const res = resolveCanonicalCoordinate({
+                      zone: it.zone,
+                      bayNumber: it.bayNumber,
+                      level: it.level,
+                      palletPosition: it.palletPosition,
+                      locatorCode: it.locatorCode
+                    });
+                    return res.level === lvl && (res.palletPosition || 'P1') === selectedPalletPos;
+                  });
+
+                  return (
+                    <button
+                      key={lvl}
+                      onClick={() => setSelectedLevel(lvl)}
+                      className={`h-6 px-2 rounded font-mono font-bold text-[11px] transition-all flex items-center gap-1 ${
+                        isSelected
+                          ? 'bg-blue-600 text-white shadow-xs ring-1 ring-blue-400'
+                          : hasItemAtLvl
+                          ? 'bg-slate-800 text-slate-200 border border-slate-700 hover:bg-slate-700'
+                          : 'bg-slate-900 text-slate-500 border border-slate-800 hover:text-slate-300'
+                      }`}
+                    >
+                      <span>L{lvl}</span>
+                      <span className={`w-1.5 h-1.5 rounded-full ${hasItemAtLvl ? 'bg-amber-400' : 'bg-slate-600'}`} />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Pallet Position Selector (P1 / P2) */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400 font-bold text-[11px] flex items-center gap-1">
+                <Box className="w-3.5 h-3.5 text-cyan-400" />
+                <span>ตำแหน่ง:</span>
+              </span>
+              <div className="flex items-center gap-1">
+                {(['P1', 'P2'] as const).map((pos) => {
+                  const isSelected = selectedPalletPos === pos;
+                  const hasItemAtPos = bayItems.some(it => {
+                    const res = resolveCanonicalCoordinate({
+                      zone: it.zone,
+                      bayNumber: it.bayNumber,
+                      level: it.level,
+                      palletPosition: it.palletPosition,
+                      locatorCode: it.locatorCode
+                    });
+                    return res.level === selectedLevel && (res.palletPosition || 'P1') === pos;
+                  });
+
+                  return (
+                    <button
+                      key={pos}
+                      onClick={() => setSelectedPalletPos(pos)}
+                      className={`h-6 px-2.5 rounded font-mono font-bold text-[11px] transition-all flex items-center gap-1 ${
+                        isSelected
+                          ? 'bg-cyan-600 text-white shadow-xs ring-1 ring-cyan-400'
+                          : hasItemAtPos
+                          ? 'bg-slate-800 text-cyan-300 border border-slate-700 hover:bg-slate-700'
+                          : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200'
+                      }`}
+                      title={pos === 'P1' ? 'ตำแหน่งที่ 1 (ซ้าย)' : 'ตำแหน่งที่ 2 (ขวา)'}
+                    >
+                      <span>{pos}</span>
+                      <span className={`w-1.5 h-1.5 rounded-full ${hasItemAtPos ? 'bg-cyan-400' : 'bg-slate-600'}`} />
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
@@ -484,20 +575,7 @@ export const UnifiedSlotModal: React.FC<UnifiedSlotModalProps> = ({
                   </button>
                 )}
 
-                {onPrintLabel && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onPrintLabel(currentItem);
-                      onClose();
-                    }}
-                    className="h-9 px-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold rounded-lg border border-slate-700 flex items-center gap-1 transition-all shrink-0"
-                    title="พิมพ์ฉลาก KANBAN"
-                  >
-                    <Printer className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">พิมพ์ฉลาก</span>
-                  </button>
-                )}
+
               </div>
 
               <button

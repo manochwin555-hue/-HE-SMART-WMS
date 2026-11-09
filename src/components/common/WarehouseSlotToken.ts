@@ -139,8 +139,30 @@ export function evaluateSlotStatus(
   item: InventoryItem | null | undefined,
   isSearchMatch = false,
   warningDaysThreshold = 14,
-  criticalDaysThreshold = 30
+  criticalDaysThreshold = 28
 ): SlotStatusResult {
+  let wMin = 22;
+  let wMax = 24;
+  let uMin = 25;
+  let uMax = 27;
+  let dueDay = 28;
+  let cThresh = criticalDaysThreshold;
+
+  try {
+    const saved = localStorage.getItem('lge_wms_aging_config');
+    if (saved) {
+      const cfg = JSON.parse(saved);
+      if (cfg.warningDaysMin !== undefined) wMin = cfg.warningDaysMin;
+      if (cfg.warningDaysMax !== undefined) wMax = cfg.warningDaysMax;
+      if (cfg.urgentDaysMin !== undefined) uMin = cfg.urgentDaysMin;
+      if (cfg.urgentDaysMax !== undefined) uMax = cfg.urgentDaysMax;
+      if (cfg.dueDay !== undefined) dueDay = cfg.dueDay;
+      if (cfg.criticalDays !== undefined) cThresh = cfg.criticalDays;
+    }
+  } catch {
+    // fallback
+  }
+
   // 1. Determine underlying status
   let baseStatus: SlotStatusType = 'EMPTY';
   let bgHex: string = COLOR_TOKENS.EMPTY.bg;
@@ -155,13 +177,14 @@ export function evaluateSlotStatus(
 
   if (item) {
     isOccupied = true;
+    const days = item.agingDays ?? 0;
 
     if (
       item.agingStatus === 'EXPIRED' ||
       item.agingStatus === 'CONDITION_NG' ||
       (item.wrappingCondition && ['TORN', 'LOOSE', 'WET', 'CONTAMINATED', 'OPEN'].includes(item.wrappingCondition)) ||
       item.agingStatus === 'OVERDUE' ||
-      item.agingDays > criticalDaysThreshold
+      days > cThresh
     ) {
       baseStatus = item.agingStatus === 'EXPIRED' ? 'EXPIRED' : 'OVERDUE_CRITICAL';
       bgHex = COLOR_TOKENS.OVERDUE_CRITICAL.bg;
@@ -171,7 +194,16 @@ export function evaluateSlotStatus(
       label = COLOR_TOKENS.OVERDUE_CRITICAL.label;
       isAging = true;
       isOverdue = true;
-    } else if (item.agingStatus === 'URGENT') {
+    } else if (item.agingStatus === 'DUE_TODAY' || days === dueDay) {
+      baseStatus = 'OVERDUE_CRITICAL';
+      bgHex = COLOR_TOKENS.OVERDUE_CRITICAL.bg;
+      borderHex = COLOR_TOKENS.OVERDUE_CRITICAL.border;
+      textColorHex = COLOR_TOKENS.OVERDUE_CRITICAL.text;
+      glowHex = COLOR_TOKENS.OVERDUE_CRITICAL.glow;
+      label = `ครบกำหนดวันนี้ (Day ${dueDay})`;
+      isAging = true;
+      isOverdue = true;
+    } else if (item.agingStatus === 'URGENT' || (days >= uMin && days <= uMax)) {
       baseStatus = 'URGENT';
       bgHex = COLOR_TOKENS.URGENT.bg;
       borderHex = COLOR_TOKENS.URGENT.border;
@@ -180,7 +212,7 @@ export function evaluateSlotStatus(
       label = COLOR_TOKENS.URGENT.label;
       isAging = true;
       isUrgent = true;
-    } else if (item.agingStatus === 'WARNING' || item.agingDays > warningDaysThreshold) {
+    } else if (item.agingStatus === 'WARNING' || (days >= wMin && days <= wMax) || days > warningDaysThreshold) {
       baseStatus = 'AGING_WARNING';
       bgHex = COLOR_TOKENS.AGING_WARNING.bg;
       borderHex = COLOR_TOKENS.AGING_WARNING.border;

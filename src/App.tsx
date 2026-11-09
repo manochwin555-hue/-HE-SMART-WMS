@@ -70,24 +70,77 @@ export default function App() {
     localStorage.setItem('theme', 'dark');
   }, [themeMode]);
 
-  const [masterData, setMasterData] = useState<MasterDataItem[]>(initialMasterData);
-  const [useLines, setUseLines] = useState<UseLineMaster[]>(() => {
-    const saved = localStorage.getItem('lge_wms_use_lines');
+  const DEFAULT_LINES: UseLineMaster[] = [
+    { id: 'HE1', name: 'Line HE1', description: 'สายการผลิตเครื่องทำความร้อน HE1 (โรง A2)' },
+    { id: 'HE2', name: 'Line HE2', description: 'สายการผลิตเครื่องทำความร้อน HE2 (โรง A2)' },
+    { id: 'HE3', name: 'Line HE3', description: 'สายการผลิตเครื่องทำความร้อน HE3 (โรง A2)' },
+    { id: 'HE4', name: 'Line HE4', description: 'สายการผลิตเครื่องทำความร้อน HE4 (โรง A4)' },
+    { id: 'HE5', name: 'Line HE5', description: 'สายการผลิตเครื่องทำความร้อน HE5 (โรง A4)' },
+    { id: 'Y1', name: 'Line Y1', description: 'สายการผลิตคอยล์/ท่อ Y1' },
+    { id: 'Y2', name: 'Line Y2', description: 'สายการผลิตคอยล์/ท่อ Y2' },
+    { id: 'Y3', name: 'Line Y3', description: 'สายการผลิตคอยล์/ท่อ Y3' },
+    { id: 'Y4', name: 'Line Y4', description: 'สายการผลิตคอยล์/ท่อ Y4' },
+    { id: 'Y5', name: 'Line Y5', description: 'สายการผลิตคอยล์/ท่อ Y5' },
+    { id: 'REPAIR', name: 'Line Repair', description: 'โซนงานซ่อมแก้ไข (Repair Station)' },
+  ];
+
+  const [masterData, setMasterData] = useState<MasterDataItem[]>(() => {
+    const saved = localStorage.getItem('lge_wms_master_data');
+    const seen = new Set<string>();
+    const merged: MasterDataItem[] = [];
+
+    // Prioritize clean INITIAL_MASTER_DATA with 100% accurate parts, tools and capacities
+    for (const item of INITIAL_MASTER_DATA) {
+      const key = item.modelHE.trim().toUpperCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        merged.push(item);
+      }
+    }
+
+    // Preserve any custom user-added parts from localStorage
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          for (const it of parsed) {
+            if (!it || !it.modelHE) continue;
+            const key = it.modelHE.trim().toUpperCase();
+            if (!seen.has(key)) {
+              seen.add(key);
+              merged.push(it);
+            }
+          }
+        }
       } catch (e) {
         // ignore
       }
     }
-    return [
-      { id: 'HE1', name: 'Line HE1', description: 'สายการผลิตเครื่องทำความร้อน HE1 (โรง A2)' },
-      { id: 'HE2', name: 'Line HE2', description: 'สายการผลิตเครื่องทำความร้อน HE2 (โรง A2)' },
-      { id: 'HE3', name: 'Line HE3', description: 'สายการผลิตเครื่องทำความร้อน HE3 (โรง A2)' },
-      { id: 'HE4', name: 'Line HE4', description: 'สายการผลิตเครื่องทำความร้อน HE4 (โรง A4)' },
-      { id: 'HE5', name: 'Line HE5', description: 'สายการผลิตเครื่องทำความร้อน HE5 (โรง A4)' },
-      { id: 'REPAIR', name: 'Line Repair', description: 'โซนงานซ่อมแก้ไข (Repair Station)' },
-    ];
+    return merged;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('lge_wms_master_data', JSON.stringify(masterData));
+  }, [masterData]);
+
+  const [useLines, setUseLines] = useState<UseLineMaster[]>(() => {
+    const saved = localStorage.getItem('lge_wms_use_lines');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const lineMap = new Map<string, UseLineMaster>();
+          DEFAULT_LINES.forEach(l => lineMap.set(l.id, l));
+          parsed.forEach((l: UseLineMaster) => {
+            if (l && l.id) lineMap.set(l.id, l);
+          });
+          return Array.from(lineMap.values());
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+    return DEFAULT_LINES;
   });
 
   useEffect(() => {
@@ -98,7 +151,14 @@ export default function App() {
     const saved = localStorage.getItem('lge_wms_target_use_lines');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const map = new Map<string, TargetUseLineMaster>();
+          parsed.forEach((l: TargetUseLineMaster) => {
+            if (l && l.id) map.set(l.id.trim().toUpperCase(), { ...l, id: l.id.trim().toUpperCase() });
+          });
+          return Array.from(map.values());
+        }
       } catch (e) {
         // ignore
       }
@@ -197,7 +257,6 @@ export default function App() {
   const [globalSearchQuery, setGlobalSearchQuery] = useState<string>('');
   const [a4InitialTab, setA4InitialTab] = useState<'FLOOR_DA4D1' | 'RACK_ZONES' | 'FULL3D'>('FULL3D');
   const [a5InitialTent, setA5InitialTent] = useState<number | undefined>(undefined);
-  const [selectedPrintItemId, setSelectedPrintItemId] = useState<string>('');
 
   // Dynamic Aging Threshold Config State (New 5-Level 28-day standard)
   const [agingConfig, setAgingConfig] = useState<AgingThresholdConfig>(() => {
@@ -929,7 +988,7 @@ export default function App() {
         )}
 
         {/* Main Content Container (No window scroll on Zone Views, fits screen perfectly) */}
-        <main className={`w-full flex-1 ${isZoneTab ? 'overflow-hidden p-1 sm:p-1.5' : 'overflow-y-auto px-2 sm:px-3 lg:px-4 py-2 sm:py-2.5 space-y-3'} transition-all flex flex-col min-h-0`}>
+        <main className={`w-full flex-1 ${isZoneTab ? 'overflow-hidden p-0' : 'overflow-hidden px-1 sm:px-2 min-h-0'} transition-all flex flex-col`}>
 
           {/* Dynamic Tab Views: Unified Master Map ("ผังรวม") - Pure 3D Digital Twin Layout */}
           {(activeTab === 'campus_overview' || activeTab === 'blueprint') && (
@@ -942,7 +1001,7 @@ export default function App() {
                 logs={logs}
                 agingConfig={agingConfig}
                 onNavigateToZone={handleCampusZoneNavigation}
-                onOpenScanner={(z, b, l, m) => handleOpenScanner(z as any, b, l as any, m || 'IN')}
+                onOpenScanner={(z, b, l, m, loc, pos, item) => handleOpenScanner(z as any, b, l as any, m || 'IN', loc, pos, item)}
                 onOpen3D={(z, b) => handleOpen3DForBay(z as any, b)}
               />
             </div>
@@ -956,9 +1015,9 @@ export default function App() {
                 items={displayedItems}
                 logs={logs}
                 searchQuery={globalSearchQuery}
-                onOpenScanner={(z, b, l, m) => handleOpenScanner(z, b, l, m)}
+                onOpenScanner={(z, b, l, m, loc, pos, item) => handleOpenScanner(z, b, l, m, loc, pos, item)}
                 onRelocateItem={(item) => {
-                  handleOpenScanner(item.zone, item.bayNumber, item.level, 'TRANSFER');
+                  handleOpenScanner(item.zone, item.bayNumber, item.level, 'TRANSFER', item.locatorCode, item.palletPosition, item);
                 }}
                 onNavigateToRack={() => setActiveTab('a4_rack')}
                 onNavigateToCampus={() => setActiveTab('campus_overview')}
@@ -978,9 +1037,9 @@ export default function App() {
                 initialSectionTab={a4InitialTab}
                 onSelectBay={(z, b) => handleOpen3DForBay(z, b)}
                 onOpen3D={(z, b) => handleOpen3DForBay(z, b)}
-                onOpenScanner={(z, b, l, m) => handleOpenScanner(z, b, l, m)}
+                onOpenScanner={(z, b, l, m, loc, pos, item) => handleOpenScanner(z, b, l, m, loc, pos, item)}
                 onRelocateItem={(item) => {
-                  handleOpenScanner(item.zone, item.bayNumber, item.level, 'TRANSFER');
+                  handleOpenScanner(item.zone, item.bayNumber, item.level, 'TRANSFER', item.locatorCode, item.palletPosition, item);
                 }}
                 onNavigateToFloor={() => setActiveTab('a4_floor')}
                 onNavigateToCampus={() => setActiveTab('campus_overview')}
@@ -1000,9 +1059,9 @@ export default function App() {
                   setScannerBay(b);
                   setScannerLevel(l as ShelfLevel);
                 }}
-                onOpenScanner={(z, b, l, m) => handleOpenScanner(z, b, l, m)}
+                onOpenScanner={(z, b, l, m, loc, pos, item) => handleOpenScanner(z, b, l, m, loc, pos, item)}
                 onRelocateItem={(item) => {
-                  handleOpenScanner(item.zone, item.bayNumber, item.level, 'TRANSFER');
+                  handleOpenScanner(item.zone, item.bayNumber, item.level, 'TRANSFER', item.locatorCode, item.palletPosition, item);
                 }}
                 onNavigateToCampus={() => setActiveTab('campus_overview')}
               />
@@ -1022,9 +1081,9 @@ export default function App() {
                   setScannerBay(groupNumber);
                   setScannerLevel(1 as ShelfLevel);
                 }}
-                onOpenScanner={(z, b, l, m) => handleOpenScanner(z, b, l, m)}
+                onOpenScanner={(z, b, l, m, loc, pos, item) => handleOpenScanner(z, b, l, m, loc, pos, item)}
                 onRelocateItem={(item) => {
-                  handleOpenScanner(item.zone, item.bayNumber, item.level, 'TRANSFER');
+                  handleOpenScanner(item.zone, item.bayNumber, item.level, 'TRANSFER', item.locatorCode, item.palletPosition, item);
                 }}
                 onNavigateToCampus={() => setActiveTab('campus_overview')}
               />
@@ -1037,21 +1096,17 @@ export default function App() {
                 items={displayedItems}
                 logs={logs}
                 searchQuery={globalSearchQuery}
-                onOpenScanner={(z, b, l, m) => handleOpenScanner(z, b, l, m)}
+                onOpenScanner={(z, b, l, m, loc, pos, item) => handleOpenScanner(z, b, l, m, loc, pos, item)}
                 onRelocateItem={(item) => {
-                  handleOpenScanner(item.zone, item.bayNumber, item.level, 'TRANSFER');
+                  handleOpenScanner(item.zone, item.bayNumber, item.level, 'TRANSFER', item.locatorCode, item.palletPosition, item);
                 }}
                 onNavigateToCampus={() => setActiveTab('campus_overview')}
-                onPrintLabel={(item) => {
-                  setSelectedPrintItemId(item.id);
-                  setActiveTab('printer');
-                }}
               />
             </div>
           )}
 
           {activeTab === 'inventory' && (
-            <div className="animate-fadeIn">
+            <div className="animate-fadeIn flex-1 flex flex-col min-h-0">
               <InventoryListPanel
                 items={displayedItems}
                 facilities={facilities}
@@ -1060,14 +1115,10 @@ export default function App() {
                 globalSearchQuery={globalSearchQuery}
                 onUpdateSearchQuery={setGlobalSearchQuery}
                 onOpen3DForLocator={(z, b) => handleOpen3DForBay(z, b)}
-                onOpenScanForLevel={(z, b, l, m) => handleOpenScanner(z, b, l, m)}
+                onOpenScanForLevel={(z, b, l, m, loc, pos, item) => handleOpenScanner(z, b, l, m, loc, pos, item)}
                 onOpenVinylAction={item => setActiveVinylItem(item)}
                 agingConfig={agingConfig}
                 onQuickPickItem={handleQuickPickAgingItem}
-                onPrintLabel={(item) => {
-                  setSelectedPrintItemId(item.id);
-                  setActiveTab('printer');
-                }}
               />
             </div>
           )}
@@ -1083,14 +1134,14 @@ export default function App() {
                   setSelected3DZone(z);
                   setSelected3DBay(b);
                 }}
-                onOpenScanForLevel={(z, b, l, m) => handleOpenScanner(z, b, l, m)}
+                onOpenScanForLevel={(z, b, l, m, loc, pos, item) => handleOpenScanner(z, b, l, m, loc, pos, item)}
                 onBackToDashboard={() => setActiveTab('layout')}
               />
             </div>
           )}
 
           {activeTab === 'logs' && (
-            <div className="animate-fadeIn">
+            <div className="animate-fadeIn flex-1 flex flex-col min-h-0">
               <MovementLogsTable
                 logs={logs}
                 auditLogs={auditLogs}
@@ -1100,7 +1151,7 @@ export default function App() {
           )}
 
           {activeTab === 'master' && (
-            <div className="animate-fadeIn">
+            <div className="animate-fadeIn flex-1 flex flex-col min-h-0">
               <MasterListPanel
                 masterData={masterData}
                 setMasterData={setMasterData}
@@ -1128,10 +1179,10 @@ export default function App() {
         </main>
 
         {/* Footer Info */}
-        <footer className="h-12 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between px-4 sm:px-6 lg:px-8 text-xs text-slate-500 uppercase tracking-wider shrink-0 mt-auto w-full">
-          <span className="font-semibold text-slate-700 dark:text-slate-300">{t('common.copyright')}</span>
-          <span className="flex items-center gap-2 font-bold text-slate-700 dark:text-slate-300">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+        <footer className="h-8 border-t border-slate-800 bg-slate-950 flex items-center justify-between px-4 text-[10px] text-slate-500 uppercase tracking-widest shrink-0 w-full">
+          <span className="font-bold text-slate-400">{t('common.copyright')}</span>
+          <span className="flex items-center gap-2 font-black text-slate-400">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             {t('common.serverStatusOnline')}
           </span>
         </footer>

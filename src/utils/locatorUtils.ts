@@ -9,6 +9,17 @@ export interface ResolvedLocator {
   displayLocation: string;
 }
 
+export const mapGlobalRowToXGroup = (globalRow: number): { xGroup: string; localRow: number } => {
+  if (globalRow >= 43) return { xGroup: 'X8', localRow: globalRow - 42 };
+  if (globalRow >= 37) return { xGroup: 'X7', localRow: globalRow - 36 };
+  if (globalRow >= 31) return { xGroup: 'X6', localRow: globalRow - 30 };
+  if (globalRow >= 25) return { xGroup: 'X5', localRow: globalRow - 24 };
+  if (globalRow >= 19) return { xGroup: 'X4', localRow: globalRow - 18 };
+  if (globalRow >= 13) return { xGroup: 'X3', localRow: globalRow - 12 };
+  if (globalRow >= 7)  return { xGroup: 'X2', localRow: globalRow - 6 };
+  return { xGroup: 'X1', localRow: globalRow };
+};
+
 /**
  * Maps any input coordinates or raw locator code to a strictly normalized 1:1 Canonical Locator.
  * Correctly maps CY3 DY3T-1.01..1.04 to CY3-A..D without fallback shift.
@@ -23,7 +34,7 @@ export function resolveCanonicalCoordinate(params: {
   let { zone = 'B', bayNumber = 1, level = 1, palletPosition, locatorCode } = params;
 
   let cleanCode = locatorCode ? locatorCode.trim().toUpperCase() : '';
-  let cleanZone = String(zone).trim().toUpperCase();
+  let cleanZone = String(zone || '').trim().toUpperCase();
   let numBay = Math.max(1, Number(bayNumber) || 1);
   let numLevel = (Math.max(1, Math.min(4, Number(level) || 1))) as ShelfLevel;
   let posSuffix = palletPosition ? palletPosition.trim().toUpperCase() : '';
@@ -54,19 +65,29 @@ export function resolveCanonicalCoordinate(params: {
       if (a4RackMatch[4]) posSuffix = `P${a4RackMatch[4]}`;
     }
 
-    // 3. A4 Floor Staging: DA4D-1.01-X2-07 or DA4D-1.01-X3-R2-C05 or DA4D-1.01-X2-R1-07
-    const a4FloorMatch = cleanCode.match(/DA4D-1\.01-(X[1-8])-(?:R(\d+)-C0*(\d+)|R(\d+)-0*(\d+)|0*(\d+))/i);
-    if (a4FloorMatch) {
-      cleanZone = a4FloorMatch[1];
-      if (a4FloorMatch[2] && a4FloorMatch[3]) {
-        numBay = parseInt(a4FloorMatch[2], 10);
-        numLevel = parseInt(a4FloorMatch[3], 10) as ShelfLevel;
-      } else if (a4FloorMatch[4] && a4FloorMatch[5]) {
-        numBay = parseInt(a4FloorMatch[4], 10);
-        numLevel = parseInt(a4FloorMatch[5], 10) as ShelfLevel;
-      } else if (a4FloorMatch[6]) {
-        numBay = parseInt(a4FloorMatch[6], 10);
-        numLevel = 1;
+    // 3. A4 Floor Staging: DA4D-1.01-X2-R01-C07 or DA4D-1-R7-01 or DA4D-1-X2-07
+    const a4GlobalRowMatch = cleanCode.match(/DA4D-1-R0*(\d+)-(?:C)?0*(\d+)/i);
+    if (a4GlobalRowMatch) {
+      const gRow = parseInt(a4GlobalRowMatch[1], 10);
+      const col = parseInt(a4GlobalRowMatch[2], 10);
+      const mapped = mapGlobalRowToXGroup(gRow);
+      cleanZone = mapped.xGroup;
+      numBay = mapped.localRow;
+      numLevel = col as ShelfLevel;
+    } else {
+      const a4FloorMatch = cleanCode.match(/DA4D-1(?:\.01)?-(X[1-8])-(?:R0*(\d+)-C0*(\d+)|R0*(\d+)-0*(\d+)|0*(\d+))/i);
+      if (a4FloorMatch) {
+        cleanZone = a4FloorMatch[1].toUpperCase();
+        if (a4FloorMatch[2] && a4FloorMatch[3]) {
+          numBay = parseInt(a4FloorMatch[2], 10);
+          numLevel = parseInt(a4FloorMatch[3], 10) as ShelfLevel;
+        } else if (a4FloorMatch[4] && a4FloorMatch[5]) {
+          numBay = parseInt(a4FloorMatch[4], 10);
+          numLevel = parseInt(a4FloorMatch[5], 10) as ShelfLevel;
+        } else if (a4FloorMatch[6]) {
+          numBay = 1;
+          numLevel = parseInt(a4FloorMatch[6], 10) as ShelfLevel;
+        }
       }
     }
 
@@ -116,13 +137,15 @@ export function resolveCanonicalCoordinate(params: {
   // A4 Floor Staging (X1-X8)
   if (cleanZone.startsWith('X') || cleanZone.startsWith('DA4D-1')) {
     const xGroup = cleanZone.includes('X') ? cleanZone.substring(cleanZone.indexOf('X')) : 'X1';
-    const canonicalLocator = `DA4D-1.01-${xGroup}-${String(numBay).padStart(2, '0')}`;
+    const numRow = numBay || 1;
+    const numCol = numLevel || 1;
+    const canonicalLocator = `DA4D-1.01-${xGroup}-R${String(numRow).padStart(2, '0')}-C${String(numCol).padStart(2, '0')}`;
     return {
       zone: xGroup as StorageZone,
-      bayNumber: numBay,
-      level: numLevel,
+      bayNumber: numRow,
+      level: numCol,
       canonicalLocator,
-      displayLocation: `A4 Floor Staging ${xGroup} Bay ${numBay}`
+      displayLocation: `A4 Floor Staging ${xGroup} R${numRow} Col ${numCol}`
     };
   }
 

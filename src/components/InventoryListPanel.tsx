@@ -51,7 +51,6 @@ interface InventoryListPanelProps {
   onOpenVinylAction?: (item: InventoryItem) => void;
   agingConfig?: AgingThresholdConfig;
   onQuickPickItem?: (item: InventoryItem) => void;
-  onPrintLabel?: (item: InventoryItem) => void;
 }
 
 export type SortField = 
@@ -80,7 +79,6 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
   onOpenVinylAction,
   agingConfig,
   onQuickPickItem,
-  onPrintLabel,
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>(globalSearchQuery);
   const [filterMode, setFilterMode] = useState<'ALL' | 'LOW_STOCK' | 'SAFE_STOCK'>('ALL');
@@ -481,12 +479,14 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
     const q = searchTerm.trim().toLowerCase();
     if (!q) return [];
 
-    // Group items matching the search query by modelHE
+    // Group items matching the search query by modelHE (normalized)
     const map = new Map<string, InventoryItem[]>();
     for (const item of filteredAndSortedItems) {
-      const arr = map.get(item.modelHE) || [];
+      const canonicalKey = (item.modelHE || '').trim().toUpperCase();
+      if (!canonicalKey) continue;
+      const arr = map.get(canonicalKey) || [];
       arr.push(item);
-      map.set(item.modelHE, arr);
+      map.set(canonicalKey, arr);
     }
 
     const results = [];
@@ -606,7 +606,7 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-3.5 sm:p-5 lg:p-6 shadow-sm text-slate-900 space-y-4 sm:space-y-6 w-full min-w-0 max-w-full">
+    <div className="bg-white border border-slate-200 rounded-xl p-3 sm:p-4 shadow-sm text-slate-900 space-y-4 w-full min-w-0 max-w-full flex-1 flex flex-col h-full overflow-hidden">
       {/* Header & Title */}
       <div className="flex flex-col md:flex-row md:items-center justify-between pb-3 sm:pb-4 border-b border-slate-200 gap-3 sm:gap-4">
         <div>
@@ -1194,9 +1194,9 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
 
           {/* List of Matched Parts with Zone Distribution */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-            {searchedPartDistributions.slice(0, 4).map((p) => (
+            {searchedPartDistributions.slice(0, 4).map((p, idx) => (
               <div
-                key={p.model}
+                key={`${p.model}-${idx}`}
                 className="bg-slate-950/80 border border-slate-800 rounded-lg p-2.5 space-y-2 hover:border-blue-500/50 transition-all"
               >
                 <div className="flex items-start justify-between gap-2">
@@ -1258,7 +1258,7 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
       )}
 
       {/* Inventory Table List with Interactive Sortable Columns */}
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+      <div className="overflow-auto flex-1 rounded-lg border border-slate-200 bg-white">
         <table className="w-full text-left text-xs text-slate-700">
           <thead className="bg-slate-50 text-slate-600 font-bold uppercase text-[11px] border-b border-slate-200 select-none">
             <tr>
@@ -1524,15 +1524,7 @@ export const InventoryListPanel: React.FC<InventoryListPanelProps> = ({
                            </button>
                         )}
 
-                        {onPrintLabel && (
-                          <button
-                            onClick={() => onPrintLabel(item)}
-                            className="p-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 transition-all border border-purple-200 inline-flex items-center justify-center shadow-2xs active:scale-95"
-                            title="พิมพ์ป้าย QR Code พาเลทนี้"
-                          >
-                            <Printer className="w-4 h-4" />
-                          </button>
-                        )}
+
 
                         <button
                           onClick={() => {

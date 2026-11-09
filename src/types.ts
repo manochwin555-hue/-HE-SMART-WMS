@@ -4,7 +4,7 @@ export type StorageLocationType = 'RACK' | 'FLOW_RAIL' | 'FLOOR_STAGING';
 
 // --- NEW TYPES FOR VINYL WRAPPING ---
 export type ProtectionMethod = 'RUBBER_CAP' | 'VINYL_WRAPPING' | 'NOT_APPLICABLE';
-export type ProductType = 'IN_HOUSE' | 'CSKD' | 'DO' | 'OTHER';
+export type ProductType = 'IN_HOUSE' | 'CSKD' | 'DO' | 'OTHER' | 'Evaporator' | 'Condenser';
 export type ProductStorageType = 'INDOOR' | 'CANOPY' | 'OUTDOOR'; 
 export type WrappingCondition = 'OK' | 'TORN' | 'LOOSE' | 'WET' | 'CONTAMINATED' | 'OPEN' | 'NOT_INSPECTED';
 export type AgingStatus = 'SAFE' | 'WARNING' | 'OVERDUE' | 'NORMAL' | 'URGENT' | 'DUE_TODAY' | 'EXPIRED' | 'CONDITION_NG' | 'DATA_INCOMPLETE';
@@ -62,6 +62,8 @@ export interface MasterDataItem {
   protectionMethod?: ProtectionMethod; // Default NOT_APPLICABLE
   productType?: ProductType;
   storageType?: ProductStorageType;
+  useLine?: string; // Production line mapping (primary)
+  useLines?: string[]; // Multi-line assignment tags (e.g. ['HE2', 'HE4', 'HE5', 'Y4'])
 }
 
 export interface AuditLog {

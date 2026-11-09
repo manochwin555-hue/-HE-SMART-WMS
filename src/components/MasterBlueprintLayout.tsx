@@ -1052,10 +1052,6 @@ export const MasterBlueprintLayout: React.FC<MasterBlueprintLayoutProps> = ({
                 <span className="text-[10px] font-mono font-bold px-2 py-0.5 bg-slate-800 text-rose-300 rounded border border-slate-700">
                   DY3T &bull; 400 PL
                 </span>
-                <h2 className="text-base sm:text-lg font-black tracking-wide text-white flex items-center gap-1.5">
-                  <span>🏗️</span>
-                  <span>HE CY3 Tent</span>
-                </h2>
                 <span className="text-[10px] font-mono font-bold px-2 py-0.5 bg-slate-800 text-amber-300 rounded border border-slate-700">
                   Outdoor Rack
                 </span>
@@ -1183,26 +1179,26 @@ export const MasterBlueprintLayout: React.FC<MasterBlueprintLayoutProps> = ({
         </div>
 
         {/* Compact Accessible Data Table */}
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto max-h-[60vh] overflow-y-auto">
           <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-slate-900/90 border-b border-slate-800 text-slate-300">
-                <th className="py-2.5 px-3.5 font-black tracking-tight">
+            <thead className="sticky top-0 z-20">
+              <tr className="bg-slate-950 border-b border-slate-800 text-slate-300">
+                <th className="py-2.5 px-3.5 font-black tracking-tight bg-slate-950">
                   พื้นที่จัดเก็บคลัง (Depot Area)
                 </th>
-                <th className="py-2.5 px-3.5 font-black tracking-tight">
+                <th className="py-2.5 px-3.5 font-black tracking-tight bg-slate-950">
                   ทีมงานรับผิดชอบ (Team)
                 </th>
-                <th className="py-2.5 px-3.5 font-black tracking-tight text-right">
+                <th className="py-2.5 px-3.5 font-black tracking-tight text-right bg-slate-950">
                   Capacity (PL)
                 </th>
-                <th className="py-2.5 px-3.5 font-black tracking-tight text-right">
+                <th className="py-2.5 px-3.5 font-black tracking-tight text-right bg-slate-950">
                   Inventory (PL)
                 </th>
-                <th className="py-2.5 px-3.5 font-black tracking-tight text-right">
+                <th className="py-2.5 px-3.5 font-black tracking-tight text-right bg-slate-950">
                   Inventory (EA)
                 </th>
-                <th className="py-2.5 px-3.5 font-black tracking-tight text-right">
+                <th className="py-2.5 px-3.5 font-black tracking-tight text-right bg-slate-950">
                   Rate (%)
                 </th>
               </tr>

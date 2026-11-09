@@ -1,6 +1,6 @@
 {
-  "summary": "Implementation plan to realign G-K rack rows, adjust camera presets for better row visibility, and add floating TextSprite bay labels.",
-  "updatedAt": "2026-11-06T07:45:32.116369834Z",
-  "requestFeedback": true,
-  "userFacing": true
+  "summary":  "Implementation plan to standardize and clean 3D viewport slot popup cards across all warehouse zones (CY3, A5, A2, A4 Racks & Floor), displaying a unified 4-row compact card with Zone Name, Locator Code, Part No & Name, Quantity & Aging, and clean click-to-open hint.",
+  "updatedAt":  "2026-11-09T07:30:21.664686804Z",
+  "requestFeedback":  true,
+  "userFacing":  true
 }

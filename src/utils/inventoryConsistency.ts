@@ -15,7 +15,13 @@ export const getModelStdCapacity = (modelHE: string, masterData: MasterDataItem[
     return master.stdQtyPerPallet;
   }
 
-  // 2. Known model rules (e.g., 5006 = 50, 904 = 80)
+  // 2. Known model rules (e.g., ACG74184707 = 88, ADL73081111 = 150, 5006 = 50, 904 = 80)
+  if (clean.includes('ACG74184707') || clean.includes('4707')) {
+    return 88;
+  }
+  if (clean.includes('ADL73081111') || clean.includes('81111')) {
+    return 150;
+  }
   if (clean.includes('5006')) {
     return 50;
   }
@@ -131,16 +137,29 @@ export const validateSlotPlacement = (
   const cleanTargetLoc = targetLocator.trim().toUpperCase();
   const cleanPos = (targetPalletPos || (cleanTargetLoc.includes('-P2') ? 'P2' : 'P1')).toUpperCase();
 
-  // Find if slot is currently occupied
+  const targetCanonical = resolveCanonicalCoordinate({
+    locatorCode: cleanTargetLoc,
+    palletPosition: cleanPos
+  }).canonicalLocator.toUpperCase();
+
   const existing = existingItems.find(it => {
-    if (it.locatorCode && it.locatorCode.trim().toUpperCase() === cleanTargetLoc) {
-      return true;
-    }
-    // Also check position match if rack
-    const itPos = (it.palletPosition || (it.locatorCode?.includes('-P2') ? 'P2' : 'P1')).toUpperCase();
-    if (itPos === cleanPos && it.locatorCode?.replace(/-P[12]$/i, '') === cleanTargetLoc.replace(/-P[12]$/i, '')) {
-      return true;
-    }
+    if (!it || typeof it.quantity !== 'number' || it.quantity <= 0) return false;
+
+    // Resolve current item to its canonical coordinate
+    const itCanonical = resolveCanonicalCoordinate({
+      locatorCode: it.locatorCode,
+      zone: it.zone,
+      bayNumber: it.bayNumber,
+      level: it.level,
+      palletPosition: it.palletPosition
+    }).canonicalLocator.toUpperCase();
+
+    // Check for exact physical collision (Same Zone, Bay, Level, AND Pallet Position)
+    if (itCanonical === targetCanonical) return true;
+    
+    // Fallback check for exact string match if canonical failed or was slightly different
+    if (it.locatorCode && it.locatorCode.trim().toUpperCase() === targetCanonical) return true;
+    
     return false;
   });
 
@@ -153,27 +172,13 @@ export const validateSlotPlacement = (
     };
   }
 
-  const existingModel = existing.modelHE.trim().toUpperCase();
-  const stdCapacity = existing.stdQtyPerPallet || getModelStdCapacity(existingModel, masterData);
-
-  // Model mixing check: Reject different models
-  if (existingModel !== cleanIncomingModel) {
-    return {
-      allowed: false,
-      reason: `⛔ ตำแหน่ง ${cleanTargetLoc} มีสินค้า Model: ${existing.modelHE} (${existing.quantity} ชิ้น) อยู่แล้ว ไม่อนุญาตให้จัดเก็บปน Model ในพาเลทเดียวกัน`,
-      existingItem: existing,
-      canMerge: false
-    };
-  }
-
-  // Same model: Allow merging
-  const projectedTotal = existing.quantity + incomingQty;
+  // Strict Single-Item Occupancy Guard: Block Infeed if slot already contains an item
+  const dateStr = existing.storageInDate ? new Date(existing.storageInDate).toLocaleDateString('th-TH') : '';
   return {
-    allowed: true,
-    canMerge: true,
+    allowed: false,
+    reason: `⛔ พิกัด ${cleanTargetLoc} มีสินค้าจัดเก็บอยู่แล้ว (Model: ${existing.modelHE}, จำนวน: ${existing.quantity.toLocaleString()} ชิ้น${dateStr ? `, วันที่รับเข้า: ${dateStr}` : ''}) — ไม่สามารถรับสินค้าเข้าในตำแหน่งนี้ได้`,
     existingItem: existing,
-    projectedTotal,
-    stdCapacity
+    canMerge: false
   };
 };
 

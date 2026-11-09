@@ -203,9 +203,11 @@ export const DashboardKPIs: React.FC<DashboardKPIsProps> = ({ stats, lowStockCou
     > = {};
 
     items.forEach((item) => {
-      if (!inventoryByModel[item.modelHE]) {
-        inventoryByModel[item.modelHE] = {
-          modelHE: item.modelHE,
+      const key = (item.modelHE || '').trim().toUpperCase();
+      if (!key) return;
+      if (!inventoryByModel[key]) {
+        inventoryByModel[key] = {
+          modelHE: key,
           partName: item.partName || 'Raw Material',
           totalQty: 0,
           safetyStock: item.safetyStock ?? 300,
@@ -213,10 +215,10 @@ export const DashboardKPIs: React.FC<DashboardKPIsProps> = ({ stats, lowStockCou
           locators: [],
         };
       }
-      inventoryByModel[item.modelHE].totalQty += item.quantity;
-      inventoryByModel[item.modelHE].zones.add(item.zone);
-      if (!inventoryByModel[item.modelHE].locators.includes(item.locatorCode)) {
-        inventoryByModel[item.modelHE].locators.push(item.locatorCode);
+      inventoryByModel[key].totalQty += item.quantity;
+      inventoryByModel[key].zones.add(item.zone);
+      if (!inventoryByModel[key].locators.includes(item.locatorCode)) {
+        inventoryByModel[key].locators.push(item.locatorCode);
       }
     });
 
@@ -698,14 +700,14 @@ export const DashboardKPIs: React.FC<DashboardKPIsProps> = ({ stats, lowStockCou
             {/* List of Predictions */}
             {filteredPredictions.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                {filteredPredictions.map((pred) => {
+                {filteredPredictions.map((pred, idx) => {
                   const isCritical = pred.riskLevel === 'CRITICAL';
                   const isHigh = pred.riskLevel === 'HIGH';
                   const stockHealthPercent = Math.min(100, Math.round((pred.currentStock / pred.safetyStock) * 100));
 
                   return (
                     <div
-                      key={pred.modelHE}
+                      key={`${pred.modelHE}-${idx}`}
                       className={`rounded-xl p-3.5 border transition-all duration-200 flex flex-col justify-between space-y-3 ${
                         isCritical
                           ? 'bg-red-50/40 border-red-300 ring-1 ring-red-400/20 hover:border-red-400 shadow-2xs'

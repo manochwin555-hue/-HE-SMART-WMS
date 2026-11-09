@@ -33,7 +33,6 @@ interface CY3TentRackMapProps {
   onOpenScanner: (zone: StorageZone, bay: number, level: ShelfLevel, mode: MovementType) => void;
   onRelocateItem?: (item: InventoryItem) => void;
   onNavigateToCampus?: () => void;
-  onPrintLabel?: (item: InventoryItem) => void;
 }
 
 // 4 Rows configuration matching user reference diagram
@@ -92,8 +91,7 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
   searchQuery = '',
   onOpenScanner,
   onRelocateItem,
-  onNavigateToCampus,
-  onPrintLabel
+  onNavigateToCampus
 }) => {
   const { t } = useTranslation();
   const [viewMode, setViewMode] = useState<'3D_RACK' | 'FRONT'>('3D_RACK');
@@ -145,15 +143,17 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
 
       let bNum = it.bayNumber || 1;
       let lvl = it.level || 1;
+      let pos = it.palletPosition || 'P1';
 
       // Parse locator if bay/level not explicitly in item
-      const locMatch = locUpper.match(/DY3T-1\.0[1-4]-(?:[A-D])?0*(\d+)-L(\d)/i);
+      const locMatch = locUpper.match(/DY3T-1\.0[1-4]-(?:[A-D])?0*(\d+)-L(\d)(?:-P([12]))?/i);
       if (locMatch) {
         bNum = parseInt(locMatch[1], 10);
         lvl = parseInt(locMatch[2], 10) as ShelfLevel;
+        if (locMatch[3]) pos = `P${locMatch[3]}`;
       }
 
-      map.set(`${rCode}-${bNum}-${lvl}`, it);
+      map.set(`${rCode}-${bNum}-${lvl}-${pos}`, it);
     });
     return map;
   }, [cy3Items]);
@@ -161,7 +161,7 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
   // Capacity metrics
   const metrics = useMemo(() => {
     const totalCapacity = 400; // 4 rows * 25 bays * 4 levels
-    const totalOccupied = cy3Items.reduce((acc, it) => acc + (it.fullPallets || 1), 0);
+    const totalOccupied = cy3Items.length;
     const utilizationRate = Math.min(100, Math.round((totalOccupied / totalCapacity) * 1000) / 10);
     const agingCount = cy3Items.filter(it => it.agingDays > 14).length;
     const overdueCount = cy3Items.filter(it => it.agingDays > 30).length;
@@ -196,8 +196,10 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
   const getBayItems = (rowCode: 'A' | 'B' | 'C' | 'D', bayNum: number): InventoryItem[] => {
     const list: InventoryItem[] = [];
     for (let l = 1; l <= 4; l++) {
-      const item = slotMap.get(`${rowCode}-${bayNum}-${l}`);
-      if (item) list.push(item);
+      ['P1', 'P2'].forEach(p => {
+        const item = slotMap.get(`${rowCode}-${bayNum}-${l}-${p}`);
+        if (item) list.push(item);
+      });
     }
     return list;
   };
@@ -211,16 +213,18 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
   ) => {
     const bayItems = getBayItems(rowCode, bayNum);
     const lvl = targetLevel || (floorFilter !== 'ALL' ? floorFilter : 1);
+    const pPos = targetItem?.palletPosition || 'P1';
+
     const resolved = resolveCanonicalCoordinate({
       zone: `CY3-${rowCode}`,
       bayNumber: bayNum,
       level: lvl,
-      palletPosition: targetItem?.palletPosition || 'P1',
+      palletPosition: pPos,
       locatorCode: locatorSign.includes('DY3T-') && locatorSign.includes('-L') ? locatorSign : undefined
     });
 
     const locator = resolved.canonicalLocator;
-    const item = targetItem || slotMap.get(locator) || slotMap.get(`${rowCode}-${bayNum}-${lvl}`) || null;
+    const item = targetItem || slotMap.get(locator) || slotMap.get(`${rowCode}-${bayNum}-${lvl}-${pPos}`) || null;
 
     setSelectedSlotModal({
       sectorType: 'RACK',
@@ -641,8 +645,7 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
       {/* 5. MODALS & HOVER OVERLAYS                                                */}
       {/* ========================================================================= */}
       
-      {/* Hover Mini Stats Overlay */}
-      <SlotMiniStatsOverlay data={hoveredSlot} />
+      {/* Hover Mini Stats Overlay Removed in 2D View per user request */}
 
       {/* Unified Slot Modal for 4-Floor Inspection & Movement */}
       <UnifiedSlotModal
@@ -651,7 +654,6 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
         slotData={selectedSlotModal}
         onOpenScanner={onOpenScanner}
         onRelocateItem={onRelocateItem}
-        onPrintLabel={onPrintLabel}
       />
 
     </div>

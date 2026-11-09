@@ -216,12 +216,13 @@ export const GlobalSearchZoneLookup: React.FC<GlobalSearchZoneLookupProps> = ({
 
     if (matchedItems.length === 0) return [];
 
-    // Group by modelHE
+    // Group by modelHE (normalized)
     const grouped = new Map<string, InventoryItem[]>();
     for (const it of matchedItems) {
-      const existing = grouped.get(it.modelHE) || [];
+      const canonicalKey = it.modelHE.trim().toUpperCase();
+      const existing = grouped.get(canonicalKey) || [];
       existing.push(it);
-      grouped.set(it.modelHE, existing);
+      grouped.set(canonicalKey, existing);
     }
 
     const results: PartZoneDistribution[] = [];
@@ -393,9 +394,9 @@ export const GlobalSearchZoneLookup: React.FC<GlobalSearchZoneLookupProps> = ({
           {/* Results List / Zone Breakdown Cards */}
           <div className="max-h-[68vh] overflow-y-auto divide-y divide-slate-800 p-2 space-y-2">
             {searchDistribution.length > 0 ? (
-              searchDistribution.map((part) => (
+              searchDistribution.map((part, idx) => (
                 <div
-                  key={part.modelHE}
+                  key={`${part.modelHE}-${idx}`}
                   className="bg-slate-950/60 hover:bg-slate-950 p-3 rounded-lg border border-slate-800/80 transition-all space-y-2.5"
                 >
                   {/* Part Header & Overall Stats */}

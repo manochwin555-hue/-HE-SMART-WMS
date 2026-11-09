@@ -23,6 +23,13 @@ import {
   Sun,
   Moon
 } from 'lucide-react';
+import { 
+  RackLODManager, 
+  createStylizedProxyBoundingBox, 
+  RenderFPSCounter, 
+  LODLevel 
+} from './zone-3d/RackLODManager';
+import { LODPerformanceBadge } from './zone-3d/LODPerformanceBadge';
 
 interface Rack3DViewerProps {
   selectedZone: StorageZone;
@@ -51,6 +58,9 @@ export const Rack3DViewer: React.FC<Rack3DViewerProps> = ({
   const [hoveredLevel, setHoveredLevel] = useState<ShelfLevel | null>(null);
   const [themeMode, setThemeMode] = useState<'DARK_MODE' | 'STUDIO_LIGHT'>('DARK_MODE');
   const [isSelfFullscreen, setIsSelfFullscreen] = useState<boolean>(false);
+  const [fps, setFps] = useState<number>(60);
+  const [lodLevel, setLodLevel] = useState<LODLevel>('HIGH');
+  const [camDistance, setCamDistance] = useState<number>(8.5);
 
   const toggleFullscreen = () => {
     if (isSelfFullscreen) {
@@ -207,6 +217,10 @@ export const Rack3DViewer: React.FC<Rack3DViewerProps> = ({
     const rackGroup = new THREE.Group();
     scene.add(rackGroup);
 
+    // Interaction group for raycast cages (stays visible across all LOD levels)
+    const interactionGroup = new THREE.Group();
+    scene.add(interactionGroup);
+
     // Subtle Neon Edge Rack Bay Highlight
     const rackBayNeon = createRackBayNeonHighlight();
     scene.add(rackBayNeon.group);
@@ -312,7 +326,7 @@ export const Rack3DViewer: React.FC<Rack3DViewerProps> = ({
       const cageMesh = new THREE.Mesh(cageGeo, cageMat);
       cageMesh.position.set(0, y + 0.45, 0);
       cageMesh.userData = { shelfLevel: lvl };
-      rackGroup.add(cageMesh);
+      interactionGroup.add(cageMesh);
       levelMeshes.push({ mesh: cageMesh, level: lvl });
 
       // Check item stored at this level
@@ -383,6 +397,30 @@ export const Rack3DViewer: React.FC<Rack3DViewerProps> = ({
         levelStatuses[lvl] = 'EMPTY';
       }
     });
+
+    // 7.1 Setup Level of Detail (LOD) Manager & Stylized Proxy Bounding Box
+    const proxyBox = createStylizedProxyBoundingBox({
+      width: rackWidth,
+      height: totalHeight,
+      depth: rackDepth,
+      color: isDark ? 0x0284c7 : 0x2563eb,
+      edgeColor: isDark ? 0x38bdf8 : 0x60a5fa,
+      levels: 4,
+      opacity: isDark ? 0.28 : 0.22,
+    });
+    scene.add(proxyBox);
+
+    const lodManager = new RackLODManager(14.0, 1.8);
+    lodManager.register({
+      id: `RACK_${selectedZone}_${selectedBayNumber}`,
+      highPolyGroup: rackGroup,
+      proxyBoxGroup: proxyBox,
+      centerPosition: new THREE.Vector3(0, totalHeight / 2, 0),
+      distanceThreshold: 14.0,
+    });
+
+    const fpsCounter = new RenderFPSCounter();
+    let lastUiUpdate = 0;
 
     // 8. Raycasting for Mouse Interaction on 3D Levels (Neon Edge & Emissive)
     const raycaster = new THREE.Raycaster();
@@ -469,6 +507,19 @@ export const Rack3DViewer: React.FC<Rack3DViewerProps> = ({
 
       controls.update();
       rackBayNeon.update(elapsedTime);
+
+      // Level of Detail (LOD) Manager & Real-Time FPS Update
+      const currentFps = fpsCounter.tick();
+      const lodStatus = lodManager.update(camera.position);
+
+      const now = performance.now();
+      if (now - lastUiUpdate > 120) {
+        setFps(currentFps);
+        setLodLevel(lodStatus.activeLOD);
+        setCamDistance(lodStatus.closestDistance);
+        lastUiUpdate = now;
+      }
+
       renderer.render(scene, camera);
     };
 
@@ -504,6 +555,9 @@ export const Rack3DViewer: React.FC<Rack3DViewerProps> = ({
       canvasDom.removeEventListener('pointerdown', handlePointerDown);
       cancelAnimationFrame(animationFrameId);
       if (currentEmissiveRestore) currentEmissiveRestore();
+      lodManager.clear();
+      scene.remove(proxyBox);
+      scene.remove(interactionGroup);
       rackBayNeon.dispose();
       renderer.dispose();
     };
@@ -654,6 +708,14 @@ export const Rack3DViewer: React.FC<Rack3DViewerProps> = ({
               </span>
             )}
           </div>
+
+          {/* LOD & Real-time FPS Performance Badge */}
+          <LODPerformanceBadge
+            fps={fps}
+            lodLevel={lodLevel}
+            distance={camDistance}
+            className="absolute top-3 right-3 z-10"
+          />
 
           {/* Left Arrow Button (Previous Rack) */}
           <button

@@ -35,7 +35,6 @@ export interface SingleLevelZoneLayoutProps {
   onRelocateItem?: (item: InventoryItem) => void;
   onNavigateBack?: () => void;
   backButtonLabel?: string;
-  onPrintLabel?: (item: InventoryItem) => void;
   isDashboardFullscreen?: boolean;
   onToggleFullscreen?: () => void;
 }
@@ -52,7 +51,6 @@ export const SingleLevelZoneLayout: React.FC<SingleLevelZoneLayoutProps> = ({
   onRelocateItem,
   onNavigateBack,
   backButtonLabel,
-  onPrintLabel,
   isDashboardFullscreen,
   onToggleFullscreen
 }) => {
@@ -284,7 +282,6 @@ export const SingleLevelZoneLayout: React.FC<SingleLevelZoneLayoutProps> = ({
         slotInfo={selectedSlotForModal}
         onOpenScanner={onOpenScanner}
         onRelocateItem={onRelocateItem}
-        onPrintLabel={onPrintLabel}
       />
     </div>
   );

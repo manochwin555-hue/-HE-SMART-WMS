@@ -93,9 +93,6 @@ export const A4FrontElevationView: React.FC<A4FrontElevationViewProps> = ({
       // Direct zone match
       if (['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'].includes(it.zone)) {
         map.set(`${it.zone}-${it.bayNumber}-${it.level}-${pos}`, it);
-        if (!map.has(`${it.zone}-${it.bayNumber}-${it.level}`)) {
-          map.set(`${it.zone}-${it.bayNumber}-${it.level}`, it);
-        }
       }
       // Also match locatorCode e.g. DA4D-2-B03-L2 or DA4D-3-G01-L4
       if (match) {
@@ -103,9 +100,6 @@ export const A4FrontElevationView: React.FC<A4FrontElevationViewProps> = ({
         const b = parseInt(match[2] || `${it.bayNumber}`, 10);
         const l = parseInt(match[3] || `${it.level}`, 10);
         map.set(`${z}-${b}-${l}-${pos}`, it);
-        if (!map.has(`${z}-${b}-${l}`)) {
-          map.set(`${z}-${b}-${l}`, it);
-        }
       }
     });
     return map;
@@ -283,7 +277,7 @@ export const A4FrontElevationView: React.FC<A4FrontElevationViewProps> = ({
                                   onDoubleClick={(e) => {
                                     e.stopPropagation();
                                     if (onOpenScanner) {
-                                      onOpenScanner(currentRowConfig.rowCode, bayNum, level, palletItem ? 'OUT' : 'IN');
+                                      onOpenScanner(currentRowConfig.rowCode, bayNum, level, palletItem ? 'OUT' : 'IN', palletLocator, pPos, palletItem || null);
                                     }
                                   }}
                                   onMouseMove={(e) => onSlotHover(e, currentRowConfig.rowCode, bayNum, palletLocator)}

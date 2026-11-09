@@ -132,9 +132,11 @@ export const AgingFifoPanel: React.FC<AgingFifoPanelProps> = ({
     if (setAgingConfig) {
       setAgingConfig(tempAgingConfig);
     }
-    // Also persist to localStorage
+    // Also persist to localStorage & notify app-wide components
     try {
       localStorage.setItem('lge_wms_aging_config', JSON.stringify(tempAgingConfig));
+      window.dispatchEvent(new CustomEvent('lge_aging_config_updated', { detail: tempAgingConfig }));
+      window.dispatchEvent(new Event('storage'));
     } catch {
       // ignore
     }

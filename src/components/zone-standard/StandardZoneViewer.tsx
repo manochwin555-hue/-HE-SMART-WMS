@@ -12,7 +12,6 @@ export interface StandardZoneViewerProps {
   onRelocateItem?: (item: InventoryItem) => void;
   onOpen3D?: (zone: StorageZone, bay: number) => void;
   onNavigateBack?: () => void;
-  onPrintLabel?: (item: InventoryItem) => void;
   isDashboardFullscreen?: boolean;
   onToggleFullscreen?: () => void;
 }
@@ -25,7 +24,6 @@ export const StandardZoneViewer: React.FC<StandardZoneViewerProps> = ({
   onRelocateItem,
   onOpen3D,
   onNavigateBack,
-  onPrintLabel,
   isDashboardFullscreen,
   onToggleFullscreen
 }) => {
@@ -326,7 +324,6 @@ export const StandardZoneViewer: React.FC<StandardZoneViewerProps> = ({
           onRelocateItem={onRelocateItem}
           onOpen3D={onOpen3D}
           onNavigateBack={onNavigateBack}
-          onPrintLabel={onPrintLabel}
           isDashboardFullscreen={isDashboardFullscreen}
           onToggleFullscreen={onToggleFullscreen}
         />
@@ -345,7 +342,6 @@ export const StandardZoneViewer: React.FC<StandardZoneViewerProps> = ({
           onRelocateItem={onRelocateItem}
           onOpen3D={onOpen3D}
           onNavigateBack={onNavigateBack}
-          onPrintLabel={onPrintLabel}
           isDashboardFullscreen={isDashboardFullscreen}
           onToggleFullscreen={onToggleFullscreen}
         />
@@ -363,7 +359,6 @@ export const StandardZoneViewer: React.FC<StandardZoneViewerProps> = ({
           onOpenScanner={onOpenScanner}
           onRelocateItem={onRelocateItem}
           onNavigateBack={onNavigateBack}
-          onPrintLabel={onPrintLabel}
           isDashboardFullscreen={isDashboardFullscreen}
           onToggleFullscreen={onToggleFullscreen}
         />
@@ -381,7 +376,6 @@ export const StandardZoneViewer: React.FC<StandardZoneViewerProps> = ({
           onOpenScanner={onOpenScanner}
           onRelocateItem={onRelocateItem}
           onNavigateBack={onNavigateBack}
-          onPrintLabel={onPrintLabel}
           isDashboardFullscreen={isDashboardFullscreen}
           onToggleFullscreen={onToggleFullscreen}
         />
@@ -399,7 +393,6 @@ export const StandardZoneViewer: React.FC<StandardZoneViewerProps> = ({
           onOpenScanner={onOpenScanner}
           onRelocateItem={onRelocateItem}
           onNavigateBack={onNavigateBack}
-          onPrintLabel={onPrintLabel}
           isDashboardFullscreen={isDashboardFullscreen}
           onToggleFullscreen={onToggleFullscreen}
         />

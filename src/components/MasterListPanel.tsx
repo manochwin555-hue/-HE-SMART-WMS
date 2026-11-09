@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { MasterDataItem, UseLineMaster, TargetUseLineMaster, ZoneCapacityMaster, StorageZone, InventoryItem, CustomRackSlot, StorageLocationType, WarehouseFacility, AgingThresholdConfig } from '../types';
 import { DynamicLegendPanel } from './DynamicLegendPanel';
 import { AgingFifoPanel } from './AgingFifoPanel';
@@ -81,7 +81,7 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
   onLoadSampleData
 }) => {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<'LINES' | 'TARGET_LINES' | 'AGING_CONFIG' | 'GUIDE_LEGEND'>('LINES');
+  const [activeTab, setActiveTab] = useState<'LINES' | 'TARGET_LINES' | 'MASTER_PARTS' | 'AGING_CONFIG' | 'GUIDE_LEGEND'>('MASTER_PARTS');
 
   // Local fallback for targetUseLines if not provided
   const [localTargetUseLines, setLocalTargetUseLines] = useState<TargetUseLineMaster[]>([
@@ -99,8 +99,32 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
 
   // States for Master Item list
   const [search, setSearch] = useState('');
+  const [lineFilter, setLineFilter] = useState<string>('ALL');
+  const [typeFilter, setTypeFilter] = useState<string>('ALL');
+  const [toolFilter, setToolFilter] = useState<string>('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<MasterDataItem | null>(null);
+
+  // Helper to extract all assigned production lines for a item
+  const getItemLines = (item: MasterDataItem): string[] => {
+    if (item.useLines && item.useLines.length > 0) {
+      return item.useLines;
+    }
+    if (item.useLine) {
+      return item.useLine.split(/,\s*/).map(s => s.trim()).filter(Boolean);
+    }
+    return ['HE1'];
+  };
+
+  // Real-time duplicate check when adding or editing a Part No
+  const cleanEditingModel = editForm?.modelHE?.trim().toUpperCase() || '';
+  const isDuplicatePartNo = Boolean(
+    cleanEditingModel &&
+    masterData.some(d => 
+      (editingId === 'new' || d.modelHE.toUpperCase() !== editingId?.toUpperCase()) && 
+      d.modelHE.trim().toUpperCase() === cleanEditingModel
+    )
+  );
 
   // States for Use Lines list
   const [lineSearch, setLineSearch] = useState('');
@@ -172,13 +196,51 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
   const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
   const [editSlotForm, setEditSlotForm] = useState<CustomRackSlot | null>(null);
 
+  // Auto-sanitize masterData to guarantee no duplicate modelHE exists
+  useEffect(() => {
+    const seen = new Set<string>();
+    let hasDup = false;
+    const clean: MasterDataItem[] = [];
+    for (const d of masterData) {
+      if (!d || !d.modelHE) continue;
+      const key = d.modelHE.trim().toUpperCase();
+      if (seen.has(key)) {
+        hasDup = true;
+      } else {
+        seen.add(key);
+        clean.push(d);
+      }
+    }
+    if (hasDup) {
+      setMasterData(clean);
+      try {
+        localStorage.setItem('lge_wms_master_data', JSON.stringify(clean));
+      } catch (e) {}
+    }
+  }, [masterData, setMasterData]);
 
+  // Multi-criteria Filter for Master Items (Search text + Line + Type + Tool) with uniqueness guarantee
+  const filteredData = useMemo(() => {
+    const seen = new Set<string>();
+    return masterData.filter(d => {
+      if (!d || !d.modelHE) return false;
+      const key = d.modelHE.trim().toUpperCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
 
-  // Filter Items
-  const filteredData = masterData.filter(d => 
-    d.modelHE.toLowerCase().includes(search.toLowerCase()) || 
-    d.partName.toLowerCase().includes(search.toLowerCase())
-  );
+      const matchesSearch = 
+        !search ||
+        d.modelHE.toLowerCase().includes(search.toLowerCase()) || 
+        d.partName.toLowerCase().includes(search.toLowerCase());
+
+      const lines = getItemLines(d);
+      const matchesLine = lineFilter === 'ALL' || lines.includes(lineFilter) || d.useLine === lineFilter;
+      const matchesType = typeFilter === 'ALL' || (d.productType || 'Evaporator') === typeFilter;
+      const matchesTool = !toolFilter || d.partName.toLowerCase().includes(toolFilter.toLowerCase());
+
+      return matchesSearch && matchesLine && matchesType && matchesTool;
+    });
+  }, [masterData, search, lineFilter, typeFilter, toolFilter]);
 
   // Filter Lines
   const filteredLines = useLines.filter(l =>
@@ -195,18 +257,46 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
 
   const handleSave = () => {
     if (editForm) {
+      const cleanModel = editForm.modelHE.trim().toUpperCase();
+      if (!cleanModel) {
+        alert('กรุณากรอกรหัส Model HE (Parts No)');
+        return;
+      }
+      const isDup = masterData.some(d => 
+        (editingId === 'new' || d.modelHE.toUpperCase() !== editingId?.toUpperCase()) && 
+        d.modelHE.trim().toUpperCase() === cleanModel
+      );
+      if (isDup) {
+        alert(`⚠️ แจ้งเตือน: รหัส Master Parts No "${cleanModel}" มีอยู่ในระบบแล้ว กรุณาตรวจสอบและใช้รหัสที่ไม่ซ้ำกัน`);
+        return;
+      }
+
+      let updated: MasterDataItem[];
+      const finalLines = editForm.useLines && editForm.useLines.length > 0 ? editForm.useLines : [editForm.useLine || 'HE1'];
       if (editingId === 'new') {
-        if (masterData.some(d => d.modelHE.trim().toLowerCase() === editForm.modelHE.trim().toLowerCase())) {
-          alert('รหัส Model HE นี้มีอยู่แล้วในระบบ');
-          return;
-        }
-        if (!editForm.modelHE.trim()) {
-          alert('กรุณากรอกรหัส Model HE');
-          return;
-        }
-        setMasterData([...masterData, { ...editForm, modelHE: editForm.modelHE.trim().toUpperCase() }]);
+        const newItem: MasterDataItem = {
+          ...editForm,
+          modelHE: cleanModel,
+          useLines: finalLines,
+          useLine: finalLines[0] || 'HE1',
+          productType: editForm.productType || (typeFilter !== 'ALL' ? (typeFilter as any) : 'Evaporator'),
+          safetyStock: editForm.safetyStock || 300,
+          stdQtyPerPallet: editForm.stdQtyPerPallet || (cleanModel === 'ACG74184707' ? 88 : cleanModel === 'ADL73081111' ? 150 : cleanModel === '5006' ? 50 : 80)
+        };
+        updated = [newItem, ...masterData];
       } else {
-        setMasterData(masterData.map(d => d.modelHE === editingId ? editForm : d));
+        updated = masterData.map(d => d.modelHE === editingId ? { 
+          ...editForm, 
+          modelHE: cleanModel,
+          useLines: finalLines,
+          useLine: finalLines[0] || 'HE1'
+        } : d);
+      }
+      setMasterData(updated);
+      try {
+        localStorage.setItem('lge_wms_master_data', JSON.stringify(updated));
+      } catch (e) {
+        // ignore
       }
       setEditingId(null);
       setEditForm(null);
@@ -225,7 +315,14 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
 
   const handleAddNew = () => {
     setEditingId('new');
-    setEditForm({ modelHE: '', partName: '', safetyStock: 300, stdQtyPerPallet: 80 });
+    setEditForm({
+      modelHE: '',
+      partName: '',
+      safetyStock: 300,
+      stdQtyPerPallet: 80,
+      useLine: lineFilter !== 'ALL' ? lineFilter : (useLines[0]?.id || 'HE1'),
+      productType: typeFilter !== 'ALL' ? (typeFilter as any) : 'Evaporator'
+    });
   };
 
   // Use Line Handlers
@@ -571,22 +668,11 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
 
 
   return (
-    <div className="bg-slate-900 rounded-2xl shadow-xl border border-slate-800 overflow-hidden flex flex-col h-full w-full min-w-0 max-w-full animate-fadeIn text-slate-100">
+    <div className="bg-slate-900 rounded-2xl shadow-xl border border-slate-800 overflow-hidden flex flex-col h-full w-full min-w-0 max-w-full animate-fadeIn text-slate-100 flex-1">
       {/* Header & Main Mode Tabs */}
       <div className="bg-slate-900/95 px-3.5 sm:px-6 py-3 sm:py-4 border-b border-slate-800 space-y-3 sm:space-y-4">
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           <div className="flex items-center space-x-3">
-            <div className="p-2.5 bg-blue-500/20 text-blue-400 rounded-xl border border-blue-500/30 shadow-inner">
-              <Settings className="w-6 h-6" />
-            </div>
-            <div>
-              <h2 className="text-lg font-black text-white tracking-tight flex items-center space-x-2">
-                <span>ตั้งค่าข้อมูลหลัก &amp; เครื่องมือจัดการคลัง (Master &amp; Tools)</span>
-                <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 font-mono text-[10px] font-black border border-blue-500/30">
-                  WMS HUB
-                </span>
-              </h2>
-            </div>
           </div>
 
           {/* Sub Tab Buttons - Dark Theme & High Contrast */}
@@ -614,9 +700,23 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
                   : 'bg-slate-900 hover:bg-slate-850 text-slate-300 hover:text-white border border-slate-800 hover:border-slate-700 shadow-2xs'
               }`}
             >
-              <Target className={`w-3.5 h-3.5 ${activeTab === 'TARGET_LINES' ? 'text-white' : 'text-amber-400'}`} />
+              <Target className={`w-3.5 h-3.5 ${activeTab === 'TARGET_LINES' ? 'text-white' : 'text-orange-400'}`} />
               <span>🎯 ไลน์ที่นำไปใช้ ({activeTargetUseLines.length})</span>
-              {activeTab === 'TARGET_LINES' && <span className="w-1.5 h-1.5 rounded-full bg-amber-300 animate-pulse ml-0.5" />}
+              {activeTab === 'TARGET_LINES' && <span className="w-1.5 h-1.5 rounded-full bg-orange-200 animate-pulse ml-0.5" />}
+            </button>
+
+            <button
+              id="tab-btn-master-parts"
+              onClick={() => setActiveTab('MASTER_PARTS')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
+                activeTab === 'MASTER_PARTS'
+                  ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-400 font-black shadow-blue-900/50'
+                  : 'bg-slate-900 hover:bg-slate-850 text-slate-300 hover:text-white border border-slate-800 hover:border-slate-700 shadow-2xs'
+              }`}
+            >
+              <Box className={`w-3.5 h-3.5 ${activeTab === 'MASTER_PARTS' ? 'text-white' : 'text-blue-400'}`} />
+              <span>📦 Master Parts Management ({masterData.length})</span>
+              {activeTab === 'MASTER_PARTS' && <span className="w-1.5 h-1.5 rounded-full bg-blue-200 animate-pulse ml-0.5" />}
             </button>
 
             <button
@@ -692,7 +792,7 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
               <input
                 type="text"
                 className="block w-full pl-9 pr-3 py-2 border border-slate-700 rounded-xl text-xs bg-slate-950 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                placeholder="ค้นหาไลน์ที่นำไปใช้ (e.g. A2, A4, A6, A8, Sub Line)..."
+                placeholder="ค้นหาไลน์ที่นำไปใช้ (e.g. A2, A4, SUB_LINE)..."
                 value={targetLineSearch}
                 onChange={(e) => setTargetLineSearch(e.target.value)}
               />
@@ -706,44 +806,466 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
             </button>
           </div>
         )}
+
+        {activeTab === 'MASTER_PARTS' && (
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pt-2">
+            <div className="flex flex-1 flex-wrap items-center gap-2">
+              {/* Search Box */}
+              <div className="relative flex-1 min-w-[200px]">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search className="h-4 w-4 text-slate-400" />
+                </div>
+                <input
+                  type="text"
+                  className="block w-full pl-9 pr-3 py-2 border border-slate-700 rounded-xl text-xs bg-slate-950 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="ค้นหา Parts No, Tool หรือประเภท (Evap/Con)..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+
+              {/* Line Filter */}
+              <div className="flex items-center space-x-1.5 bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-1.5 shrink-0">
+                <Factory className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <select
+                  value={lineFilter}
+                  onChange={(e) => setLineFilter(e.target.value)}
+                  className="bg-transparent text-xs text-white focus:outline-none font-medium cursor-pointer"
+                  title="ฟิลเตอร์ตามไลน์ผลิต"
+                >
+                  <option value="ALL" className="bg-slate-900 text-slate-200">🏭 ทุกไลน์ผลิต (ทั้งหมด)</option>
+                  {useLines.map(line => (
+                    <option key={line.id} value={line.id} className="bg-slate-900 text-slate-200">
+                      Line {line.id}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Type Filter */}
+              <div className="flex items-center space-x-1.5 bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-1.5 shrink-0">
+                <Layers className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                <select
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value)}
+                  className="bg-transparent text-xs text-white focus:outline-none font-medium cursor-pointer"
+                  title="ฟิลเตอร์ตามประเภทงาน"
+                >
+                  <option value="ALL" className="bg-slate-900 text-slate-200">📦 ทุกประเภทงาน (ทั้งหมด)</option>
+                  <option value="Evaporator" className="bg-slate-900 text-slate-200">Evaporator (คอยล์เย็น)</option>
+                  <option value="Condenser" className="bg-slate-900 text-slate-200">Condenser (คอยล์ร้อน)</option>
+                </select>
+              </div>
+
+              {/* Reset filter button */}
+              {(lineFilter !== 'ALL' || typeFilter !== 'ALL' || search) && (
+                <button
+                  onClick={() => { setSearch(''); setLineFilter('ALL'); setTypeFilter('ALL'); }}
+                  className="text-xs text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg hover:bg-slate-800 transition-colors border border-slate-800"
+                  title="ล้างตัวกรองทั้งหมด"
+                >
+                  ล้างตัวกรอง
+                </button>
+              )}
+            </div>
+
+            <button
+              onClick={handleAddNew}
+              className="flex items-center justify-center space-x-1.5 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 shadow-md active:scale-95 border border-blue-400/30"
+            >
+              <Plus className="w-4 h-4" />
+              <span>เพิ่ม Master Part ใหม่</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Main Tab Content */}
-      <div className="overflow-x-auto flex-1 p-4">
-        {/* TAB 0.1: DYNAMIC AGING THRESHOLD CONFIGURATION */}
-        {activeTab === 'AGING_CONFIG' && (
-          <AgingFifoPanel
-            agingConfig={agingConfig}
-            setAgingConfig={setAgingConfig}
-            items={items}
-          />
-        )}
-
-        {/* TAB 0.5: DYNAMIC LEGEND & NAMING CONVENTION GUIDE */}
-        {activeTab === 'GUIDE_LEGEND' && (
+      <div className="overflow-x-auto flex-1 p-2 sm:p-4 min-h-0">
+        {/* TAB: MASTER PARTS MANAGEMENT */}
+        {activeTab === 'MASTER_PARTS' && (
           <div className="space-y-4 animate-fadeIn">
-            <div className="bg-blue-50/70 border border-blue-200 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-2xs">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-600 text-white rounded-lg shadow-xs">
-                  <BookOpen className="w-5 h-5" />
+            <div className="bg-slate-950/80 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+              <div className="px-4 py-3 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Box className="w-4 h-4 text-blue-400" />
+                  <span className="text-xs font-bold text-white">
+                    ตารางข้อมูล Master Parts No. ทั้งหมดในระบบ (แสดง {filteredData.length} จาก {masterData.length} รายการ)
+                  </span>
                 </div>
-                <div>
-                  <h3 className="text-sm font-bold text-blue-950">
-                    📘 ศูนย์รวมคู่มือโค้ดสี & มาตรฐานรหัสตำแหน่งคลัง (Dynamic Legend & Naming Guide)
-                  </h3>
-                  <p className="text-xs text-blue-800/80 mt-0.5">
-                    คู่มือนี้ถูกย้ายมารวมไว้ที่หน้าตั้งค่า (Settings) เพื่อความสะอาดและไม่เกะกะสายตาในหน้าผังแผนที่หลัก
-                  </p>
-                </div>
+                <span className="text-[11px] text-slate-400">เชื่อมโยงอัตโนมัติกับ QuickScannerModal</span>
               </div>
-              <div className="flex items-center space-x-2">
-                <span className="text-[11px] font-mono bg-white px-2.5 py-1 rounded-md border border-blue-200 text-blue-900 font-bold">
-                  3 อาคารหลัก: A4 (Selective Rack) • A2 (Flow Rail) • A5 (Tent Staging)
-                </span>
+
+              <div className="overflow-auto max-h-[60vh]">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="bg-slate-900/95 text-slate-300 font-mono sticky top-0 border-b border-slate-800 z-10 shadow-md">
+                    <tr>
+                      <th className="py-2.5 px-3 min-w-[170px] bg-slate-900/95">
+                        <div className="space-y-1">
+                          <div className="flex items-center space-x-1 font-bold text-cyan-400">
+                            <span>Part NO (Model)</span>
+                          </div>
+                          <input
+                            type="text"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="🔍 ค้นหา Part No..."
+                            className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                          />
+                        </div>
+                      </th>
+                      <th className="py-2.5 px-3 min-w-[180px] bg-slate-900/95">
+                        <div className="space-y-1">
+                          <div className="flex items-center space-x-1 font-bold text-emerald-400">
+                            <Factory className="w-3.5 h-3.5" />
+                            <span>ไลน์ผลิต (Line)</span>
+                          </div>
+                          <select
+                            value={lineFilter}
+                            onChange={(e) => setLineFilter(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-white focus:outline-none focus:border-emerald-500 cursor-pointer font-bold"
+                          >
+                            <option value="ALL">🏭 ทุกไลน์ผลิต (ทั้งหมด)</option>
+                            {useLines.map(line => (
+                              <option key={line.id} value={line.id}>Line {line.id}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </th>
+                      <th className="py-2.5 px-3 min-w-[160px] bg-slate-900/95">
+                        <div className="space-y-1">
+                          <div className="flex items-center space-x-1 font-bold text-blue-400">
+                            <Layers className="w-3.5 h-3.5" />
+                            <span>ประเภทงาน (Type)</span>
+                          </div>
+                          <select
+                            value={typeFilter}
+                            onChange={(e) => setTypeFilter(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-white focus:outline-none focus:border-blue-500 cursor-pointer font-bold"
+                          >
+                            <option value="ALL">📦 ทุกประเภทงาน</option>
+                            <option value="Evaporator">Evaporator (คอยล์เย็น)</option>
+                            <option value="Condenser">Condenser (คอยล์ร้อน)</option>
+                          </select>
+                        </div>
+                      </th>
+                      <th className="py-2.5 px-3 min-w-[180px] bg-slate-900/95">
+                        <div className="space-y-1">
+                          <div className="flex items-center space-x-1 font-bold text-amber-400">
+                            <Box className="w-3.5 h-3.5" />
+                            <span>Tools / รายละเอียด</span>
+                          </div>
+                          <input
+                            type="text"
+                            value={toolFilter}
+                            onChange={(e) => setToolFilter(e.target.value)}
+                            placeholder="🔍 ฟิลเตอร์ Tool..."
+                            className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                          />
+                        </div>
+                      </th>
+                      <th className="py-2.5 px-3 text-right min-w-[130px] bg-slate-900/95">
+                        <div className="space-y-1 text-right">
+                          <span className="font-bold text-slate-300">จำนวน/พาเลท (Std Qty)</span>
+                          {(lineFilter !== 'ALL' || typeFilter !== 'ALL' || search || toolFilter) && (
+                            <button
+                              onClick={() => { setSearch(''); setLineFilter('ALL'); setTypeFilter('ALL'); setToolFilter(''); }}
+                              className="block ml-auto text-[10px] text-rose-400 hover:text-rose-300 underline font-bold"
+                            >
+                              ล้างตัวกรอง
+                            </button>
+                          )}
+                        </div>
+                      </th>
+                      <th className="py-2.5 px-3 text-center min-w-[90px] bg-slate-900/95">จัดการ</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 font-mono">
+                    {editingId === 'new' && isDuplicatePartNo && (
+                      <tr className="bg-rose-950/80 border-y border-rose-500/70 animate-fadeIn">
+                        <td colSpan={6} className="py-2.5 px-4 text-xs font-bold text-rose-200">
+                          <div className="flex items-center space-x-2">
+                            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 animate-pulse" />
+                            <span>
+                              ⚠️ แจ้งเตือน: รหัส Parts No <strong className="text-white underline font-mono">"{cleanEditingModel}"</strong> มีอยู่ในระบบแล้ว! (ข้อมูลซ้ำซ้อน ระบบไม่อนุญาตให้บันทึกซ้ำ)
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+
+                    {editingId === 'new' && editForm && (
+                      <tr className="bg-blue-950/40 animate-fadeIn">
+                        <td className="py-2 px-3">
+                          <input
+                            type="text"
+                            value={editForm.modelHE}
+                            onChange={(e) => setEditForm({ ...editForm, modelHE: e.target.value })}
+                            placeholder="ระบุ Part No..."
+                            className={`w-full bg-slate-900 border rounded px-2 py-1 text-xs uppercase focus:outline-none transition-all ${
+                              isDuplicatePartNo 
+                                ? 'border-rose-500 text-rose-300 ring-2 ring-rose-500/40 bg-rose-950/30 font-bold' 
+                                : 'border-blue-500 text-white focus:ring-1 focus:ring-blue-400'
+                            }`}
+                            autoFocus
+                          />
+                          {isDuplicatePartNo && (
+                            <span className="text-[10px] text-rose-400 font-bold mt-0.5 block">
+                              ⚠️ รหัสนี้ซ้ำกับรายการที่มีอยู่
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2 px-3">
+                          <div className="flex flex-wrap gap-1 max-w-[220px]">
+                            {useLines.map(line => {
+                              const currentLines = editForm.useLines || (editForm.useLine ? editForm.useLine.split(/,\s*/) : ['HE1']);
+                              const isSelected = currentLines.includes(line.id);
+                              return (
+                                <button
+                                  key={line.id}
+                                  type="button"
+                                  onClick={() => {
+                                    const newLines = isSelected
+                                      ? currentLines.filter(l => l !== line.id)
+                                      : [...currentLines, line.id];
+                                    setEditForm({
+                                      ...editForm,
+                                      useLines: newLines,
+                                      useLine: newLines[0] || 'HE1'
+                                    });
+                                  }}
+                                  className={`px-1.5 py-0.5 text-[10px] font-bold rounded border transition-all ${
+                                    isSelected 
+                                      ? 'bg-emerald-600 text-white border-emerald-400 font-black shadow-xs' 
+                                      : 'bg-slate-900 text-slate-400 border-slate-700 hover:bg-slate-800'
+                                  }`}
+                                >
+                                  {line.id}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </td>
+                        <td className="py-2 px-3">
+                          <select
+                            value={editForm.productType || (typeFilter !== 'ALL' ? (typeFilter as any) : 'Evaporator')}
+                            onChange={(e) => setEditForm({ ...editForm, productType: e.target.value as any })}
+                            className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white focus:outline-none"
+                          >
+                            <option value="Evaporator">Evaporator</option>
+                            <option value="Condenser">Condenser</option>
+                          </select>
+                        </td>
+                        <td className="py-2 px-3">
+                          <input
+                            type="text"
+                            value={editForm.partName}
+                            onChange={(e) => setEditForm({ ...editForm, partName: e.target.value })}
+                            placeholder="Tool Name (e.g. SK, U12)"
+                            className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white focus:outline-none"
+                          />
+                        </td>
+                        <td className="py-2 px-3 text-right">
+                          <input
+                            type="number"
+                            value={editForm.stdQtyPerPallet || 80}
+                            onChange={(e) => setEditForm({ ...editForm, stdQtyPerPallet: Number(e.target.value) })}
+                            className="w-20 text-right bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-cyan-300 font-bold focus:outline-none"
+                          />
+                        </td>
+                        <td className="py-2 px-3 text-center space-x-1">
+                          <button
+                            onClick={handleSave}
+                            disabled={isDuplicatePartNo || !cleanEditingModel}
+                            className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all ${
+                              isDuplicatePartNo || !cleanEditingModel
+                                ? 'bg-slate-800 text-slate-500 cursor-not-allowed opacity-60'
+                                : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-md active:scale-95'
+                            }`}
+                            title={isDuplicatePartNo ? 'ไม่สามารถบันทึกได้เนื่องจากรหัส Part No ซ้ำกัน' : 'บันทึก'}
+                          >
+                            บันทึก
+                          </button>
+                          <button
+                            onClick={() => { setEditingId(null); setEditForm(null); }}
+                            className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px]"
+                          >
+                            ยกเลิก
+                          </button>
+                        </td>
+                      </tr>
+                    )}
+
+                    {filteredData.length === 0 && editingId !== 'new' && (
+                      <tr>
+                        <td colSpan={6} className="py-12 text-center text-slate-400">
+                          <div className="flex flex-col items-center justify-center space-y-2">
+                            <Box className="w-8 h-8 text-slate-600" />
+                            <span className="text-xs font-medium">ไม่พบรายการ Master Parts No ตามเงื่อนไขการค้นหา/ฟิลเตอร์</span>
+                            {(search || lineFilter !== 'ALL' || typeFilter !== 'ALL' || toolFilter) && (
+                              <button
+                                onClick={() => { setSearch(''); setLineFilter('ALL'); setTypeFilter('ALL'); setToolFilter(''); }}
+                                className="text-xs text-blue-400 hover:text-blue-300 underline font-bold mt-1"
+                              >
+                                ล้างตัวกรองทั้งหมด
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+
+                    {filteredData.map((item, idx) => {
+                      const isEditing = editingId === item.modelHE;
+                      if (isEditing && editForm) {
+                        return (
+                          <tr key={`${item.modelHE}-${item.useLine || ''}-${idx}`} className="bg-blue-950/40 animate-fadeIn">
+                            <td className="py-2 px-3 font-bold text-cyan-300">{item.modelHE}</td>
+                            <td className="py-2 px-3">
+                              <div className="flex flex-wrap gap-1 max-w-[220px]">
+                                {useLines.map(line => {
+                                  const currentLines = editForm.useLines || (editForm.useLine ? editForm.useLine.split(/,\s*/) : ['HE1']);
+                                  const isSelected = currentLines.includes(line.id);
+                                  return (
+                                    <button
+                                      key={line.id}
+                                      type="button"
+                                      onClick={() => {
+                                        const newLines = isSelected
+                                          ? currentLines.filter(l => l !== line.id)
+                                          : [...currentLines, line.id];
+                                        setEditForm({
+                                          ...editForm,
+                                          useLines: newLines,
+                                          useLine: newLines[0] || 'HE1'
+                                        });
+                                      }}
+                                      className={`px-1.5 py-0.5 text-[10px] font-bold rounded border transition-all ${
+                                        isSelected 
+                                          ? 'bg-emerald-600 text-white border-emerald-400 font-black shadow-xs' 
+                                          : 'bg-slate-900 text-slate-400 border-slate-700 hover:bg-slate-800'
+                                      }`}
+                                    >
+                                      {line.id}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </td>
+                            <td className="py-2 px-3">
+                              <select
+                                value={editForm.productType || 'Evaporator'}
+                                onChange={(e) => setEditForm({ ...editForm, productType: e.target.value as any })}
+                                className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white focus:outline-none"
+                              >
+                                <option value="Evaporator">Evaporator</option>
+                                <option value="Condenser">Condenser</option>
+                              </select>
+                            </td>
+                            <td className="py-2 px-3">
+                              <input
+                                type="text"
+                                value={editForm.partName}
+                                onChange={(e) => setEditForm({ ...editForm, partName: e.target.value })}
+                                className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white focus:outline-none"
+                              />
+                            </td>
+                            <td className="py-2 px-3 text-right">
+                              <input
+                                type="number"
+                                value={editForm.stdQtyPerPallet || 80}
+                                onChange={(e) => setEditForm({ ...editForm, stdQtyPerPallet: Number(e.target.value) })}
+                                className="w-20 text-right bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-cyan-300 font-bold focus:outline-none"
+                              />
+                            </td>
+                            <td className="py-2 px-3 text-center space-x-1">
+                              <button
+                                onClick={handleSave}
+                                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[11px] font-bold"
+                              >
+                                บันทึก
+                              </button>
+                              <button
+                                onClick={() => { setEditingId(null); setEditForm(null); }}
+                                className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px]"
+                              >
+                                ยกเลิก
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      const linesList = getItemLines(item);
+
+                      return (
+                        <tr key={`${item.modelHE}-${item.useLine || ''}-${idx}`} className="hover:bg-slate-800/40 transition-colors group">
+                          <td className="py-2 px-3">
+                            <span className="font-bold text-cyan-400 group-hover:text-cyan-300">{item.modelHE}</span>
+                          </td>
+                          <td className="py-2 px-3">
+                            <div className="flex flex-wrap gap-1 items-center">
+                              {linesList.map((lineId, lIdx) => (
+                                <span
+                                  key={`${lineId}-${lIdx}`}
+                                  className="px-2 py-0.5 rounded text-[10px] font-black border bg-emerald-950/80 text-emerald-300 border-emerald-500/40 shadow-xs"
+                                >
+                                  {lineId}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="py-2 px-3">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                              item.productType === 'Condenser' 
+                                ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' 
+                                : 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                            }`}>
+                              {item.productType || 'Evaporator'}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 text-slate-300 truncate max-w-[200px]" title={item.partName}>
+                            {item.partName}
+                          </td>
+                          <td className="py-2 px-3 text-right font-black text-cyan-300 text-sm">
+                            {item.stdQtyPerPallet} <span className="text-[10px] text-slate-300 font-bold">ชิ้น</span>
+                          </td>
+                          <td className="py-2 px-3 text-center">
+                            <div className="flex items-center justify-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => handleEdit(item)}
+                                className="p-1.5 text-blue-400 hover:text-white hover:bg-blue-600 rounded-lg transition-all"
+                                title="แก้ไขข้อมูล"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setConfirmDeleteModal({
+                                    isOpen: true,
+                                    title: 'ยืนยันการลบข้อมูล Master Part',
+                                    itemName: item.modelHE,
+                                    warningText: 'คำเตือน: ข้อมูลนี้จะถูกลบออกจากฐานข้อมูลหลัก',
+                                    onConfirm: () => {
+                                      handleDelete(item.modelHE);
+                                      setConfirmDeleteModal(null);
+                                    }
+                                  });
+                                }}
+                                className="p-1.5 text-rose-400 hover:text-white hover:bg-rose-600 rounded-lg transition-all"
+                                title="ลบข้อมูล"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
-
-            <DynamicLegendPanel />
           </div>
         )}
 
@@ -1159,6 +1681,23 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
           </div>
         )}
 
+        {/* TAB: AGING FIFO CONFIG */}
+        {activeTab === 'AGING_CONFIG' && setAgingConfig && (
+          <div className="animate-fadeIn h-full overflow-auto">
+            <AgingFifoPanel 
+              agingConfig={agingConfig || { safeDaysMin: 0, safeDaysMax: 21, warningDaysMin: 22, warningDaysMax: 24, urgentDaysMin: 25, urgentDaysMax: 27, dueDay: 28, criticalDays: 28, indoorRubberCapDays: 28, autoAlertEnabled: true, notifyOnFifoViolation: true, customRuleName: '' }} 
+              setAgingConfig={setAgingConfig} 
+              items={items}
+            />
+          </div>
+        )}
+
+        {/* TAB: COLOR CODE GUIDE */}
+        {activeTab === 'GUIDE_LEGEND' && (
+          <div className="animate-fadeIn h-full overflow-auto">
+            <DynamicLegendPanel />
+          </div>
+        )}
       </div>
 
       {/* In-app Custom Delete Confirmation Modal */}

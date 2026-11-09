@@ -865,10 +865,7 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
         </div>
       </div>
 
-      {/* FLOATING HOVER MINI-STATS OVERLAY FOR TENT SLOTS */}
-      {hoveredSlot && (
-        <SlotMiniStatsOverlay data={hoveredSlot} />
-      )}
+      {/* FLOATING HOVER MINI-STATS OVERLAY REMOVED FOR CLEAN 2D VIEW */}
 
       {/* ========================================================================= */}
       {/* UNIFIED PALLET SLOT DETAILS MODAL                                         */}

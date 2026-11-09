@@ -5,7 +5,6 @@ import {
   QrCode, 
   History, 
   ClockAlert, 
-  ShieldCheck,
   ShieldAlert,
   Search,
   Maximize,
@@ -190,22 +189,6 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </div>
 
-        {/* Quick Actions (QR Scan) */}
-        <div className={`p-2.5 ${isCollapsed ? 'flex justify-center' : 'space-y-2'}`}>
-          <button
-            onClick={() => {
-              onOpenScanner();
-              setIsMobileOpen(false);
-            }}
-            className={`flex items-center justify-center bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all shadow-md active:scale-95 ${
-              isCollapsed ? 'w-10 h-10 p-0' : 'w-full py-2.5 px-3 space-x-2'
-            }`}
-            title="สแกน QR รับ-เบิกสินค้า"
-          >
-            <QrCode className="w-4 h-4 shrink-0 text-white" />
-            {!isCollapsed && <span className="text-xs truncate">สแกน QR (IN/OUT)</span>}
-          </button>
-        </div>
 
         {/* Left-Aligned Menu Tabs */}
         <nav className={`flex-1 ${isCollapsed ? 'px-2' : 'px-2.5'} py-2 space-y-1 overflow-y-auto no-scrollbar text-left`}>
@@ -261,19 +244,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Footer Actions: Capacity, Language, Dark mode, Fullscreen */}
         <div className="p-2.5 border-t border-slate-800/80 space-y-2 text-left">
-          {!isCollapsed && (
-            <div className="flex items-center justify-between text-[11px] bg-slate-800/80 px-2.5 py-1.5 rounded-lg border border-slate-700/60">
-              <span className="text-slate-400 font-medium flex items-center space-x-1">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>{activeFacility ? `${activeFacility.code}:` : `${t('navigation.totalCapacity')}`}</span>
-              </span>
-              <span className="text-emerald-400 font-bold">
-                {activeFacility 
-                  ? `${activeFacility.totalCapacityPallets} ${t('common.pallets')}` 
-                  : `${facilities.reduce((acc, f) => acc + f.totalCapacityPallets, 0) || 680} ${t('common.pallets')}`}
-              </span>
-            </div>
-          )}
 
           {isCollapsed ? (
             <div className="flex flex-col items-center space-y-2 py-1">

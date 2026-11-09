@@ -5,19 +5,6 @@ import { InventoryItem, MovementType, ShelfLevel, StorageZone } from '../../type
 import { createRealisticForklift } from './forkliftModel';
 import { createHologramGhostTarget } from './hologramGhost';
 import { createRackBayNeonHighlight, applyFaintEmissiveHighlight } from './neonEdgeHighlight';
-import { 
-  RotateCcw, 
-  Layers, 
-  Info, 
-  Maximize2, 
-  Minimize2, 
-  Truck, 
-  Box, 
-  CheckCircle2, 
-  AlertTriangle,
-  Sun,
-  Sparkles
-} from 'lucide-react';
 import { CameraControlOverlay } from './CameraControlOverlay';
 
 interface CY3OutdoorRack3DViewProps {
@@ -39,8 +26,6 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
 
-  // Level filter & Hovered slot
-  const [activeLevelFilter, setActiveLevelFilter] = useState<'ALL' | 1 | 2 | 3 | 4>('ALL');
   const [activePreset, setActivePreset] = useState<'ALL' | 'TOP_DOWN' | 'ROW_A' | 'ROW_B' | 'ROW_C' | 'ROW_D'>('ALL');
   const rowGroupsRef = useRef<Record<'A' | 'B' | 'C' | 'D', THREE.Group>>({} as any);
   const [hoveredSlot, setHoveredSlot] = useState<{ row: 'A' | 'B' | 'C' | 'D'; bay: number; lvl: ShelfLevel; locator: string; item?: InventoryItem } | null>(null);
@@ -83,9 +68,6 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
       }
 
       map.set(`${r}-${b}-${l}-${pos}`, it);
-      if (!map.has(`${r}-${b}-${l}`)) {
-        map.set(`${r}-${b}-${l}`, it);
-      }
     });
     return map;
   }, [items]);
@@ -236,36 +218,6 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
       return tex;
     };
 
-    // Helper: Create Bay Slot Number Floor Texture (ตัวเลขเสา/ช่อง 01-25 สลักบนพื้น)
-    const createBayNumberDecalTexture = (rowCode: string, bayNum: number) => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 256;
-      canvas.height = 128;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.fillStyle = '#0f172a';
-        ctx.fillRect(0, 0, 256, 128);
-
-        ctx.lineWidth = 6;
-        ctx.strokeStyle = '#facc15'; // Safety Yellow
-        ctx.strokeRect(4, 4, 248, 120);
-
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '900 56px "Segoe UI", Arial, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(`${rowCode}${String(bayNum).padStart(2, '0')}`, 128, 50);
-
-        ctx.fillStyle = '#facc15';
-        ctx.font = 'bold 22px "Segoe UI", Arial, sans-serif';
-        ctx.fillText(`ช่อง ${String(bayNum).padStart(2, '0')}`, 128, 98);
-      }
-      const tex = new THREE.CanvasTexture(canvas);
-      tex.anisotropy = 8;
-      tex.needsUpdate = true;
-      return tex;
-    };
-
     // Helper: Create Floating Bay Label TextSprite
     const createBayLabelSprite = (text: string) => {
       const canvas = document.createElement('canvas');
@@ -344,33 +296,18 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
 
       const rowColor = rConfig.code === 'A' ? '#3b82f6' : rConfig.code === 'B' ? '#10b981' : rConfig.code === 'C' ? '#f59e0b' : '#8b5cf6';
       
-      // 1. Large Engraved Floor Decal at Left End of Row (x = -32.5)
-      const leftDecalMat = new THREE.MeshBasicMaterial({
+      const rowDecalMat = new THREE.MeshBasicMaterial({
         map: createRackHeadDecalTexture(rConfig.code, rConfig.sign, rowColor),
         side: THREE.DoubleSide
       });
-      const leftFloorDecal = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 1.8), leftDecalMat);
-      leftFloorDecal.position.set(-32.5, 0.03, rConfig.z);
-      leftFloorDecal.rotation.x = -Math.PI / 2;
-      rowGroup.add(leftFloorDecal);
 
-      // 2. Large Engraved Floor Decal at Right End of Row (x = 32.5)
-      const rightDecalMat = new THREE.MeshBasicMaterial({
-        map: createRackHeadDecalTexture(rConfig.code, rConfig.sign, rowColor),
-        side: THREE.DoubleSide
-      });
-      const rightFloorDecal = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 1.8), rightDecalMat);
-      rightFloorDecal.position.set(32.5, 0.03, rConfig.z);
-      rightFloorDecal.rotation.x = -Math.PI / 2;
-      rowGroup.add(rightFloorDecal);
-
-      // 3. Overhead End-Frame 3D Sign Plate
-      const leftSignPlate = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.0), leftDecalMat);
+      // Overhead End-Frame 3D Sign Plate
+      const leftSignPlate = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.0), rowDecalMat);
       leftSignPlate.position.set(-30.1, 4.0, rConfig.z);
       leftSignPlate.rotation.y = -Math.PI / 2;
       rowGroup.add(leftSignPlate);
 
-      const rightSignPlate = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.0), rightDecalMat);
+      const rightSignPlate = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.0), rowDecalMat);
       rightSignPlate.position.set(30.1, 4.0, rConfig.z);
       rightSignPlate.rotation.y = Math.PI / 2;
       rowGroup.add(rightSignPlate);
@@ -382,27 +319,6 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
         const xRight = xPos + BAY_WIDTH / 2;
         const zFront = rConfig.z + RACK_DEPTH / 2;
         const zRear = rConfig.z - RACK_DEPTH / 2;
-
-        // Floor Bay Slot Number Marking (สลักตัวเลขหัวช่องบนพื้นฝั่งด้านนอกแถว ไม่ทับใต้แร็ค)
-        let zAisleFloor = 0;
-        if (rConfig.code === 'A') {
-          zAisleFloor = rConfig.z - 1.35; // Outside North Aisle (z = -7.35)
-        } else if (rConfig.code === 'B') {
-          zAisleFloor = rConfig.z + 1.15; // Central Roadway North Edge (z = -0.85)
-        } else if (rConfig.code === 'C') {
-          zAisleFloor = rConfig.z - 1.15; // Central Roadway South Edge (z = 0.85)
-        } else {
-          zAisleFloor = rConfig.z + 1.35; // Outside South Aisle (z = 7.35)
-        }
-
-        const bayFloorDecalMat = new THREE.MeshBasicMaterial({
-          map: createBayNumberDecalTexture(rConfig.code, b),
-          side: THREE.DoubleSide
-        });
-        const bayFloorDecal = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 0.65), bayFloorDecalMat);
-        bayFloorDecal.position.set(xPos, 0.025, zAisleFloor);
-        bayFloorDecal.rotation.x = -Math.PI / 2;
-        rowGroup.add(bayFloorDecal);
 
         // 4 Upright Support Posts (Front-Left, Front-Right, Rear-Left, Rear-Right)
         const posts = [
@@ -422,12 +338,10 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
           foot.position.set(px, 0.01, pz);
           rowGroup.add(foot);
 
-          // Yellow Base Guards at ends
-          if (b === 1 || b === BAY_COUNT) {
-            const guard = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.55, 0.2), guardMat);
-            guard.position.set(px, 0.28, pz);
-            rowGroup.add(guard);
-          }
+          // Yellow Base Guards on every upright post of every bay
+          const guard = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.55, 0.2), guardMat);
+          guard.position.set(px, 0.28, pz);
+          rowGroup.add(guard);
         });
 
         // Add Side Diagonal Steel Bracing on Left and Right end frames
@@ -445,8 +359,6 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
         };
 
         for (let l = 1; l <= 4; l++) {
-          if (activeLevelFilter !== 'ALL' && activeLevelFilter !== l) continue;
-
           const yPos = levelYPositions[l];
 
           // For L2, L3, L4: Orange Load Beams (Front & Rear)
@@ -479,8 +391,7 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
           palletOffsetsX.forEach((xOff, pIdx) => {
             const pPos: 'P1' | 'P2' = pIdx === 0 ? 'P1' : 'P2';
             const palletLocator = `${locator}-${pPos}`;
-            const palletItem = cy3ItemMap.get(`${rConfig.code}-${b}-${l}-${pPos}`) || 
-                               (pIdx === 0 ? cy3ItemMap.get(`${rConfig.code}-${b}-${l}`) : undefined);
+            const palletItem = cy3ItemMap.get(`${rConfig.code}-${b}-${l}-${pPos}`);
 
             if (palletItem) {
               const isAging = palletItem.agingDays > 28;
@@ -703,7 +614,7 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
       renderer.dispose();
       container.innerHTML = '';
     };
-  }, [cy3ItemMap, activeLevelFilter]);
+  }, [cy3ItemMap]);
 
   // Smooth lerp camera fly function
   const flyCameraTo = (targetPos: THREE.Vector3, targetLookAt: THREE.Vector3, duration = 850) => {
@@ -826,23 +737,6 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
     <div ref={containerRef} className="relative w-full h-full min-h-0 rounded-2xl overflow-hidden border border-slate-300 bg-[#f8fafc] shadow-2xl flex flex-col">
       <div ref={mountRef} className="w-full flex-1 h-full min-h-[300px]" />
 
-      {/* Floating Header (Top Left) */}
-      <div className="absolute top-3 left-3 pointer-events-auto z-20 max-w-[45%] hidden md:block">
-        <div className="bg-white/92 backdrop-blur-md border border-slate-200 px-3 py-1.5 rounded-xl shadow-md flex items-center gap-2.5 text-slate-800">
-          <div className="w-7 h-7 rounded-lg bg-orange-600/20 border border-orange-500/40 flex items-center justify-center text-orange-600 shrink-0">
-            <Box className="w-3.5 h-3.5" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <h2 className="text-xs font-black text-slate-900 truncate">CY3 Rack 3D</h2>
-              <span className="px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-700 border border-orange-500/30 text-[10px] font-mono font-bold shrink-0">
-                400 PL
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Unified Camera Navigation Control Overlay (D-Pad + Presets) */}
       <CameraControlOverlay
         onPan={handlePan}
@@ -860,50 +754,36 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
         ]}
       />
 
-      {/* Level Filter (Top Left / Center) */}
-      <div className="absolute top-3 left-1/2 -translate-x-1/2 pointer-events-auto z-20 flex items-center bg-slate-900/90 backdrop-blur-md p-1 rounded-xl text-[11px] font-bold border border-slate-800 shadow-lg">
-        {(['ALL', 1, 2, 3, 4] as const).map(lvl => (
-          <button
-            key={lvl}
-            onClick={() => setActiveLevelFilter(lvl)}
-            className={`px-2.5 py-1 rounded-lg transition-all ${
-              activeLevelFilter === lvl ? 'bg-orange-600 text-white shadow-xs' : 'text-slate-300 hover:text-white'
-            }`}
-          >
-            {lvl === 'ALL' ? 'ทุกชั้น' : `L${lvl}`}
-          </button>
-        ))}
-      </div>
-
       {/* Hover Info */}
       {hoveredSlot && (
-        <div className="absolute bottom-4 left-4 bg-slate-900/95 backdrop-blur-md border border-cyan-500/60 px-3.5 py-2.5 rounded-2xl shadow-2xl text-xs max-w-sm pointer-events-none animate-fadeIn">
-          <div className="flex items-center justify-between gap-3 mb-1.5">
-            <div className="flex items-center gap-1.5">
-              <span className={`w-2 h-2 rounded-full animate-ping ${hoveredSlot.item ? 'bg-cyan-400' : 'bg-emerald-400'}`} />
-              <span className="font-mono font-bold text-cyan-300">{hoveredSlot.locator}</span>
-            </div>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase border ${
-              hoveredSlot.item ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-            }`}>
-              {hoveredSlot.item ? '✓ มีสินค้า (STORED)' : '● ช่องว่าง (READY)'}
+        <div className="absolute bottom-4 left-4 bg-slate-900/95 backdrop-blur-md border border-slate-700 rounded-xl p-3.5 shadow-2xl w-64 text-xs pointer-events-none animate-fadeIn">
+          {/* Row 1: Header */}
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-700">
+            <span className="font-bold text-slate-300 truncate">โซน CY3 (แถว {hoveredSlot.row})</span>
+            <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${hoveredSlot.item ? 'bg-cyan-500/20 text-cyan-300' : 'bg-emerald-500/20 text-emerald-300'}`}>
+              {hoveredSlot.item ? '✓ มีสินค้า (STORED)' : '○ ช่องว่าง (READY)'}
             </span>
           </div>
-          {hoveredSlot.item ? (
-            <div className="space-y-0.5 text-slate-300">
-              <p className="font-bold text-white truncate">{hoveredSlot.item.modelHE}</p>
-              <p className="text-slate-400 truncate">{hoveredSlot.item.partName}</p>
-              <div className="flex items-center gap-2 text-[10px] text-slate-400 pt-1 border-t border-slate-800 mt-1">
-                <span>จำนวน: <strong className="text-white">{hoveredSlot.item.quantity}</strong> EA</span>
-                <span>&bull;</span>
-                <span className={hoveredSlot.item.agingDays > 30 ? 'text-rose-400 font-bold' : ''}>
-                  Aging: {hoveredSlot.item.agingDays} วัน
-                </span>
-              </div>
-            </div>
-          ) : (
-            <p className="text-slate-400 text-[11px]">คลิกเพื่อรับเข้าสินค้า แถว {hoveredSlot.row} เสา {hoveredSlot.bay} ชั้น L{hoveredSlot.lvl}</p>
-          )}
+          
+          {/* Row 2: Locator */}
+          <div className="font-mono font-black text-amber-300 text-sm mb-1">{hoveredSlot.locator}</div>
+          
+          {/* Row 3: Part No & Name */}
+          <div className="text-white font-bold mb-0.5 truncate">{hoveredSlot.item ? hoveredSlot.item.modelHE : '-'}</div>
+          <div className="text-slate-400 mb-2 truncate">{hoveredSlot.item ? hoveredSlot.item.partName : '-'}</div>
+          
+          {/* Row 4: Metrics */}
+          <div className="flex justify-between text-slate-300 font-mono text-[11px] mb-2.5">
+            <span>จำนวน: <b className="text-white">{hoveredSlot.item ? hoveredSlot.item.quantity.toLocaleString() : 0}</b></span>
+            <span className={hoveredSlot.item && hoveredSlot.item.agingDays > 30 ? 'text-rose-400' : 'text-slate-300'}>
+              Aging: {hoveredSlot.item ? `${hoveredSlot.item.agingDays} วัน` : '-'}
+            </span>
+          </div>
+          
+          {/* Footer Hint */}
+          <div className="pt-2 border-t border-slate-700 text-[10px] text-slate-500 text-center">
+            คลิกเพื่อเปิดรายละเอียด & รับเข้า/เบิกออก
+          </div>
         </div>
       )}
     </div>

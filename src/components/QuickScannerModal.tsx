@@ -93,7 +93,6 @@ export interface LearnedPart {
 }
 
 const LEARNED_PARTS_STORAGE_KEY = 'wms_learned_parts_v2';
-const STANDARD_QTY_PRESETS = [80, 100, 120, 150, 180, 200, 220, 250, 300];
 
 // Helper to retrieve custom learned parts from localStorage
 const getSavedLearnedParts = (): LearnedPart[] => {
@@ -151,7 +150,7 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
   const [itemFilterQuery, setItemFilterQuery] = useState<string>('');
 
   // Core Fields
-  const [modelHE, setModelHE] = useState<string>('ADL74920904');
+  const [modelHE, setModelHE] = useState<string>('');
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState<boolean>(false);
   const [modelSearchQuery, setModelSearchQuery] = useState<string>('');
   const [learnedParts, setLearnedParts] = useState<LearnedPart[]>(() => getSavedLearnedParts());
@@ -182,10 +181,10 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   });
 
-  // Quantity States
-  const [actualQty, setActualQty] = useState<number>(80);
-  const [labelQty, setLabelQty] = useState<number>(80);
-  const [stdQtyPerPallet, setStdQtyPerPallet] = useState<number>(80);
+  // Quantity States (Default to 0 / BLANK for Stock IN)
+  const [actualQty, setActualQty] = useState<number>(0);
+  const [labelQty, setLabelQty] = useState<number>(0);
+  const [stdQtyPerPallet, setStdQtyPerPallet] = useState<number>(0);
 
   // Feedback & Validation
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -202,7 +201,7 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
 
   // Master catalog of all available models
   const availableModels = useMemo(() => {
-    const map = new Map<string, { modelHE: string; partName: string; stdQty: number; isLearned?: boolean }>();
+    const map = new Map<string, { modelHE: string; partName: string; stdQty: number; useLine?: string; isLearned?: boolean }>();
     
     // 1. Master Data
     masterData.forEach(m => {
@@ -211,6 +210,7 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
           modelHE: m.modelHE.toUpperCase(), 
           partName: m.partName || '', 
           stdQty: m.stdQtyPerPallet || 80,
+          useLine: m.useLine,
           isLearned: false
         });
       }
@@ -223,6 +223,7 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
           modelHE: it.modelHE.toUpperCase(), 
           partName: it.partName || '', 
           stdQty: it.stdQtyPerPallet || 80,
+          useLine: it.useLine,
           isLearned: false
         });
       }
@@ -245,10 +246,12 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
     });
 
     if (!map.has('ADL74920904')) {
+      const match = masterData.find(m => m.modelHE === 'ADL74920904');
       map.set('ADL74920904', { 
         modelHE: 'ADL74920904', 
-        partName: 'Inverter Main Board Module', 
-        stdQty: 80,
+        partName: match?.partName || 'Inverter Main Board Module', 
+        stdQty: match?.stdQtyPerPallet || 80,
+        useLine: match?.useLine || 'HE2',
         isLearned: false 
       });
     }
@@ -285,8 +288,13 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
 
   // Current item in the clicked slot
   const currentSlotItem = useMemo(() => {
-    return existingItems.find(it => it.zone === zone && it.bayNumber === bayNumber && it.level === level);
-  }, [existingItems, zone, bayNumber, level]);
+    return existingItems.find(it => 
+      it.zone === zone && 
+      it.bayNumber === bayNumber && 
+      it.level === level && 
+      (palletPosition ? (it.palletPosition === palletPosition || (!it.palletPosition && palletPosition === 'P1')) : true)
+    );
+  }, [existingItems, zone, bayNumber, level, palletPosition]);
 
   // Target item in the target slot (for transfer)
   const targetSlotItem = useMemo(() => {
@@ -368,9 +376,14 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
   // Sync initial props when modal opens (DIRECTLY CONNECTED FROM LAYOUT CLICK)
   useEffect(() => {
     if (isOpen) {
-      setZone(initialZone);
-      setBayNumber(initialBayNumber);
-      setLevel(initialLevel);
+      const canonical = initialLocatorCode ? resolveCanonicalCoordinate({ locatorCode: initialLocatorCode }) : null;
+      const effZone = canonical ? canonical.zone : initialZone;
+      const effBay = canonical ? canonical.bayNumber : initialBayNumber;
+      const effLevel = canonical ? canonical.level : initialLevel;
+
+      setZone(effZone);
+      setBayNumber(effBay);
+      setLevel(effLevel);
       setType(initialMode);
       setPalletPosition(initialPalletPosition);
       setActiveCustomLocator(initialLocatorCode);
@@ -385,11 +398,14 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
       // Determine item in clicked slot
       let found = initialItem || null;
       if (!found && initialLocatorCode) {
-        found = existingItems.find(it => it.locatorCode === initialLocatorCode) || null;
+        found = existingItems.find(it => {
+          const res = resolveCanonicalCoordinate({ locatorCode: it.locatorCode, zone: it.zone, bayNumber: it.bayNumber, level: it.level });
+          return res.canonicalLocator.toUpperCase() === initialLocatorCode.toUpperCase();
+        }) || null;
       }
       if (!found) {
         found = existingItems.find(
-          (it) => it.zone === initialZone && it.bayNumber === initialBayNumber && it.level === initialLevel && (initialPalletPosition ? it.palletPosition === initialPalletPosition : true)
+          (it) => it.zone === effZone && it.bayNumber === effBay && it.level === effLevel && (initialPalletPosition ? it.palletPosition === initialPalletPosition : true)
         ) || null;
       }
 
@@ -411,33 +427,37 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
           setPalletPosition(found.palletPosition);
         }
       } else {
-        // Slot is empty
+        // Slot is empty: Start with BLANK / 0 values for Stock IN per requirement
         setTargetItemObj(null);
-        setModelHE('ADL74920904');
-        setModelSearchQuery('ADL74920904');
-        const defaultStd = getModelStdCapacity('ADL74920904', masterData);
-        setStdQtyPerPallet(defaultStd);
-        setLabelQty(defaultStd);
-        setActualQty(defaultStd);
-        setUseLine('HE2');
-        setScanInput('ADL74920904_2026-09-29_09:00_HE2_80');
+        setModelHE('');
+        setModelSearchQuery('');
+        setStdQtyPerPallet(0);
+        setLabelQty(0);
+        setActualQty(0);
+        setUseLine(useLines[0]?.id || 'HE2');
+        setScanInput('');
       }
 
       // Set target zone for transfer (default to next zone)
-      setTargetZone(initialZone === 'E' ? 'F' : 'E');
+      setTargetZone(effZone === 'E' ? 'F' : 'E');
       setTargetBayNumber(1);
       setTargetLevel(1);
     }
   }, [isOpen, initialZone, initialBayNumber, initialLevel, initialMode, initialLocatorCode, initialPalletPosition, initialItem, existingItems]);
 
-  // Max Bays Calculation
+  // Max Bays / Rows Calculation
   const getMaxBaysForZone = (z: string): number => {
     if (['B', 'C', 'D', 'E', 'F'].includes(z)) return 12;
     if (['G', 'H', 'I', 'J', 'K'].includes(z)) return 5;
     if (z.startsWith('CY3') || z.startsWith('DY3T')) return 25;
-    if (z.startsWith('X')) return 12;
+    if (z.startsWith('X')) return z === 'X8' ? 4 : 6;
     if (z.startsWith('R') || z.startsWith('FR')) return 8;
     if (z.startsWith('T') || z.startsWith('DA5T')) return 20;
+    return 12;
+  };
+
+  const getMaxColsForFloorGroup = (z: string): number => {
+    if (['X1', 'X2', 'X3', 'X4'].includes(z)) return 7;
     return 12;
   };
 
@@ -458,10 +478,15 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
     setModelSearchQuery(selectedModel);
     setIsModelDropdownOpen(false);
 
-    const match = availableModels.find(m => m.modelHE.toUpperCase() === selectedModel.toUpperCase());
-    const std = defaultStdQty || match?.stdQty || getModelStdCapacity(selectedModel, masterData);
-    setActualQty(std);
+    const match = masterData.find(m => m.modelHE.toUpperCase() === selectedModel.toUpperCase());
+    const std = match?.stdQtyPerPallet || defaultStdQty || 80;
+    const line = match?.useLine || 'HE2';
+    
+    setStdQtyPerPallet(std);
     setLabelQty(std);
+    // Keep actualQty = 0 (blank input) so user manually enters received quantity
+    setActualQty(0);
+    setUseLine(line);
   };
 
   // Learn and remember a new Parts No
@@ -598,14 +623,31 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
 
     const cleanModel = modelHE.trim().toUpperCase();
 
-    if (!cleanModel) {
-      setValidationError('⚠️ กรุณาระบุรหัสสินค้า (Parts No)');
-      return;
-    }
+    // Mandatory validation check
+    if (type === 'IN') {
+      const isMissingModel = !cleanModel;
+      const isMissingQty = !actualQty || actualQty <= 0;
+      const isMissingCap = !stdQtyPerPallet || stdQtyPerPallet <= 0;
 
-    if (!actualQty || actualQty <= 0) {
-      setValidationError('⚠️ กรุณาระบุจำนวนสินค้าให้มากกว่า 0');
-      return;
+      if (isMissingModel || isMissingQty || isMissingCap) {
+        const missing: string[] = [];
+        if (isMissingModel) missing.push('1. รหัสสินค้า (Parts No)');
+        if (isMissingQty) missing.push('2. จำนวนชิ้นงาน (Quantity)');
+        if (isMissingCap) missing.push('3. ความจุพาเลท (Pallet Std Capacity)');
+
+        setValidationError(`⚠️ บังคับกรอกข้อมูลให้ครบทั้ง 3 ช่อง: ${missing.join(', ')} ก่อนกดรับเข้างาน`);
+        return;
+      }
+    } else {
+      if (!cleanModel) {
+        setValidationError('⚠️ กรุณาระบุรหัสสินค้า (Parts No)');
+        return;
+      }
+
+      if (!actualQty || actualQty <= 0) {
+        setValidationError('⚠️ กรุณาระบุจำนวนสินค้าให้มากกว่า 0');
+        return;
+      }
     }
 
     // Model Mixing & Placement Validation
@@ -744,7 +786,17 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
           <div className="grid grid-cols-3 gap-1 p-0.5 bg-slate-950 rounded-xl border border-slate-800">
             <button
               type="button"
-              onClick={() => setType('IN')}
+              onClick={() => {
+                setType('IN');
+                if (!targetItemObj) {
+                  setModelHE('');
+                  setModelSearchQuery('');
+                  setActualQty(0);
+                  setLabelQty(0);
+                  setStdQtyPerPallet(0);
+                  setScanInput('');
+                }
+              }}
               className={`h-8 rounded-lg font-black text-xs flex items-center justify-center gap-1 transition-all ${
                 type === 'IN'
                   ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-400'
@@ -943,13 +995,18 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
                   setIsModelDropdownOpen(true);
                   const match = availableModels.find(m => m.modelHE.toUpperCase() === val);
                   if (match) {
-                    setActualQty(match.stdQty);
+                    setStdQtyPerPallet(match.stdQty);
                     setLabelQty(match.stdQty);
+                    // Keep actualQty as 0 (blank) for manual user entry
                   }
                 }}
-                placeholder="กรอก Parts No..."
+                placeholder="-- เลือก/ระบุรหัสสินค้า (Parts No) --"
                 className={`w-full h-8 bg-slate-900 border rounded-lg pl-2.5 pr-8 font-mono font-black text-xs text-cyan-300 placeholder-slate-500 focus:outline-none ${
-                  type !== 'IN' ? 'opacity-80 cursor-not-allowed border-slate-800' : 'border-slate-700 focus:border-cyan-400'
+                  type !== 'IN' 
+                    ? 'opacity-80 cursor-not-allowed border-slate-800' 
+                    : (validationError && !modelHE.trim())
+                    ? 'border-rose-500 bg-rose-950/30 text-rose-200 focus:border-rose-400 ring-1 ring-rose-500'
+                    : 'border-slate-700 focus:border-cyan-400'
                 }`}
                 required
               />
@@ -966,15 +1023,19 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
               {/* Suggestions Dropdown */}
               {isModelDropdownOpen && (
                 <div className="absolute left-0 right-0 top-full mt-1 bg-slate-900 border border-cyan-500/50 rounded-xl shadow-2xl z-40 max-h-40 overflow-y-auto p-1 space-y-1 animate-fadeIn">
-                  {filteredModels.map((m) => (
+                  {filteredModels.map((m, idx) => (
                     <div
-                      key={m.modelHE}
+                      key={`${m.modelHE}-${idx}`}
                       onClick={() => handleSelectModel(m.modelHE, m.stdQty)}
                       className="w-full text-left p-1.5 rounded-lg bg-slate-950/70 hover:bg-slate-800 border border-slate-800 text-xs flex items-center justify-between cursor-pointer"
                     >
                       <div className="truncate mr-2">
                         <span className="font-mono font-black text-white">{m.modelHE}</span>
-                        {m.partName && <span className="text-[10px] text-slate-400 ml-1.5 truncate">{m.partName}</span>}
+                        {m.partName && (
+                          <span className="text-[10px] text-slate-400 ml-1.5 truncate">
+                            {m.partName} {m.useLine && <span className="text-blue-400 ml-1">({m.useLine})</span>}
+                          </span>
+                        )}
                       </div>
                       <span className="px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-300 font-mono font-bold text-[10px]">
                         {m.stdQty} ชิ้น
@@ -985,24 +1046,6 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
               )}
             </div>
 
-            {/* Quick Chips for Models */}
-            <div className="flex items-center gap-1 overflow-x-auto pt-1.5 no-scrollbar">
-              <span className="text-[9.5px] text-slate-500 shrink-0">แนะนำ:</span>
-              {availableModels.slice(0, 4).map((m) => (
-                <button
-                  key={m.modelHE}
-                  type="button"
-                  onClick={() => handleSelectModel(m.modelHE, m.stdQty)}
-                  className={`h-5 px-1.5 rounded font-mono text-[10px] font-bold border transition-colors shrink-0 ${
-                    modelHE.toUpperCase() === m.modelHE.toUpperCase()
-                      ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500'
-                      : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
-                  }`}
-                >
-                  {m.modelHE}
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* FIELD 2: LOCATOR (IN / OUT / TRANSFER) */}
@@ -1030,6 +1073,7 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
                       setBayNumber(Math.min(bayNumber, maxB));
                       const newL = (newZ.startsWith('X') || newZ.startsWith('R') || newZ.startsWith('T') || newZ.startsWith('FR')) ? 1 : level;
                       setLevel(newL as ShelfLevel);
+                      setActiveCustomLocator(undefined);
                     }}
                     className="w-full h-7 bg-slate-900 border border-slate-700 text-white rounded-lg px-1.5 text-xs font-bold focus:outline-none"
                   >
@@ -1055,18 +1099,41 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[10px] text-slate-400 mb-0.5">ช่วงเสา / Bay:</label>
+                  <label className="block text-[10px] text-slate-400 mb-0.5">
+                    {zone.startsWith('X') ? 'แถวย่อย (Row):' : 'ช่วงเสา / Bay:'}
+                  </label>
                   <select
                     value={bayNumber}
-                    onChange={(e) => setBayNumber(Number(e.target.value))}
+                    onChange={(e) => {
+                      setBayNumber(Number(e.target.value));
+                      setActiveCustomLocator(undefined);
+                    }}
                     className="w-full h-7 bg-slate-900 border border-slate-700 text-white rounded-lg px-1.5 text-xs font-mono font-bold focus:outline-none"
                   >
                     {Array.from({ length: getMaxBaysForZone(zone as string) }, (_, i) => i + 1).map((b) => (
-                      <option key={b} value={b}>Bay {b}</option>
+                      <option key={b} value={b}>{zone.startsWith('X') ? `แถว R${b}` : `Bay ${b}`}</option>
                     ))}
                   </select>
                 </div>
               </div>
+
+              {zone.startsWith('X') && (
+                <div className="pt-1">
+                  <label className="block text-[10px] text-slate-400 mb-0.5">คอลัมน์ (Col 01-{getMaxColsForFloorGroup(zone as string)}):</label>
+                  <select
+                    value={level}
+                    onChange={(e) => {
+                      setLevel(Number(e.target.value) as ShelfLevel);
+                      setActiveCustomLocator(undefined);
+                    }}
+                    className="w-full h-7 bg-slate-900 border border-slate-700 text-amber-300 rounded-lg px-1.5 text-xs font-mono font-bold focus:outline-none"
+                  >
+                    {Array.from({ length: getMaxColsForFloorGroup(zone as string) }, (_, i) => i + 1).map((c) => (
+                      <option key={c} value={c}>Col {String(c).padStart(2, '0')}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Level Selector Buttons */}
               {isRackZone && (
@@ -1293,15 +1360,21 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
                 <input
                   type="number"
                   min="1"
-                  value={actualQty || ''}
+                  value={actualQty > 0 ? actualQty : ''}
                   onChange={(e) => {
                     const val = e.target.value === '' ? 0 : Math.max(0, Number(e.target.value));
                     setActualQty(val);
                     setValidationError(null);
                   }}
-                  placeholder="กรอกจำนวน..."
+                  placeholder="กรอกจำนวนชิ้นงาน..."
                   className={`w-full h-8 bg-slate-900 border rounded-lg text-center text-base font-mono font-black text-white focus:outline-none ${
-                    type === 'IN' ? 'border-slate-700 focus:border-emerald-400' : type === 'OUT' ? 'border-slate-700 focus:border-blue-400' : 'border-slate-700 focus:border-purple-400'
+                    type === 'IN' 
+                      ? (validationError && (!actualQty || actualQty <= 0))
+                        ? 'border-rose-500 bg-rose-950/30 text-rose-200 focus:border-rose-400 ring-1 ring-rose-500'
+                        : 'border-slate-700 focus:border-emerald-400' 
+                      : type === 'OUT' 
+                      ? 'border-slate-700 focus:border-blue-400' 
+                      : 'border-slate-700 focus:border-purple-400'
                   }`}
                   required
                 />
@@ -1318,30 +1391,6 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
                 +
               </button>
 
-              {/* Quick Lots */}
-              <div className="flex items-center gap-1 overflow-x-auto no-scrollbar shrink-0 pl-1">
-                {[80, 100, 120, 150, 200].map((preset) => (
-                  <button
-                    key={preset}
-                    type="button"
-                    onClick={() => {
-                      setActualQty(preset);
-                      setValidationError(null);
-                    }}
-                    className={`h-8 px-2 rounded-lg text-xs font-mono font-bold border transition-all ${
-                      actualQty === preset
-                        ? type === 'IN'
-                          ? 'bg-emerald-500 text-slate-950 font-black border-emerald-400'
-                          : type === 'OUT'
-                          ? 'bg-blue-500 text-white font-black border-blue-400'
-                          : 'bg-purple-500 text-white font-black border-purple-400'
-                        : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
-                    }`}
-                  >
-                    {preset}
-                  </button>
-                ))}
-              </div>
             </div>
           </div>
 
@@ -1400,40 +1449,41 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
                   />
                 </div>
 
-                {/* Editable Standard Pallet Capacity Input Field (Only in IN Mode) */}
-                <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2">
-                  <label className="text-[10.5px] font-bold text-slate-300 flex items-center gap-1">
-                    <span>ความจุมาตรฐานต่อพาเลท (Pallet Std Capacity):</span>
-                  </label>
-                  <div className="flex items-center gap-1">
+                {/* Editable Standard Pallet Capacity Input Field (Only in IN Mode) - Large & Symmetrical to Quantity */}
+                <div className="pt-2 border-t border-slate-800/80 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1">
+                      <Box className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>ความจุมาตรฐานต่อพาเลท (Pallet Std Capacity):</span>
+                    </label>
+                    {currentModelStdCapacity > 0 && (
+                      <span className="text-[10px] text-cyan-300 font-mono font-bold">
+                        มาตราฐาน: {currentModelStdCapacity} ชิ้น/PL
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative w-full">
                     <input
                       type="number"
                       min="1"
-                      value={stdQtyPerPallet || ''}
-                      onChange={(e) => setStdQtyPerPallet(Math.max(1, Number(e.target.value) || 1))}
-                      className="w-16 h-7 bg-slate-900 border border-cyan-500/50 rounded-lg text-center font-mono font-black text-xs text-cyan-300 focus:outline-none focus:ring-1 focus:ring-cyan-400"
-                    />
-                    <span className="text-[10px] font-bold text-slate-400">ชิ้น/PL</span>
-                  </div>
-                </div>
-
-                {/* Preset Chips for Pallet Capacity */}
-                <div className="flex items-center justify-end gap-1 pt-0.5">
-                  <span className="text-[9.5px] text-slate-500">ปรับมาตรฐาน:</span>
-                  {[30, 50, 80, 100, 120].map((preset) => (
-                    <button
-                      key={`cap-${preset}`}
-                      type="button"
-                      onClick={() => setStdQtyPerPallet(preset)}
-                      className={`h-5 px-1.5 rounded text-[9.5px] font-mono font-bold border transition-all ${
-                        stdQtyPerPallet === preset
-                          ? 'bg-cyan-500 text-slate-950 border-cyan-400 font-black'
-                          : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                      value={stdQtyPerPallet > 0 ? stdQtyPerPallet : ''}
+                      onChange={(e) => {
+                        const val = e.target.value === '' ? 0 : Math.max(0, Number(e.target.value));
+                        setStdQtyPerPallet(val);
+                        setValidationError(null);
+                      }}
+                      placeholder="กรอกความจุมาตรฐานพาเลท..."
+                      className={`w-full h-8 bg-slate-900 border rounded-lg text-center text-base font-mono font-black text-cyan-300 focus:outline-none ${
+                        (validationError && (!stdQtyPerPallet || stdQtyPerPallet <= 0))
+                          ? 'border-rose-500 bg-rose-950/30 text-rose-200 focus:border-rose-400 ring-1 ring-rose-500'
+                          : 'border-cyan-500/50 focus:border-cyan-400'
                       }`}
-                    >
-                      {preset}
-                    </button>
-                  ))}
+                      required
+                    />
+                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 pointer-events-none">
+                      ชิ้น/PL
+                    </span>
+                  </div>
                 </div>
               </div>
             )
@@ -1571,9 +1621,9 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={!actualQty || actualQty <= 0 || !placementValidation.allowed}
+            disabled={(type === 'IN' && (!modelHE.trim() || !actualQty || actualQty <= 0 || !stdQtyPerPallet || stdQtyPerPallet <= 0)) || !placementValidation.allowed}
             className={`flex-1 h-10 rounded-xl font-black text-xs sm:text-sm text-white shadow-md flex items-center justify-center gap-1.5 transition-all active:scale-[0.99] ${
-              !actualQty || actualQty <= 0 || !placementValidation.allowed
+              (type === 'IN' && (!modelHE.trim() || !actualQty || actualQty <= 0 || !stdQtyPerPallet || stdQtyPerPallet <= 0)) || !placementValidation.allowed
                 ? 'bg-slate-800 cursor-not-allowed text-slate-500 border border-slate-700'
                 : type === 'IN'
                 ? 'bg-emerald-600 hover:bg-emerald-500 ring-1 ring-emerald-400'
@@ -1586,6 +1636,8 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
             <span>
               {!placementValidation.allowed
                 ? '⛔ ไม่สามารถบันทึกได้ (ห้ามจัดเก็บปน Model)'
+                : type === 'IN' && (!modelHE.trim() || !actualQty || actualQty <= 0 || !stdQtyPerPallet || stdQtyPerPallet <= 0)
+                ? '⚠️ ต้องกรอก (Parts No, จำนวน, ความจุ) ให้ครบ 3 ช่อง'
                 : actualQty > 0
                 ? type === 'IN'
                   ? `ยืนยันรับเข้า (${actualQty.toLocaleString()} ชิ้น)`

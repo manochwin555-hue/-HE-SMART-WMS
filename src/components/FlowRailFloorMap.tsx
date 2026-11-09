@@ -566,20 +566,7 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
         </div>
       </div>
 
-      {/* FLOATING HOVER MINI-STATS OVERLAY FOR FLOW RAILS */}
-      {hoveredSlot && (
-        <SlotMiniStatsOverlay
-          data={{
-            title: `รางเลื่อน R${hoveredSlot.railNumber} - ช่อง ${String(hoveredSlot.positionNumber).padStart(2, '0')}`,
-            locatorCode: hoveredSlot.locatorCode,
-            zoneName: `Flow Rail R${hoveredSlot.railNumber} (อาคาร A2)`,
-            positionLabel: `ตำแหน่งรางลำดับที่ ${hoveredSlot.positionNumber} จาก 8 ช่อง (FIFO Flow)`,
-            item: hoveredSlot.item,
-            x: hoveredSlot.x,
-            y: hoveredSlot.y
-          }}
-        />
-      )}
+      {/* FLOATING HOVER MINI-STATS OVERLAY REMOVED FOR CLEAN 2D VIEW */}
 
       {/* UNIFIED PALLET SLOT ACTION MODAL */}
       <UnifiedSlotModal

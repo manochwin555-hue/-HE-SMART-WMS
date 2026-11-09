@@ -28,7 +28,6 @@ export interface MultiLevelRackZoneLayoutProps {
   onOpen3D?: (zone: StorageZone, bay: number) => void;
   onNavigateBack?: () => void;
   backButtonLabel?: string;
-  onPrintLabel?: (item: InventoryItem) => void;
   isDashboardFullscreen?: boolean;
   onToggleFullscreen?: () => void;
 }
@@ -46,7 +45,6 @@ export const MultiLevelRackZoneLayout: React.FC<MultiLevelRackZoneLayoutProps> =
   onOpen3D,
   onNavigateBack,
   backButtonLabel,
-  onPrintLabel,
   isDashboardFullscreen,
   onToggleFullscreen
 }) => {
@@ -465,7 +463,6 @@ export const MultiLevelRackZoneLayout: React.FC<MultiLevelRackZoneLayoutProps> =
         onOpenScanner={onOpenScanner}
         onRelocateItem={onRelocateItem}
         onOpen3D={onOpen3D}
-        onPrintLabel={onPrintLabel}
       />
     </div>
   );

@@ -99,14 +99,18 @@ export const CY3FrontElevationView: React.FC<CY3FrontElevationViewProps> = ({
 
       let bNum = it.bayNumber || 1;
       let lvl = it.level || 1;
+      let pos = it.palletPosition || 'P1';
 
-      const locMatch = locUpper.match(/DY3T-1\.0[1-4]-(?:[A-D])?0*(\d+)-L(\d)/i);
-      if (locMatch) {
-        bNum = parseInt(locMatch[1], 10);
-        lvl = parseInt(locMatch[2], 10) as ShelfLevel;
+      const m = locUpper.match(/DY3T-1\.0[1-4]-(?:[A-D])?0*(\d+)-L(\d)(?:-P([12]))?/i);
+      if (m) {
+        bNum = parseInt(m[1], 10);
+        lvl = parseInt(m[2], 10) as ShelfLevel;
+        if (m[3]) pos = `P${m[3]}`;
+      } else if (locUpper.includes('-P2')) {
+        pos = 'P2';
       }
 
-      map.set(`${rCode}-${bNum}-${lvl}`, it);
+      map.set(`${rCode}-${bNum}-${lvl}-${pos}`, it);
     });
     return map;
   }, [items]);
@@ -173,7 +177,8 @@ export const CY3FrontElevationView: React.FC<CY3FrontElevationViewProps> = ({
           let rowOccupied = 0;
           for (let b = 1; b <= 25; b++) {
             for (let l = 1; l <= 4; l++) {
-              if (slotMap.has(`${row.rowCode}-${b}-${l}`)) rowOccupied++;
+              if (slotMap.has(`${row.rowCode}-${b}-${l}-P1`)) rowOccupied++;
+              if (slotMap.has(`${row.rowCode}-${b}-${l}-P2`)) rowOccupied++;
             }
           }
 
@@ -239,92 +244,96 @@ export const CY3FrontElevationView: React.FC<CY3FrontElevationViewProps> = ({
                           </span>
                         </div>
 
-                        {/* 25 Bay Cells across */}
                         <div className="flex-1 grid grid-cols-25 gap-1">
                           {Array.from({ length: 25 }, (_, idx) => {
                             const bayNum = idx + 1;
-                            const item = slotMap.get(`${row.rowCode}-${bayNum}-${lvl}`);
-                            const hasItem = !!item;
-                            const isAging = item && item.agingDays > 14;
-                            const isOverdue = item && item.agingDays > 30;
-
-                            const isSearchMatch = activeSearch && (
-                              (item && (
-                                item.modelHE.toLowerCase().includes(activeSearch) ||
-                                item.partName.toLowerCase().includes(activeSearch) ||
-                                item.locatorCode.toLowerCase().includes(activeSearch) ||
-                                item.useLine.toLowerCase().includes(activeSearch)
-                              )) ||
-                              `${row.rowCode}${bayNum}`.toLowerCase().includes(activeSearch) ||
-                              row.locatorSign.toLowerCase().includes(activeSearch)
-                            );
-
-                            const statusInfo = evaluateSlotStatus(item, isSearchMatch);
+                            const locatorPrefix = `${row.locatorSign}-${row.rowCode}${String(bayNum).padStart(2, '0')}-L${lvl}`;
 
                             return (
-                              <button
-                                key={bayNum}
-                                type="button"
-                                onClick={() => onSlotClick(row.rowCode, bayNum, row.locatorSign, lvl as ShelfLevel)}
-                                onDoubleClick={(e) => {
-                                  e.stopPropagation();
-                                  if (onOpenScanner) {
-                                    const cy3Zone = `CY3-${row.rowCode}` as StorageZone;
-                                    const pPos = item?.palletPosition || 'P1';
-                                    const canonicalLoc = `${row.locatorSign}-${row.rowCode}${String(bayNum).padStart(2, '0')}-L${lvl}-${pPos}`;
-                                    onOpenScanner(cy3Zone, bayNum, lvl as ShelfLevel, hasItem ? 'OUT' : 'IN', canonicalLoc, pPos, item || null);
-                                  }
-                                }}
-                                onMouseEnter={(e) => onSlotHover(e, row.rowCode, bayNum, row.locatorSign)}
-                                onMouseLeave={onSlotLeave}
-                                style={{
-                                  backgroundColor: statusInfo.bgHex,
-                                  borderColor: statusInfo.ringHex || statusInfo.borderHex,
-                                  color: statusInfo.textColorHex,
-                                }}
-                                className={`relative h-14 rounded-md border flex flex-col justify-between p-1 transition-all active:scale-95 group focus:outline-none ${
-                                  statusInfo.ringHex
-                                    ? 'ring-2 ring-[#10B981] z-10 scale-105'
-                                    : 'shadow-md'
-                                }`}
-                                title={`${row.locatorSign}-${row.rowCode}${bayNum}-L${lvl}: ${
-                                  hasItem ? `${item.modelHE} - ${item.partName} (${item.quantity} ชิ้น)` : 'ว่าง'
-                                }`}
-                              >
-                                {hasItem ? (
-                                  <>
-                                    <div className="flex items-center justify-between w-full leading-none">
-                                      <span className="text-[8px] font-mono font-bold truncate max-w-[28px]">
-                                        {item.modelHE.substring(0, 5)}
-                                      </span>
-                                      {statusInfo.isAging && (
-                                        <span className="w-1.5 h-1.5 rounded-full bg-rose-300 animate-ping" />
-                                      )}
-                                    </div>
-                                    
-                                    <div className="text-[9px] font-mono font-black text-center truncate w-full">
-                                      {item.fullPallets ? `${item.fullPallets}P` : `${item.quantity}u`}
-                                    </div>
+                              <div key={bayNum} className="flex-1 flex gap-0.5 relative group/bay">
+                                {[1, 2].map(posNum => {
+                                  const pPos = `P${posNum}` as 'P1' | 'P2';
+                                  const palletLocator = `${locatorPrefix}-${pPos}`;
+                                  const item = slotMap.get(`${row.rowCode}-${bayNum}-${lvl}-${pPos}`);
+                                  const hasItem = !!item;
 
-                                    <div className="flex items-center justify-between w-full text-[7px] font-mono opacity-80 leading-none">
-                                      <span>{item.useLine || 'HE'}</span>
-                                      <span>{item.agingDays}d</span>
-                                    </div>
-                                  </>
-                                ) : (
-                                  <div className="h-full flex flex-col items-center justify-center text-slate-500 group-hover:text-blue-400">
-                                    <span className="text-[9px] font-mono font-bold">ว่าง</span>
-                                    <span className="text-[7px] font-mono opacity-60">L{lvl}</span>
-                                  </div>
-                                )}
+                                  const isSearchMatch = activeSearch && (
+                                    (item && (
+                                      item.modelHE.toLowerCase().includes(activeSearch) ||
+                                      item.partName.toLowerCase().includes(activeSearch) ||
+                                      item.locatorCode.toLowerCase().includes(activeSearch) ||
+                                      item.useLine.toLowerCase().includes(activeSearch)
+                                    )) ||
+                                    `${row.rowCode}${bayNum}`.toLowerCase().includes(activeSearch) ||
+                                    row.locatorSign.toLowerCase().includes(activeSearch)
+                                  );
+
+                                  const statusInfo = evaluateSlotStatus(item, isSearchMatch);
+
+                                  return (
+                                    <button
+                                      key={pPos}
+                                      type="button"
+                                      onClick={() => onSlotClick(row.rowCode, bayNum, palletLocator, lvl as ShelfLevel, item)}
+                                      onDoubleClick={(e) => {
+                                        e.stopPropagation();
+                                        if (onOpenScanner) {
+                                          const cy3Zone = `CY3-${row.rowCode}` as StorageZone;
+                                          onOpenScanner(cy3Zone, bayNum, lvl as ShelfLevel, hasItem ? 'OUT' : 'IN', palletLocator, pPos, item || null);
+                                        }
+                                      }}
+                                      onMouseEnter={(e) => onSlotHover(e, row.rowCode, bayNum, palletLocator)}
+                                      onMouseLeave={onSlotLeave}
+                                      style={{
+                                        backgroundColor: statusInfo.bgHex,
+                                        borderColor: statusInfo.ringHex || statusInfo.borderHex,
+                                        color: statusInfo.textColorHex,
+                                      }}
+                                      className={`relative h-14 flex-1 rounded-sm border flex flex-col justify-between p-0.5 transition-all active:scale-95 group focus:outline-none ${
+                                        statusInfo.ringHex
+                                          ? 'ring-2 ring-[#10B981] z-10 scale-105'
+                                          : 'shadow-sm hover:ring-2 hover:ring-cyan-400 hover:border-cyan-400 hover:z-20 hover:scale-[1.02]'
+                                      }`}
+                                      title={`${palletLocator}: ${
+                                        hasItem ? `${item.modelHE} - ${item.partName} (${item.quantity} ชิ้น)` : 'ว่าง'
+                                      }`}
+                                    >
+                                      {hasItem ? (
+                                        <>
+                                          <div className="flex items-center justify-between w-full leading-none">
+                                            <span className="text-[7px] font-mono font-bold truncate">
+                                              {item.modelHE.substring(0, 4)}
+                                            </span>
+                                            {statusInfo.isAging && (
+                                              <span className="w-1 h-1 rounded-full bg-rose-300 animate-ping" />
+                                            )}
+                                          </div>
+                                          
+                                          <div className="text-[8px] font-mono font-black text-center truncate w-full">
+                                            {item.fullPallets ? `${item.fullPallets}P` : `${item.quantity}u`}
+                                          </div>
+
+                                          <div className="flex items-center justify-between w-full text-[6px] font-mono opacity-80 leading-none">
+                                            <span>{pPos}</span>
+                                            <span>{item.agingDays}d</span>
+                                          </div>
+                                        </>
+                                      ) : (
+                                        <div className="h-full flex flex-col items-center justify-center text-slate-500 group-hover:text-blue-400">
+                                          <span className="text-[8px] font-mono font-bold">{pPos}</span>
+                                        </div>
+                                      )}
+                                    </button>
+                                  );
+                                })}
 
                                 {/* Rack Beam Bottom Support Bar (L2, L3, L4 only - L1 is ground floor) */}
                                 {lvl > 1 ? (
-                                  <div className="absolute -bottom-[2px] left-0 right-0 h-[3px] bg-orange-500 rounded-full shadow-xs" />
+                                  <div className="absolute -bottom-[2px] left-0 right-0 h-[3px] bg-orange-500 rounded-full shadow-xs z-10" />
                                 ) : (
-                                  <div className="absolute -bottom-[2px] left-0 right-0 h-[1px] bg-slate-700 rounded-full" />
+                                  <div className="absolute -bottom-[2px] left-0 right-0 h-[1px] bg-slate-700 rounded-full z-10" />
                                 )}
-                              </button>
+                              </div>
                             );
                           })}
                         </div>

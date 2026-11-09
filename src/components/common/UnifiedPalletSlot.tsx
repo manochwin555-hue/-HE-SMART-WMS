@@ -48,7 +48,7 @@ export const UnifiedPalletSlot: React.FC<UnifiedPalletSlotProps> = ({
   criticalDays = 30,
   onClick,
   aspectClass = 'aspect-[4/3] min-w-[32px] min-h-[32px]',
-  showTooltip = true,
+  showTooltip = false,
   className = '',
 }) => {
   const [isHovered, setIsHovered] = useState(false);

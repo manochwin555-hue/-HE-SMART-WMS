@@ -39,7 +39,6 @@ export interface UnifiedActionModalProps {
   onOpenScanner?: (zone: StorageZone, bay: number, level: ShelfLevel, mode: MovementType) => void;
   onRelocateItem?: (item: InventoryItem) => void;
   onOpen3D?: (zone: StorageZone, bay: number) => void;
-  onPrintLabel?: (item: InventoryItem) => void;
 }
 
 export const UnifiedActionModal: React.FC<UnifiedActionModalProps> = ({
@@ -48,8 +47,7 @@ export const UnifiedActionModal: React.FC<UnifiedActionModalProps> = ({
   slotInfo,
   onOpenScanner,
   onRelocateItem,
-  onOpen3D,
-  onPrintLabel
+  onOpen3D
 }) => {
   const [copied, setCopied] = useState(false);
   const [currentLevel, setCurrentLevel] = useState<ShelfLevel>(slotInfo?.level || 1);
@@ -315,19 +313,6 @@ export const UnifiedActionModal: React.FC<UnifiedActionModalProps> = ({
                   </button>
                 )}
 
-                {/* Print Label Button */}
-                {onPrintLabel && (
-                  <button
-                    onClick={() => {
-                      onPrintLabel(activeItem);
-                      onClose();
-                    }}
-                    className="h-9 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-lg border border-slate-700 flex items-center gap-1.5 transition-colors"
-                  >
-                    <Printer className="w-3.5 h-3.5" />
-                    <span>พิมพ์ QR</span>
-                  </button>
-                )}
               </div>
 
               {/* 3D Viewer Button */}

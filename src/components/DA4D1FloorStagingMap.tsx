@@ -5,6 +5,7 @@ import { SlotMiniStatsOverlay, MiniStatsSlotData } from './SlotMiniStatsOverlay'
 import { A4FloorStaging3DView } from './zone-3d/A4FloorStaging3DView';
 import { ZoneKpiFormalDashboard } from './ZoneKpiFormalDashboard';
 import { useTranslation } from '../i18n/i18nContext';
+import { resolveCanonicalCoordinate } from '../utils/locatorUtils';
 import { 
   Box, 
   Search, 
@@ -179,26 +180,48 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
 
   // Helper to find item at a specific row and column in DA4D-1
   const getItemAtSlot = (groupId: string, rowNum: number, colNum: number): InventoryItem | undefined => {
+    const groupMeta = DA4D1_GROUPS.find(g => g.id === groupId);
+    const localRow = groupMeta ? (rowNum - groupMeta.startRow + 1) : rowNum;
+
     const formattedCol = String(colNum).padStart(2, '0');
-    const exactLocatorRow = `DA4D-1-R${rowNum}-${formattedCol}`;
-    const exactLocatorGroup = `DA4D-1-${groupId}-${formattedCol}`;
-    const altLocator1 = `DA4D-1.01-${groupId}-${formattedCol}`;
-    const altLocator2 = `DA4D-1.01-${groupId}`;
+    const formattedGlobalRow = String(rowNum).padStart(2, '0');
+    const formattedLocalRow = String(localRow).padStart(2, '0');
+
+    const canonicalTarget = `DA4D-1.01-${groupId}-R${formattedLocalRow}-C${formattedCol}`;
 
     return items.find(it => {
-      // 1. Check exact locator code match
+      if (!it || typeof it.quantity !== 'number' || it.quantity <= 0) return false;
+
+      // 1. Resolve item's canonical locator
+      const res = resolveCanonicalCoordinate({
+        locatorCode: it.locatorCode,
+        zone: it.zone,
+        bayNumber: it.bayNumber,
+        level: it.level
+      });
+
+      if (res.canonicalLocator.toUpperCase() === canonicalTarget.toUpperCase()) {
+        return true;
+      }
+
+      // 2. Direct locator code pattern matches
+      const itLoc = (it.locatorCode || '').toUpperCase().trim();
+
       if (
-        it.locatorCode === exactLocatorRow ||
-        it.locatorCode === exactLocatorGroup ||
-        it.locatorCode === altLocator1 ||
-        (it.locatorCode.includes(`-R${rowNum}-`) && it.locatorCode.endsWith(`-${formattedCol}`))
+        itLoc === `DA4D-1-R${rowNum}-${formattedCol}` ||
+        itLoc === `DA4D-1-R${formattedGlobalRow}-${formattedCol}` ||
+        itLoc === `DA4D-1.01-${groupId}-R${localRow}-C${formattedCol}` ||
+        itLoc === `DA4D-1.01-${groupId}-R${formattedLocalRow}-C${formattedCol}` ||
+        itLoc === `DA4D-1-${groupId}-${formattedCol}`
       ) {
         return true;
       }
-      // 2. Check zone / bay match (e.g., zone = 'X2', bayNumber = 6)
-      if (it.zone === groupId && it.bayNumber === colNum) {
+
+      // 3. Match by zone (or group), bayNumber (localRow) and level (colNum)
+      if ((it.zone === groupId || it.zone === `DA4D-1.${groupId}`) && it.bayNumber === localRow && (it.level === colNum || (!it.level && colNum === 1))) {
         return true;
       }
+
       return false;
     });
   };
@@ -401,7 +424,9 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
               items={items}
               searchQuery={activeSearch}
               onSelectSlot={(group, row, col, item) => {
-                const loc = `DA4D-1.01-${group}-${String(col).padStart(2, '0')}`;
+                const rStr = String(row).padStart(2, '0');
+                const cStr = String(col).padStart(2, '0');
+                const loc = `DA4D-1.01-${group}-R${rStr}-C${cStr}`;
                 setSelectedSlot({
                   groupId: group,
                   rowNumber: row,
@@ -500,10 +525,10 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
                 </div>
               </div>
 
-              {/* Rows in this group */}
+              {/* Rows in this group (Ascending bottom-up: R1 at bottom, R6 at top) */}
               <div className="space-y-1 sm:space-y-1.5">
                 {Array.from({ length: group.endRow - group.startRow + 1 }, (_, rowIdx) => {
-                  const rowNum = group.startRow + rowIdx;
+                  const rowNum = group.endRow - rowIdx;
                   
                   return (
                     <div key={rowNum} className="flex items-center space-x-1.5">
@@ -516,8 +541,10 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
                       <div className="flex-1 grid grid-cols-12 gap-1 sm:gap-1.5">
                         {Array.from({ length: colsCount }, (_, colIdx) => {
                           const colNum = colIdx + 1;
+                          const localRow = rowNum - group.startRow + 1;
                           const formattedCol = String(colNum).padStart(2, '0');
-                          const locatorCode = `DA4D-1-R${rowNum}-${formattedCol}`;
+                          const formattedLocalRow = String(localRow).padStart(2, '0');
+                          const locatorCode = `DA4D-1.01-${group.id}-R${formattedLocalRow}-C${formattedCol}`;
                           const item = getItemAtSlot(group.id, rowNum, colNum);
                           const isMatch = isMatchSearch(item, locatorCode, group.id, rowNum);
                           const isStatusMatch = statusFilter === 'ALL' ||
@@ -660,20 +687,7 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
         </div>
       </div>
 
-      {/* HOVER MINI-STATS OVERLAY FOR A4 FLOOR */}
-      {hoveredSlot && (
-        <SlotMiniStatsOverlay
-          data={{
-            title: `ลานวางพื้น DA4D-1 (กลุ่ม ${hoveredSlot.groupId})`,
-            locatorCode: hoveredSlot.locatorCode,
-            zoneName: `อาคาร A4 • ลานพื้นสีเหลือง`,
-            positionLabel: `แถว R${hoveredSlot.rowNumber} • เสา ${String(hoveredSlot.colNumber).padStart(2, '0')}`,
-            item: hoveredSlot.item,
-            x: hoveredSlot.x,
-            y: hoveredSlot.y
-          }}
-        />
-      )}
+      {/* HOVER MINI-STATS OVERLAY REMOVED FOR CLEAN 2D VIEW */}
 
       {/* UNIFIED PALLET SLOT ACTION MODAL */}
       <UnifiedSlotModal

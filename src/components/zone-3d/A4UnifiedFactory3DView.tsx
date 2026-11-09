@@ -48,27 +48,26 @@ const PRESET_CONFIGS: Record<CameraPresetKey, { pos: [number, number, number]; t
   // Horizontal perspective: Looking across all X1-X8 zones
   FLOOR: { pos: [22, 28, 14], target: [-14, 1, 14] },
   FRONT_35: { pos: [-8, 36, 68], target: [-3, 2, -4] },
-  // Row B to K focus positions - isolated view
-  // Row B to K focus positions - perspective front view (adjusted for depth)
-  ROW_B: { pos: [-23.5, 4.5, 25], target: [-23.5, 2.5, -24.5] },
-  ROW_C: { pos: [-18.2, 4.5, 25], target: [-18.2, 2.5, -24.5] },
-  ROW_D: { pos: [-16.4, 4.5, 25], target: [-16.4, 2.5, -24.5] },
-  ROW_E: { pos: [-11.0, 4.5, 25], target: [-11.0, 2.5, -24.5] },
-  ROW_F: { pos: [-9.2, 4.5, 25], target: [-9.2, 2.5, -24.5] },
-  ROW_G: { pos: [-1.5, 4.5, 25], target: [-1.5, 2.5, -28.5] },
-  ROW_H: { pos: [4.0, 4.5, 25], target: [4.0, 2.5, -28.5] },
-  ROW_I: { pos: [5.8, 4.5, 25], target: [5.8, 2.5, -28.5] },
-  ROW_J: { pos: [11.2, 4.5, 25], target: [11.2, 2.5, -28.5] },
-  ROW_K: { pos: [13.0, 4.5, 25], target: [13.0, 2.5, -28.5] },
-  // Floor Staging X1 to X8 focus positions - front horizontal isolated view
-  ZONE_X8: { pos: [0.0, 14, -5.0], target: [-16.3, 0.5, -5.0] },
-  ZONE_X7: { pos: [0.0, 14, -0.5], target: [-16.3, 0.5, -0.5] },
-  ZONE_X6: { pos: [0.0, 14, 4.5], target: [-16.3, 0.5, 4.5] },
-  ZONE_X5: { pos: [0.0, 14, 9.5], target: [-16.3, 0.5, 9.5] },
-  ZONE_X4: { pos: [-5.0, 13, 15.5], target: [-19.8, 0.5, 15.5] },
-  ZONE_X3: { pos: [-5.0, 13, 20.5], target: [-19.8, 0.5, 20.5] },
-  ZONE_X2: { pos: [-5.0, 13, 25.5], target: [-19.8, 0.5, 25.5] },
-  ZONE_X1: { pos: [-5.0, 13, 30.5], target: [-19.8, 0.5, 30.5] },
+  // Row B to K focus positions - straight-on side elevation view (Bays 01-12 left-to-right)
+  ROW_B: { pos: [0.5, 4.2, -25.2], target: [-23.5, 3.2, -25.2] },
+  ROW_C: { pos: [5.8, 4.2, -25.2], target: [-18.2, 3.2, -25.2] },
+  ROW_D: { pos: [7.6, 4.2, -25.2], target: [-16.4, 3.2, -25.2] },
+  ROW_E: { pos: [13.0, 4.2, -25.2], target: [-11.0, 3.2, -25.2] },
+  ROW_F: { pos: [14.8, 4.2, -25.2], target: [-9.2, 3.2, -25.2] },
+  ROW_G: { pos: [13.5, 4.2, -33.6], target: [-1.5, 3.2, -33.6] },
+  ROW_H: { pos: [19.0, 4.2, -33.6], target: [4.0, 3.2, -33.6] },
+  ROW_I: { pos: [20.8, 4.2, -33.6], target: [5.8, 3.2, -33.6] },
+  ROW_J: { pos: [26.2, 4.2, -33.6], target: [11.2, 3.2, -33.6] },
+  ROW_K: { pos: [28.0, 4.2, -33.6], target: [13.0, 3.2, -33.6] },
+  // Floor Staging X1 to X8 focus positions - front overhead aligned view (Cols left-to-right, R1 at bottom)
+  ZONE_X8: { pos: [-16.3, 16.0, 7.0], target: [-16.3, 0.5, -5.0] },
+  ZONE_X7: { pos: [-16.3, 16.0, 11.5], target: [-16.3, 0.5, -0.5] },
+  ZONE_X6: { pos: [-16.3, 16.0, 16.5], target: [-16.3, 0.5, 4.5] },
+  ZONE_X5: { pos: [-16.3, 16.0, 21.5], target: [-16.3, 0.5, 9.5] },
+  ZONE_X4: { pos: [-19.8, 14.0, 27.5], target: [-19.8, 0.5, 15.5] },
+  ZONE_X3: { pos: [-19.8, 14.0, 32.5], target: [-19.8, 0.5, 20.5] },
+  ZONE_X2: { pos: [-19.8, 14.0, 37.5], target: [-19.8, 0.5, 25.5] },
+  ZONE_X1: { pos: [-19.8, 14.0, 42.5], target: [-19.8, 0.5, 30.5] },
 };
 
 interface A4UnifiedFactory3DViewProps {
@@ -98,6 +97,7 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
   const rackRowGroupsRef = useRef<Record<string, THREE.Group>>({});
   const floorZoneGroupsRef = useRef<Record<string, THREE.Group>>({});
   const forkliftsRef = useRef<THREE.Group[]>([]);
+  const floatingZoneSpritesRef = useRef<THREE.Sprite[]>([]);
 
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [cameraFocus, setCameraFocus] = useState<CameraPresetKey>(
@@ -154,9 +154,6 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
         const pos = it.palletPosition || (rackMatch?.[4] ? `P${rackMatch[4]}` : (it.locatorCode?.includes('-P2') ? 'P2' : 'P1'));
 
         rackItemsMap.set(`${row}-${bay}-${lvl}-${pos}`, it);
-        if (!rackItemsMap.has(`${row}-${bay}-${lvl}`)) {
-          rackItemsMap.set(`${row}-${bay}-${lvl}`, it);
-        }
         totalRackOccupied++;
       }
 
@@ -354,9 +351,10 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
     scene.add(fillBlue);
 
     // 6. Factory Floor & Architecture Shell
-    // Dimension matches the full A4 building aspect ratio
-    const buildingWidth = 56;
-    const buildingDepth = 76;
+    // Dimension expanded to fully cover the entire A4 facility (Racks B-K, Floor Staging X1-X8, and open areas)
+    const buildingWidth = 72;
+    const buildingDepth = 104;
+    const floorCenterZ = -4.0;
 
     // High Quality Gray Epoxy Floor
     const floorGeo = new THREE.BoxGeometry(buildingWidth, 0.6, buildingDepth);
@@ -366,13 +364,13 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
       metalness: 0.12
     });
     const floor = new THREE.Mesh(floorGeo, floorMat);
-    floor.position.set(0, -0.3, 0);
+    floor.position.set(0, -0.3, floorCenterZ);
     floor.receiveShadow = true;
     scene.add(floor);
 
     // Grid Floor
-    const grid = new THREE.GridHelper(buildingDepth, 38, '#cbd5e1', '#e2e8f0');
-    grid.position.y = 0.01;
+    const grid = new THREE.GridHelper(buildingDepth, 52, '#cbd5e1', '#e2e8f0');
+    grid.position.set(0, 0.01, floorCenterZ);
     scene.add(grid);
 
     // Outer Blueprint Boundary Dashed Line / Wall Frames
@@ -381,14 +379,14 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
       color: wallColor,
       roughness: 0.5,
       transparent: true,
-      opacity: 0.3
+      opacity: 0.25
     });
 
     // Back Wall removed per user request to prevent rack protrusion
 
     // Left Wall (Along Floor Staging & Racks)
     const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.4, 8, buildingDepth), wallMat);
-    leftWall.position.set(-buildingWidth / 2, 4, 0);
+    leftWall.position.set(-buildingWidth / 2, 4, floorCenterZ);
     scene.add(leftWall);
 
     // Open Floor Space on the Right (Where HE was - user requested to leave completely clear and open)
@@ -408,8 +406,8 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
     });
     const pillarGeo = new THREE.BoxGeometry(0.8, 8, 0.8);
 
-    for (let p = 0; p < 9; p++) {
-      const zPos = -buildingDepth / 2 + 5 + p * 8.0;
+    for (let p = 0; p < 12; p++) {
+      const zPos = floorCenterZ - buildingDepth / 2 + 5 + p * 8.5;
       const pillar = new THREE.Mesh(pillarGeo, pillarMat);
       pillar.position.set(-buildingWidth / 2 + 0.5, 4, zPos);
       pillar.castShadow = true;
@@ -518,92 +516,86 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
       return tex;
     };
 
-    // Helper: Create A4 Rack Bay Floor Texture (ตัวเลขเสา/ช่อง 01-12)
-    const createA4RackBayFloorTexture = (rowName: string, bayNum: number) => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 256;
-      canvas.height = 128;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.fillStyle = '#0f172a';
-        ctx.fillRect(0, 0, 256, 128);
-
-        ctx.lineWidth = 6;
-        ctx.strokeStyle = '#facc15';
-        ctx.strokeRect(4, 4, 248, 120);
-
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '900 54px "Segoe UI", Arial, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(`${rowName}-${String(bayNum).padStart(2, '0')}`, 128, 48);
-
-        ctx.fillStyle = '#facc15';
-        ctx.font = 'bold 22px "Segoe UI", Arial, sans-serif';
-        ctx.fillText(`เสา ${String(bayNum).padStart(2, '0')}`, 128, 96);
-      }
-      const tex = new THREE.CanvasTexture(canvas);
-      tex.anisotropy = 8;
-      tex.needsUpdate = true;
-      return tex;
-    };
-
-    // Helper: Create Floor Staging Zone Header Texture (สำหรับโซนวางพื้น X1 - X8)
-    const createA4FloorStagingZoneTexture = (zoneId: string, rows: number, cols: number) => {
+    // Helper: Create Floating 3D Zone Header Sprite (สำหรับโซนวางพื้น X1 - X8 ลอยเหนือพื้นที่)
+    const createFloatingZoneHeaderSprite = (zoneId: string, rows: number, cols: number) => {
       const canvas = document.createElement('canvas');
       canvas.width = 512;
       canvas.height = 256;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        ctx.fillStyle = '#0284c7'; // Vivid Cyan/Blue
+        ctx.fillStyle = '#0f172a';
         ctx.fillRect(0, 0, 512, 256);
 
-        ctx.lineWidth = 12;
-        ctx.strokeStyle = '#ffffff';
-        ctx.strokeRect(6, 6, 500, 244);
+        ctx.lineWidth = 10;
+        ctx.strokeStyle = '#38bdf8';
+        ctx.strokeRect(5, 5, 502, 246);
 
-        ctx.fillStyle = '#090d16';
-        ctx.fillRect(16, 16, 480, 224);
+        ctx.fillStyle = '#0284c7';
+        ctx.fillRect(15, 15, 482, 110);
 
         ctx.fillStyle = '#ffffff';
-        ctx.font = '900 86px "Segoe UI", Arial, sans-serif';
+        ctx.font = '900 68px "Segoe UI", Arial, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`โซน ${zoneId}`, 256, 85);
+        ctx.fillText(`โซน ${zoneId}`, 256, 70);
 
         ctx.fillStyle = '#facc15';
-        ctx.font = 'bold 32px "Segoe UI", Arial, sans-serif';
-        ctx.fillText(`DA4D-1.01 • ${cols} ช่อง x ${rows} แถว (${cols * rows} PL)`, 256, 175);
+        ctx.font = 'bold 24px "Segoe UI", Arial, sans-serif';
+        ctx.fillText(`DA4D-1.01 • ${cols} ช่อง x ${rows} แถว (${cols * rows} PL)`, 256, 180);
       }
       const tex = new THREE.CanvasTexture(canvas);
       tex.anisotropy = 8;
-      tex.needsUpdate = true;
-      return tex;
+      const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 1.0 });
+      const sprite = new THREE.Sprite(mat);
+      sprite.scale.set(2.8, 1.4, 1.0);
+      return sprite;
     };
 
     // Helper: Create Floor Staging Column Number Decal (C01 - C12)
     const createA4FloorColumnDecalTexture = (colNum: number) => {
       const canvas = document.createElement('canvas');
       canvas.width = 128;
-      canvas.height = 128;
+      canvas.height = 64;
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.fillStyle = '#0f172a';
-        ctx.fillRect(0, 0, 128, 128);
+        ctx.fillRect(0, 0, 128, 64);
 
-        ctx.lineWidth = 5;
+        ctx.lineWidth = 4;
         ctx.strokeStyle = '#facc15';
-        ctx.strokeRect(3, 3, 122, 122);
+        ctx.strokeRect(2, 2, 124, 60);
 
         ctx.fillStyle = '#ffffff';
-        ctx.font = '900 52px "Segoe UI", Arial, sans-serif';
+        ctx.font = '900 34px "Segoe UI", Arial, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`${colNum < 10 ? '0' + colNum : colNum}`, 64, 48);
+        ctx.fillText(`C${colNum < 10 ? '0' + colNum : colNum}`, 64, 32);
+      }
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.anisotropy = 8;
+      tex.needsUpdate = true;
+      return tex;
+    };
 
-        ctx.fillStyle = '#facc15';
-        ctx.font = 'bold 20px "Segoe UI", Arial, sans-serif';
-        ctx.fillText('ช่อง', 64, 94);
+    // Helper: Create Floor Staging Row Number Decal (R01 - R46)
+    const createA4FloorRowDecalTexture = (rowNum: number) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 128;
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, 128, 64);
+
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#facc15';
+        ctx.strokeRect(2, 2, 124, 60);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 34px "Segoe UI", Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`R${rowNum < 10 ? '0' + rowNum : rowNum}`, 64, 32);
       }
       const tex = new THREE.CanvasTexture(canvas);
       tex.anisotropy = 8;
@@ -703,27 +695,7 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
         side: THREE.DoubleSide
       });
 
-      // Compute floor decal X position:
-      // Inner rows C & E face the aisle to the left (-X), so shift out into the aisle.
-      // Outer rows D & F face the aisle to the right (+X), so shift out into the aisle.
-      // Row B is a single rack on the left end.
-      const isInnerLeft = ['C', 'E'].includes(r.name);
-      const isOuterRight = ['D', 'F'].includes(r.name);
-      const headDecalX = isInnerLeft ? r.x - 1.45 : isOuterRight ? r.x + 1.45 : r.x;
-
-      // 1. Large Floor Decal at Front of Rack Row (Clear forklift walkway at z = -8.2, well out from under rack at z = -10.8)
-      const frontFloorDecal = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.9), rackHeadMat);
-      frontFloorDecal.position.set(headDecalX, 0.025, -8.2);
-      frontFloorDecal.rotation.x = -Math.PI / 2;
-      rowGroup.add(frontFloorDecal);
-
-      // 2. Large Floor Decal at Rear of Rack Row (Clear rear walkway at z = -41.2, well clear of rear uprights at z = -39.6)
-      const rearFloorDecal = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.9), rackHeadMat);
-      rearFloorDecal.position.set(headDecalX, 0.025, -41.2);
-      rearFloorDecal.rotation.x = -Math.PI / 2;
-      rowGroup.add(rearFloorDecal);
-
-      // 3. Overhead End Sign Plate (Facing front aisle +Z)
+      // Overhead End Sign Plate (Facing front aisle +Z)
       const overheadSign = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.6), rackHeadMat);
       overheadSign.position.set(r.x, 4.5, -10.6);
       overheadSign.rotation.y = 0; // Fixed: 0 faces +Z so it is not mirrored when viewed from front aisle
@@ -737,20 +709,6 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
 
         const xFront = r.x + RACK_FRAME_DEPTH / 2;
         const xRear = r.x - RACK_FRAME_DEPTH / 2;
-
-        // Floor Bay Slot Number Marking (สลักตัวเลขเสา/ช่องบนพื้น)
-        // Rows C & E face the aisle on the left (-X), while B, D, F face right (+X)
-        const isLeftAisle = ['C', 'E'].includes(r.name);
-        const decalOffsetX = isLeftAisle ? -1.60 : 1.60;
-
-        const bayDecalMat = new THREE.MeshBasicMaterial({
-          map: createA4RackBayFloorTexture(r.name, bay),
-          side: THREE.DoubleSide
-        });
-        const bayFloorDecal = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.6), bayDecalMat);
-        bayFloorDecal.position.set(r.x + decalOffsetX, 0.022, zBayCenter);
-        bayFloorDecal.rotation.x = -Math.PI / 2;
-        rowGroup.add(bayFloorDecal);
 
         // 4 Upright Support Columns (Blue steel with footplate & yellow base guard)
         // 1. Front-Start, 2. Rear-Start, 3. Front-End, 4. Rear-End
@@ -771,12 +729,10 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
           foot.position.set(px, 0.01, pz);
           rowGroup.add(foot);
 
-          // Yellow Corner Base Protector at row ends or bay corners
-          if (bay === 1 || bay === 12) {
-            const guard = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.55, 0.2), guardYellow);
-            guard.position.set(px, 0.28, pz);
-            rowGroup.add(guard);
-          }
+          // Yellow Corner Base Protector on every upright post of every bay
+          const guard = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.55, 0.2), guardYellow);
+          guard.position.set(px, 0.28, pz);
+          rowGroup.add(guard);
         });
 
         // Add Side Diagonal Steel Bracing on left & right upright frames of the bay
@@ -869,12 +825,14 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
 
               rowGroup.add(palletGrp);
 
+              const pPart = item.partNumber || item.modelHE || 'Item';
+              const pName = item.partName || item.modelHE || '';
               interactiveMeshes.push({
                 mesh: palletGrp,
                 type: 'RACK',
                 locator: locatorStr,
                 zoneName: `แร็ค A4 (Row ${r.name})`,
-                desc: `${item.partNumber} - ${item.model} (${item.quantity} ชิ้น) [${pPos}]`,
+                desc: `${pPart}${pName && pName !== pPart ? ' - ' + pName : ''} (${item.quantity} ชิ้น) [${pPos}]`,
                 item,
                 palletPosition: pPos,
                 rowName: r.name,
@@ -942,29 +900,9 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
         side: THREE.DoubleSide
       });
 
-      // Compute floor decal X position:
-      // Inner rows H & J face the aisle to the left (-X), so shift out into the aisle.
-      // Outer rows I & K face the aisle to the right (+X), so shift out into the aisle.
-      // Row G is a single rack on the left end.
-      const isInnerLeft = ['H', 'J'].includes(r.name);
-      const isOuterRight = ['I', 'K'].includes(r.name);
-      const headDecalX = isInnerLeft ? r.x - 1.45 : isOuterRight ? r.x + 1.45 : r.x;
-
-      // 1. Large Floor Decal at Front of Rack Row (Clear forklift road at z = -8.0, well out from under rack at z = -10.8)
-      const frontFloorDecal = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.9), rackHeadMat);
-      frontFloorDecal.position.set(headDecalX, 0.025, -8.0);
-      frontFloorDecal.rotation.x = -Math.PI / 2;
-      rowGroup.add(frontFloorDecal);
-
-      // 2. Large Floor Decal at Rear of Rack Row (Clear rear walkway at z = -25.5, well clear of rear uprights)
-      const rearFloorDecal = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.9), rackHeadMat);
-      rearFloorDecal.position.set(headDecalX, 0.025, -25.5);
-      rearFloorDecal.rotation.x = -Math.PI / 2;
-      rowGroup.add(rearFloorDecal);
-
-      // 3. Overhead End Sign Plate (Facing front aisle +Z)
+      // Overhead End Sign Plate mounted directly on front rack head frame (bay 1 starts at z = -27.6)
       const overheadSign = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.6), rackHeadMat);
-      overheadSign.position.set(r.x, 4.5, -10.6);
+      overheadSign.position.set(r.x, 4.5, -27.45);
       overheadSign.rotation.y = 0; // Fixed: 0 faces +Z so it is not mirrored
       rowGroup.add(overheadSign);
 
@@ -978,20 +916,6 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
 
         const xFront = r.x + RACK_FRAME_DEPTH / 2;
         const xRear = r.x - RACK_FRAME_DEPTH / 2;
-
-        // Floor Bay Slot Number Marking (สลักตัวเลขเสา/ช่องบนพื้น)
-        // Rows H & J face the aisle on the left (-X), while G, I, K face right (+X)
-        const isLeftAisle = ['H', 'J'].includes(r.name);
-        const decalOffsetX = isLeftAisle ? -1.60 : 1.60;
-
-        const bayDecalMat = new THREE.MeshBasicMaterial({
-          map: createA4RackBayFloorTexture(r.name, bay),
-          side: THREE.DoubleSide
-        });
-        const bayFloorDecal = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.6), bayDecalMat);
-        bayFloorDecal.position.set(r.x + decalOffsetX, 0.022, zBayCenter);
-        bayFloorDecal.rotation.x = -Math.PI / 2;
-        rowGroup.add(bayFloorDecal);
 
         // 4 Uprights per bay
         const postPositions = [
@@ -1010,11 +934,9 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
           foot.position.set(px, 0.01, pz);
           rowGroup.add(foot);
 
-          if (bay === 1 || bay === 5) {
-            const guard = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.55, 0.2), guardYellow);
-            guard.position.set(px, 0.28, pz);
-            rowGroup.add(guard);
-          }
+          const guard = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.55, 0.2), guardYellow);
+          guard.position.set(px, 0.28, pz);
+          rowGroup.add(guard);
         });
 
         // Add Side Diagonal Steel Bracing
@@ -1102,12 +1024,14 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
 
               rowGroup.add(palletGrp);
 
+              const pPart = item.partNumber || item.modelHE || 'Item';
+              const pName = item.partName || item.modelHE || '';
               interactiveMeshes.push({
                 mesh: palletGrp,
                 type: 'RACK',
                 locator: locatorStr,
                 zoneName: `แร็ค A4 (Row ${r.name})`,
-                desc: `${item.partNumber} - ${item.model} (${item.quantity} ชิ้น) [${pPos}]`,
+                desc: `${pPart}${pName && pName !== pPart ? ' - ' + pName : ''} (${item.quantity} ชิ้น) [${pPos}]`,
                 item,
                 palletPosition: pPos,
                 rowName: r.name,
@@ -1173,16 +1097,16 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
     // Floor Base Yellow Outline Group (DA4D-1 Boundary)
     const floorZonesConfig = [
       // Top blocks: 12 Columns (Col 01 to 12)
-      { id: 'X8', zCenter: -5.0, rows: 4, cols: 12 },
-      { id: 'X7', zCenter: -0.5, rows: 6, cols: 12 },
-      { id: 'X6', zCenter: 4.5, rows: 6, cols: 12 },
-      { id: 'X5', zCenter: 9.5, rows: 6, cols: 12 },
+      { id: 'X8', zCenter: -5.0, rows: 4, cols: 12, startRow: 43 },
+      { id: 'X7', zCenter: -0.5, rows: 6, cols: 12, startRow: 37 },
+      { id: 'X6', zCenter: 4.5, rows: 6, cols: 12, startRow: 31 },
+      { id: 'X5', zCenter: 9.5, rows: 6, cols: 12, startRow: 25 },
 
       // Bottom blocks: 7 Columns only (Col 01 to 07)
-      { id: 'X4', zCenter: 15.5, rows: 6, cols: 7 },
-      { id: 'X3', zCenter: 20.5, rows: 6, cols: 7 },
-      { id: 'X2', zCenter: 25.5, rows: 6, cols: 7 },
-      { id: 'X1', zCenter: 30.5, rows: 6, cols: 7 }
+      { id: 'X4', zCenter: 15.5, rows: 6, cols: 7, startRow: 19 },
+      { id: 'X3', zCenter: 20.5, rows: 6, cols: 7, startRow: 13 },
+      { id: 'X2', zCenter: 25.5, rows: 6, cols: 7, startRow: 7 },
+      { id: 'X1', zCenter: 30.5, rows: 6, cols: 7, startRow: 1 }
     ];
 
     const slotPitchX = 1.4; // Spacing between columns 01 to 12
@@ -1208,23 +1132,11 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
       groupBorder.position.set(groupCenterX, 0.015, zone.zCenter);
       zoneGroup.add(groupBorder);
 
-      // Large Floor Zone Header Decals at Left and Right ends
-      const zoneDecalMat = new THREE.MeshBasicMaterial({
-        map: createA4FloorStagingZoneTexture(zone.id, zone.rows, zone.cols),
-        side: THREE.DoubleSide
-      });
-
-      // Left End Zone Decal
-      const leftZoneDecal = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 1.4), zoneDecalMat);
-      leftZoneDecal.position.set(startX - 2.0, 0.025, zone.zCenter);
-      leftZoneDecal.rotation.x = -Math.PI / 2;
-      zoneGroup.add(leftZoneDecal);
-
-      // Right End Zone Decal
-      const rightZoneDecal = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 1.4), zoneDecalMat);
-      rightZoneDecal.position.set(startX + groupWidth + 1.2, 0.025, zone.zCenter);
-      rightZoneDecal.rotation.x = -Math.PI / 2;
-      zoneGroup.add(rightZoneDecal);
+      // Floating 3D Zone Header Badge (โซน X1, X2... floating overhead above zone center)
+      const floatingSprite = createFloatingZoneHeaderSprite(zone.id, zone.rows, zone.cols);
+      floatingSprite.position.set(groupCenterX, 3.2, zone.zCenter);
+      scene.add(floatingSprite);
+      floatingZoneSpritesRef.current.push(floatingSprite);
 
       // Column Number Decals (สลักตัวเลขหัวคอลัมน์ C01 - C12 บนพื้นหน้าแถว)
       for (let c = 1; c <= zone.cols; c++) {
@@ -1240,9 +1152,28 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
         zoneGroup.add(colDecal);
       }
 
-      // Render individual slots
+      // Render individual slots & ground Row Labels (R1 - R46)
+      // Note: r=1 is top (-Z), r=zone.rows is bottom (+Z). In 2D, R1 is at bottom (+Z).
       for (let r = 1; r <= zone.rows; r++) {
         const zSlot = zone.zCenter - (groupDepth / 2) + (r - 0.5) * slotPitchZ;
+        const localRow = zone.rows - r + 1;
+        const globalRow = zone.startRow + (localRow - 1);
+
+        // Painted ground Row Label Decal flat on epoxy floor at LEFT of row (shifted clear of grid)
+        const rowDecalMat = new THREE.MeshBasicMaterial({
+          map: createA4FloorRowDecalTexture(globalRow),
+          side: THREE.DoubleSide
+        });
+        const rowDecalLeft = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.32), rowDecalMat);
+        rowDecalLeft.position.set(startX - 1.25, 0.022, zSlot);
+        rowDecalLeft.rotation.x = -Math.PI / 2;
+        zoneGroup.add(rowDecalLeft);
+
+        // Painted ground Row Label Decal flat on epoxy floor at RIGHT of row (shifted clear of grid)
+        const rowDecalRight = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.32), rowDecalMat);
+        rowDecalRight.position.set(startX + groupWidth + 0.15, 0.022, zSlot);
+        rowDecalRight.rotation.x = -Math.PI / 2;
+        zoneGroup.add(rowDecalRight);
 
         for (let c = 1; c <= zone.cols; c++) {
           const xSlot = startX + (c - 1) * slotPitchX;
@@ -1255,11 +1186,12 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
           slotFrame.position.set(xSlot, 0.02, zSlot);
           zoneGroup.add(slotFrame);
 
-          // Check if item exists in this floor slot
-          const item = a4Data.floorItemsMap.get(`${zone.id}-${r}-${c}`);
+          // Check if item exists in this floor slot (mapped by localRow)
+          const item = a4Data.floorItemsMap.get(`${zone.id}-${localRow}-${c}`);
           const hasBox = !!item;
-          const cStr = c < 10 ? '0' + c : '' + c;
-          const locatorStr = `DA4D-1.01-${zone.id}-R${r}-C${cStr}`;
+          const rStr = String(localRow).padStart(2, '0');
+          const cStr = String(c).padStart(2, '0');
+          const locatorStr = `DA4D-1.01-${zone.id}-R${rStr}-C${cStr}`;
 
           if (hasBox) {
             const palGrp = new THREE.Group();
@@ -1282,15 +1214,17 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
 
             zoneGroup.add(palGrp);
 
+            const flPart = item ? (item.partNumber || item.modelHE || 'Item') : '';
+            const flName = item ? (item.partName || item.modelHE || '') : '';
             interactiveMeshes.push({
               mesh: palGrp,
               type: 'FLOOR',
               locator: locatorStr,
               zoneName: `ลานวางพื้น A4 (${zone.id})`,
-              desc: item ? `${item.partNumber} - ${item.model}` : `บล็อกวางพื้น ${zone.id} แถว R${r} คอลัมน์ Col ${c}`,
+              desc: item ? `${flPart}${flName && flName !== flPart ? ' - ' + flName : ''} (${item.quantity} ชิ้น)` : `บล็อกวางพื้น ${zone.id} แถว R${localRow} คอลัมน์ Col ${c}`,
               item,
               group: zone.id,
-              row: r,
+              row: localRow,
               col: c,
               x: xSlot,
               y: 0.02,
@@ -1313,10 +1247,10 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
               type: 'FLOOR',
               locator: locatorStr,
               zoneName: `ลานวางพื้น A4 (${zone.id})`,
-              desc: `[ตำแหน่งว่าง] บล็อกวางพื้น ${zone.id} แถว R${r} คอลัมน์ Col ${c}`,
+              desc: `[ตำแหน่งว่าง] บล็อกวางพื้น ${zone.id} แถว R${localRow} คอลัมน์ Col ${c}`,
               item: undefined,
               group: zone.id,
-              row: r,
+              row: localRow,
               col: c,
               x: xSlot,
               y: 0.02,
@@ -1491,6 +1425,17 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
       controls.update();
       hologramGhost.updateAnimation(elapsedTime);
       rackBayNeon.update(elapsedTime);
+
+      // Smooth LOD fade for floating 3D zone header badges (< 22m or isolated focus)
+      const dist = camera.position.distanceTo(controls.target);
+      const isClose = dist < 22;
+      const targetOpacity = isClose ? 0.0 : 1.0;
+      floatingZoneSpritesRef.current.forEach(sprite => {
+        const mat = sprite.material as THREE.SpriteMaterial;
+        mat.opacity += (targetOpacity - mat.opacity) * 0.12;
+        sprite.visible = mat.opacity > 0.02;
+      });
+
       renderer.render(scene, camera);
     };
     animate();
