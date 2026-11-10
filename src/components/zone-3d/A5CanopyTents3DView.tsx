@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useMemo } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { InventoryItem, MovementType, ShelfLevel, StorageZone } from '../../types';
+import { parseA5TentLocator } from '../../utils/a5TentLocatorParser';
 import { createRealisticForklift } from './forkliftModel';
 import { createHologramGhostTarget } from './hologramGhost';
 import { createRackBayNeonHighlight, applyFaintEmissiveHighlight } from './neonEdgeHighlight';
@@ -67,35 +68,9 @@ export const A5CanopyTents3DView: React.FC<A5CanopyTents3DViewProps> = ({
         return;
       }
 
-      let tent = 1;
-      let grp = 1;
-      let r = 1;
-      let c = 1;
-
-      // Extract Tent number (1-4)
-      const tentMatch = loc.match(/DA5T[-.]?([1-4])/i) || loc.match(/T([1-4])/i);
-      if (tentMatch) tent = parseInt(tentMatch[1], 10);
-      else if (typeof it.zone === 'string' && it.zone.includes('2')) tent = 2;
-      else if (typeof it.zone === 'string' && it.zone.includes('3')) tent = 3;
-      else if (typeof it.zone === 'string' && it.zone.includes('4')) tent = 4;
-
-      // Extract Group number (01-07)
-      const grpMatch = loc.match(/DA5T[-.]?[1-4][-.]?0?([1-7])/i) || loc.match(/G0?([1-7])/i) || loc.match(/-0?([1-7])-R/i);
-      if (grpMatch) grp = parseInt(grpMatch[1], 10);
-      else if (it.bayNumber && it.bayNumber >= 1 && it.bayNumber <= 7) grp = it.bayNumber;
-
-      // Extract Row (R1-R4)
-      const rowMatch = loc.match(/R([1-4])/i);
-      if (rowMatch) r = parseInt(rowMatch[1], 10);
-      else if (it.level && it.level >= 1 && it.level <= 4) r = it.level;
-
-      // Extract Column (01-07)
-      const colMatch = loc.match(/[-C]0?([1-7])$/i) || loc.match(/R[1-4]-0?([1-7])/i);
-      if (colMatch) c = parseInt(colMatch[1], 10);
-
-      map.set(`${tent}-${grp}-${r}-${c}`, it);
-      const canonLoc = `DA5T-${tent}-${String(grp).padStart(2, '0')}-R${r}-${String(c).padStart(2, '0')}`;
-      map.set(canonLoc, it);
+      const parsed = parseA5TentLocator(it.locatorCode, it);
+      map.set(`${parsed.tentNum}-${parsed.groupNum}-${parsed.rowCode}-${parsed.colNum}`, it);
+      map.set(parsed.locator, it);
     });
     return map;
   }, [items]);

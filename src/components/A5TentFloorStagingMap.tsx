@@ -5,6 +5,7 @@ import { SlotMiniStatsOverlay, MiniStatsSlotData } from './SlotMiniStatsOverlay'
 import { A5CanopyTents3DView } from './zone-3d/A5CanopyTents3DView';
 import { ZoneKpiFormalDashboard } from './ZoneKpiFormalDashboard';
 import { useTranslation } from '../i18n/i18nContext';
+import { parseA5TentLocator } from '../utils/a5TentLocatorParser';
 import { 
   Building2, 
   Search, 
@@ -39,7 +40,15 @@ interface A5TentFloorStagingMapProps {
   logs?: MovementLog[];
   searchQuery?: string;
   onSelectSlot?: (tentId: string, groupNumber: number, rowCode: string, columnNumber: number) => void;
-  onOpenScanner: (zone: StorageZone, bay: number, level: ShelfLevel, mode: MovementType) => void;
+  onOpenScanner: (
+    zone: StorageZone, 
+    bay: number, 
+    level: ShelfLevel, 
+    mode: MovementType,
+    locatorCode?: string,
+    palletPosition?: string,
+    item?: InventoryItem | null
+  ) => void;
   onRelocateItem?: (item: InventoryItem) => void;
   onNavigateToCampus?: () => void;
   initialTentNumber?: number; // 1, 2, 3, or 4
@@ -150,30 +159,8 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
     const map = new Map<string, InventoryItem>();
     
     a5Items.forEach(item => {
-      // Parse locator format: "DA5T-1-01-R3-05" or similar
-      const loc = item.locatorCode.toUpperCase();
-      let tentNum = 1;
-      let groupNum = 1;
-      let rowCode = 'R1';
-      let colNum = 1;
-
-      // Extract Tent number
-      const tentMatch = loc.match(/DA5T[-.]?(\d)/);
-      if (tentMatch) tentNum = parseInt(tentMatch[1], 10);
-
-      // Extract Group number
-      const grpMatch = loc.match(/DA5T[-.]?\d[-.]?0?(\d+)/) || loc.match(/-0?(\d+)-R/);
-      if (grpMatch) groupNum = parseInt(grpMatch[1], 10);
-
-      // Extract Row (R1-R4)
-      const rowMatch = loc.match(/R([1-4])/);
-      if (rowMatch) rowCode = `R${rowMatch[1]}`;
-
-      // Extract Col (01-07)
-      const colMatch = loc.match(/-0?([1-7])$/) || loc.match(/R[1-4]-0?([1-7])/);
-      if (colMatch) colNum = parseInt(colMatch[1], 10);
-
-      const key = `${tentNum}-${groupNum}-${rowCode}-${colNum}`;
+      const parsed = parseA5TentLocator(item.locatorCode, item);
+      const key = `${parsed.tentNum}-${parsed.groupNum}-${parsed.rowCode}-${parsed.colNum}`;
       map.set(key, item);
     });
 
@@ -885,9 +872,17 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
           item: selectedSlotData.item || null,
           maxCapacityPallets: 1
         } : null}
-        onOpenScanner={(zone, bay, level, mode) => {
+        onOpenScanner={(zone, bay, level, mode, locatorCode, palletPos, item) => {
           if (selectedSlotData) {
-            onOpenScanner('T1-01', selectedSlotData.groupNum, 1, mode);
+            onOpenScanner(
+              `T${selectedSlotData.tentNum}` as StorageZone, 
+              selectedSlotData.groupNum, 
+              parseInt(selectedSlotData.rowCode.replace('R', ''), 10) as ShelfLevel, 
+              mode,
+              locatorCode,
+              palletPos,
+              item
+            );
           }
         }}
         onRelocateItem={onRelocateItem}

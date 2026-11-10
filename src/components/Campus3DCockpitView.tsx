@@ -29,7 +29,15 @@ interface Campus3DCockpitViewProps {
   logs?: MovementLog[];
   agingConfig?: AgingThresholdConfig;
   onNavigateToZone: (target: 'A4_FLOOR' | 'A4_RACK' | 'A2_RAIL' | 'A5_TENT' | 'CY3_TENT', tentNum?: number) => void;
-  onOpenScanner?: (zone: StorageZone, bay: number, level: ShelfLevel, mode: MovementType) => void;
+  onOpenScanner?: (
+    zone: StorageZone, 
+    bay: number, 
+    level: ShelfLevel, 
+    mode: MovementType,
+    locatorCode?: string,
+    palletPosition?: string,
+    item?: InventoryItem | null
+  ) => void;
   onBackToOverview?: () => void;
 }
 
@@ -135,7 +143,7 @@ export const Campus3DCockpitView: React.FC<Campus3DCockpitViewProps> = ({
 
         {activeTab === 'A5' && (
           <div className="h-[650px] bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl">
-            <A5TentFloorStagingMap items={items} logs={logs} onOpenScanner={onOpenScanner || (() => {})} onNavigateToCampus={() => onNavigateToZone('A5_TENT')} />
+            <A5TentFloorStagingMap items={items} logs={logs} onOpenScanner={onOpenScanner || ((...args) => {})} onNavigateToCampus={() => onNavigateToZone('A5_TENT')} />
           </div>
         )}
       </div>
