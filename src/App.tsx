@@ -81,7 +81,6 @@ export default function App() {
     { id: 'Y3', name: 'Line Y3', description: 'สายการผลิตคอยล์/ท่อ Y3' },
     { id: 'Y4', name: 'Line Y4', description: 'สายการผลิตคอยล์/ท่อ Y4' },
     { id: 'Y5', name: 'Line Y5', description: 'สายการผลิตคอยล์/ท่อ Y5' },
-    { id: 'REPAIR', name: 'Line Repair', description: 'โซนงานซ่อมแก้ไข (Repair Station)' },
   ];
 
   const [masterData, setMasterData] = useState<MasterDataItem[]>(() => {
@@ -132,8 +131,9 @@ export default function App() {
           const lineMap = new Map<string, UseLineMaster>();
           DEFAULT_LINES.forEach(l => lineMap.set(l.id, l));
           parsed.forEach((l: UseLineMaster) => {
-            if (l && l.id) lineMap.set(l.id, l);
+            if (l && l.id && l.id.toUpperCase() !== 'REPAIR') lineMap.set(l.id, l);
           });
+          lineMap.delete('REPAIR');
           return Array.from(lineMap.values());
         }
       } catch (e) {
@@ -155,8 +155,11 @@ export default function App() {
         if (Array.isArray(parsed) && parsed.length > 0) {
           const map = new Map<string, TargetUseLineMaster>();
           parsed.forEach((l: TargetUseLineMaster) => {
-            if (l && l.id) map.set(l.id.trim().toUpperCase(), { ...l, id: l.id.trim().toUpperCase() });
+            if (l && l.id && l.id.trim().toUpperCase() !== 'OTHER') {
+              map.set(l.id.trim().toUpperCase(), { ...l, id: l.id.trim().toUpperCase() });
+            }
           });
+          map.delete('OTHER');
           return Array.from(map.values());
         }
       } catch (e) {
@@ -1141,7 +1144,7 @@ export default function App() {
           )}
 
           {activeTab === 'logs' && (
-            <div className="animate-fadeIn flex-1 flex flex-col min-h-0">
+            <div className="animate-fadeIn flex-1 flex flex-col min-h-0 overflow-hidden">
               <MovementLogsTable
                 logs={logs}
                 auditLogs={auditLogs}

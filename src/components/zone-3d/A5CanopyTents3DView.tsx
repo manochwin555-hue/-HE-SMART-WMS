@@ -7,6 +7,7 @@ import { createRealisticForklift } from './forkliftModel';
 import { createHologramGhostTarget } from './hologramGhost';
 import { createRackBayNeonHighlight, applyFaintEmissiveHighlight } from './neonEdgeHighlight';
 import { CameraControlOverlay } from './CameraControlOverlay';
+import { ZoneSlotHoverCard, ZoneSlotHoverData } from './ZoneSlotHoverCard';
 import { 
   RotateCcw, 
   Layers, 
@@ -28,6 +29,7 @@ interface A5CanopyTents3DViewProps {
   items: InventoryItem[];
   searchQuery?: string;
   onSelectSlot: (tentNum: number, groupNum: number, row: number, col: number, item?: InventoryItem) => void;
+  onDoubleClickSlot?: (tentNum: number, groupNum: number, row: number, col: number, item?: InventoryItem) => void;
   onOpenScanner?: (zone: StorageZone, bay: number, level: ShelfLevel, mode: MovementType, locatorCode?: string, palletPosition?: string, item?: InventoryItem) => void;
 }
 
@@ -35,6 +37,7 @@ export const A5CanopyTents3DView: React.FC<A5CanopyTents3DViewProps> = ({
   items,
   searchQuery = '',
   onSelectSlot,
+  onDoubleClickSlot,
   onOpenScanner
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -47,16 +50,7 @@ export const A5CanopyTents3DView: React.FC<A5CanopyTents3DViewProps> = ({
   const [roofMode, setRoofMode] = useState<'TRANSLUCENT' | 'HIDDEN'>('TRANSLUCENT');
   const [cameraFocus, setCameraFocus] = useState<'ALL_A5' | 'TOP_DOWN' | 'TENT_1' | 'TENT_2' | 'TENT_3' | 'TENT_4'>('ALL_A5');
 
-  const [hoveredSlot, setHoveredSlot] = useState<{
-    tent: number;
-    grp: number;
-    r: number;
-    c: number;
-    locator: string;
-    item?: InventoryItem;
-    statusMode: 'EMPTY' | 'OCCUPIED' | 'AGING' | 'OVERDUE';
-    posDetail?: string;
-  } | null>(null);
+  const [hoveredSlot, setHoveredSlot] = useState<ZoneSlotHoverData | null>(null);
 
   // Map items to A5 tents (4 tents x 196 slots = 784 PL)
   const a5ItemMap = useMemo(() => {
@@ -607,8 +601,9 @@ export const A5CanopyTents3DView: React.FC<A5CanopyTents3DViewProps> = ({
               ? -TENT_DEPTH / 2 + 1.2 + (c - 1) * slotPitchZ 
               : TENT_DEPTH / 2 - 1.2 - (c - 1) * slotPitchZ;
 
-            const locator = `DA5T-${tent.id}-${String(g).padStart(2, '0')}-R${r}-${String(c).padStart(2, '0')}`;
-            const item = a5ItemMap.get(`${tent.id}-${g}-${r}-${c}`) || a5ItemMap.get(locator);
+            const locator = `DA5T-${tent.id}-${String(g).padStart(2, '0')}-R${r}-C${String(c).padStart(2, '0')}`;
+            const legacyLocator = `DA5T-${tent.id}-${String(g).padStart(2, '0')}-R${r}-${String(c).padStart(2, '0')}`;
+            const item = a5ItemMap.get(`${tent.id}-${g}-${r}-${c}`) || a5ItemMap.get(locator) || a5ItemMap.get(legacyLocator);
 
             // World coordinates for raycasting and hologram snapping
             const worldX = tent.x + slotX;
@@ -764,14 +759,11 @@ export const A5CanopyTents3DView: React.FC<A5CanopyTents3DViewProps> = ({
           rackBayNeon.show();
 
           setHoveredSlot({
-            tent: hit.tent,
-            grp: hit.grp,
-            r: hit.r,
-            c: hit.c,
+            zoneLabel: `เต็นท์ A5 #${hit.tent}`,
             locator: hit.locator,
-            item: hit.item,
+            positionLabel: `กลุ่ม G${String(hit.grp).padStart(2, '0')} · แถว R${hit.r} · ช่อง C${String(hit.c).padStart(2, '0')}`,
             statusMode: hit.statusMode,
-            posDetail: `A5 Tent ${hit.tent} &bull; กลุ่ม G0${hit.grp} &bull; แถว R${hit.r} &bull; ลึก C0${hit.c}`
+            item: hit.item,
           });
           renderer.domElement.style.cursor = 'pointer';
           return;
@@ -802,9 +794,11 @@ export const A5CanopyTents3DView: React.FC<A5CanopyTents3DViewProps> = ({
           intersects[0].object.parent?.parent === c.mesh
         );
         if (hit) {
-          if (e.detail === 2 && onOpenScanner) {
-            const tentZone = `T${hit.tent}-01` as StorageZone;
-            onOpenScanner(tentZone, hit.grp, 1, hit.item ? 'OUT' : 'IN', hit.locator, 'P1', hit.item || null);
+          if (onDoubleClickSlot) {
+            onDoubleClickSlot(hit.tent, hit.grp, hit.r, hit.c, hit.item);
+          } else if (onOpenScanner) {
+            const tentZone = `T${hit.tent}` as StorageZone;
+            onOpenScanner(tentZone, hit.grp, hit.r as ShelfLevel, hit.item ? 'OUT' : 'IN', hit.locator, 'P1', hit.item || null);
           } else {
             onSelectSlot(hit.tent, hit.grp, hit.r, hit.c, hit.item);
           }
@@ -946,77 +940,8 @@ export const A5CanopyTents3DView: React.FC<A5CanopyTents3DViewProps> = ({
       </div>
 
 
-      {/* 3D Holographic Ghost HUD Target Tooltip */}
-      {hoveredSlot && (
-        <div className={`absolute bottom-4 left-4 backdrop-blur-md border rounded-2xl p-3.5 shadow-2xl z-30 max-w-sm pointer-events-none animate-fadeIn ${
-          hoveredSlot.statusMode === 'EMPTY'
-            ? 'bg-emerald-950/90 border-emerald-500/60 shadow-emerald-900/30'
-            : hoveredSlot.statusMode === 'OVERDUE'
-            ? 'bg-rose-950/90 border-rose-500/60 shadow-rose-900/30'
-            : hoveredSlot.statusMode === 'AGING'
-            ? 'bg-amber-950/90 border-amber-500/60 shadow-amber-900/30'
-            : 'bg-slate-900/95 border-cyan-500/60 shadow-cyan-900/30'
-        }`}>
-          <div className="flex items-center justify-between gap-2 mb-1.5">
-            <div className="flex items-center gap-1.5">
-              <span className={`w-2.5 h-2.5 rounded-full animate-ping ${
-                hoveredSlot.statusMode === 'EMPTY' ? 'bg-emerald-400' :
-                hoveredSlot.statusMode === 'OVERDUE' ? 'bg-rose-400' :
-                hoveredSlot.statusMode === 'AGING' ? 'bg-amber-400' : 'bg-cyan-400'
-              }`} />
-              <span className="font-mono text-[11px] uppercase font-bold text-white tracking-wider">
-                A5 CANOPY TENT #{hoveredSlot.tent}
-              </span>
-            </div>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase border ${
-              hoveredSlot.statusMode === 'EMPTY'
-                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                : hoveredSlot.statusMode === 'OVERDUE'
-                ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
-                : hoveredSlot.statusMode === 'AGING'
-                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
-            }`}>
-              {hoveredSlot.statusMode === 'EMPTY' ? '● ช่องว่าง (READY)' : 
-               hoveredSlot.statusMode === 'OVERDUE' ? '▲ OVERDUE > 45d' : 
-               hoveredSlot.statusMode === 'AGING' ? '⚠ AGING > 28d' : '✓ มีสินค้า (STORED)'}
-            </span>
-          </div>
-
-          <div className="text-sm font-mono font-black text-white mb-0.5 tracking-tight">
-            {hoveredSlot.locator}
-          </div>
-
-          {hoveredSlot.posDetail && (
-            <div className="text-[11px] font-mono text-slate-300 mb-1">
-              {hoveredSlot.posDetail}
-            </div>
-          )}
-
-          {hoveredSlot.item ? (
-            <div className="space-y-0.5 text-slate-200">
-              <p className="font-bold text-white truncate">{hoveredSlot.item.modelHE}</p>
-              <p className="text-slate-400 text-xs truncate">{hoveredSlot.item.partName}</p>
-              <div className="flex items-center gap-2 text-[10px] text-slate-300 pt-1 border-t border-slate-700/60 mt-1">
-                <span>จำนวน: <strong className="text-white">{hoveredSlot.item.quantity}</strong> EA</span>
-                <span>&bull;</span>
-                <span className={hoveredSlot.item.agingDays > 28 ? 'text-amber-400 font-bold' : ''}>
-                  Aging: {hoveredSlot.item.agingDays} วัน
-                </span>
-              </div>
-            </div>
-          ) : (
-            <div className="text-xs text-slate-300">
-              ตำแหน่งว่างพร้อมรับเข้าสินค้า (เต็นท์ {hoveredSlot.tent} กลุ่ม G0{hoveredSlot.grp} แถว R{hoveredSlot.r} ช่อง {hoveredSlot.c})
-            </div>
-          )}
-
-          <div className="mt-2 pt-2 border-t border-slate-700/60 flex items-center justify-between text-[10px] text-slate-400">
-            <span className="text-cyan-300 font-medium">🎯 Holographic Laser Target Lock</span>
-            <span className="text-white font-bold">คลิกเพื่อเปิดจัดการ</span>
-          </div>
-        </div>
-      )}
+      {/* Unified Slot Hover Preview Card */}
+      {hoveredSlot && <ZoneSlotHoverCard data={hoveredSlot} />}
     </div>
   );
 };

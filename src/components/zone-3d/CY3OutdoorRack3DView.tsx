@@ -6,6 +6,7 @@ import { createRealisticForklift } from './forkliftModel';
 import { createHologramGhostTarget } from './hologramGhost';
 import { createRackBayNeonHighlight, applyFaintEmissiveHighlight } from './neonEdgeHighlight';
 import { CameraControlOverlay } from './CameraControlOverlay';
+import { ZoneSlotHoverCard, ZoneSlotHoverData } from './ZoneSlotHoverCard';
 
 interface CY3OutdoorRack3DViewProps {
   items: InventoryItem[];
@@ -28,7 +29,7 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
 
   const [activePreset, setActivePreset] = useState<'ALL' | 'TOP_DOWN' | 'ROW_A' | 'ROW_B' | 'ROW_C' | 'ROW_D'>('ALL');
   const rowGroupsRef = useRef<Record<'A' | 'B' | 'C' | 'D', THREE.Group>>({} as any);
-  const [hoveredSlot, setHoveredSlot] = useState<{ row: 'A' | 'B' | 'C' | 'D'; bay: number; lvl: ShelfLevel; locator: string; item?: InventoryItem } | null>(null);
+  const [hoveredSlot, setHoveredSlot] = useState<ZoneSlotHoverData | null>(null);
 
   // Map CY3 items: 4 rows x 25 bays x 4 levels x 2 positions (P1, P2)
   const cy3ItemMap = useMemo(() => {
@@ -468,9 +469,9 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
 
     scene.add(racksGroup);
 
-    // Realistic Forklifts in open roadway staging
-    const forklift1 = createRealisticForklift(26, 0.0, 0, -Math.PI / 2, 1.05);
-    const forklift2 = createRealisticForklift(-26, 0.0, 0, Math.PI / 2, 1.05);
+    // Realistic Forklifts moved outside the central aisle to outer side staging areas (away from B and C aisles)
+    const forklift1 = createRealisticForklift(33.5, 0.0, 0, -Math.PI / 2, 1.05);
+    const forklift2 = createRealisticForklift(-33.5, 0.0, 0, Math.PI / 2, 1.05);
     scene.add(forklift1, forklift2);
 
     // 3D Holographic Ghost Target
@@ -523,7 +524,14 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
           rackBayNeon.setBay(hit.x, hit.y, hit.z, hit.w, hit.h, hit.d, neonColor);
           rackBayNeon.show();
 
-          setHoveredSlot({ row: hit.row, bay: hit.bay, lvl: hit.lvl, locator: hit.locator, item: hit.item });
+          const pPos = hit.locator.includes('-P2') ? 'P2' : 'P1';
+          setHoveredSlot({
+            zoneLabel: `โซน CY3 (แถว ${hit.row})`,
+            locator: hit.locator,
+            positionLabel: `แถว ${hit.row} · เสา ${String(hit.bay).padStart(2, '0')} · ชั้น L${hit.lvl} · ${pPos}`,
+            statusMode: hit.statusMode,
+            item: hit.item,
+          });
           renderer.domElement.style.cursor = 'pointer';
           return;
         }
@@ -554,13 +562,7 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
           intersects[0].object.parent?.parent === c.mesh
         );
         if (hit) {
-          if (e.detail === 2 && onOpenScanner) {
-            const cy3Zone = `CY3-${hit.row}` as StorageZone;
-            const pPos = hit.locator.includes('-P2') ? 'P2' : 'P1';
-            onOpenScanner(cy3Zone, hit.bay, hit.lvl, hit.item ? 'OUT' : 'IN', hit.locator, pPos, hit.item || null);
-          } else {
-            onSelectSlot(hit.row, hit.bay, hit.locator, hit.lvl, hit.item);
-          }
+          onSelectSlot(hit.row, hit.bay, hit.locator, hit.lvl, hit.item);
         }
       }
     };
@@ -754,38 +756,8 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
         ]}
       />
 
-      {/* Hover Info */}
-      {hoveredSlot && (
-        <div className="absolute bottom-4 left-4 bg-slate-900/95 backdrop-blur-md border border-slate-700 rounded-xl p-3.5 shadow-2xl w-64 text-xs pointer-events-none animate-fadeIn">
-          {/* Row 1: Header */}
-          <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-700">
-            <span className="font-bold text-slate-300 truncate">โซน CY3 (แถว {hoveredSlot.row})</span>
-            <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${hoveredSlot.item ? 'bg-cyan-500/20 text-cyan-300' : 'bg-emerald-500/20 text-emerald-300'}`}>
-              {hoveredSlot.item ? '✓ มีสินค้า (STORED)' : '○ ช่องว่าง (READY)'}
-            </span>
-          </div>
-          
-          {/* Row 2: Locator */}
-          <div className="font-mono font-black text-amber-300 text-sm mb-1">{hoveredSlot.locator}</div>
-          
-          {/* Row 3: Part No & Name */}
-          <div className="text-white font-bold mb-0.5 truncate">{hoveredSlot.item ? hoveredSlot.item.modelHE : '-'}</div>
-          <div className="text-slate-400 mb-2 truncate">{hoveredSlot.item ? hoveredSlot.item.partName : '-'}</div>
-          
-          {/* Row 4: Metrics */}
-          <div className="flex justify-between text-slate-300 font-mono text-[11px] mb-2.5">
-            <span>จำนวน: <b className="text-white">{hoveredSlot.item ? hoveredSlot.item.quantity.toLocaleString() : 0}</b></span>
-            <span className={hoveredSlot.item && hoveredSlot.item.agingDays > 30 ? 'text-rose-400' : 'text-slate-300'}>
-              Aging: {hoveredSlot.item ? `${hoveredSlot.item.agingDays} วัน` : '-'}
-            </span>
-          </div>
-          
-          {/* Footer Hint */}
-          <div className="pt-2 border-t border-slate-700 text-[10px] text-slate-500 text-center">
-            คลิกเพื่อเปิดรายละเอียด & รับเข้า/เบิกออก
-          </div>
-        </div>
-      )}
+      {/* Unified Slot Hover Preview Card */}
+      {hoveredSlot && <ZoneSlotHoverCard data={hoveredSlot} />}
     </div>
   );
 };

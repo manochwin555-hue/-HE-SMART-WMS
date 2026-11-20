@@ -3,7 +3,6 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { InventoryItem, MovementLog, WmsStats, AgingThresholdConfig, StorageZone, MovementType, WarehouseFacility, ShelfLevel } from '../types';
 import { ZoneKpiFormalDashboard } from './ZoneKpiFormalDashboard';
-import { createRealisticForklift } from './zone-3d/forkliftModel';
 import { ZoneKey } from '../utils/zoneKpiHelper';
 import { 
   Building2, 
@@ -71,8 +70,8 @@ const BUILDINGS: Record<BuildingKey, BuildingSpec> = {
     capacity: 104,
     colorHex: '#06b6d4',
     badgeClass: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
-    position: { x: -62, y: 0, z: 0 },
-    size: { w: 32, h: 14, d: 50 },
+    position: { x: -68, y: 0, z: 0 },
+    size: { w: 32, h: 12, d: 52 },
     description: 'รางเลื่อนลูกกลิ้ง 13 แถว R01-R13 (104 ช่องจัดเก็บ)'
   },
   A4: {
@@ -82,10 +81,10 @@ const BUILDINGS: Record<BuildingKey, BuildingSpec> = {
     zoneKey: 'A4',
     targetNavigation: 'A4_FLOOR',
     capacity: 1112,
-    colorHex: '#f59e0b',
-    badgeClass: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+    colorHex: '#3b82f6',
+    badgeClass: 'bg-blue-500/20 text-blue-300 border-blue-500/40',
     position: { x: 0, y: 0, z: -4 },
-    size: { w: 58, h: 18, d: 64 },
+    size: { w: 64, h: 18, d: 84 },
     description: 'Selective Rack B-K (680P) + ลานวางพื้นรูปตัว L X1-X8 (432P)'
   },
   CY3: {
@@ -95,10 +94,10 @@ const BUILDINGS: Record<BuildingKey, BuildingSpec> = {
     zoneKey: 'CY3',
     targetNavigation: 'CY3_TENT',
     capacity: 400,
-    colorHex: '#f97316',
-    badgeClass: 'bg-orange-500/20 text-orange-300 border-orange-500/40',
-    position: { x: 62, y: 0, z: -32 },
-    size: { w: 36, h: 22, d: 36 },
+    colorHex: '#f59e0b',
+    badgeClass: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+    position: { x: 68, y: 0, z: -32 },
+    size: { w: 40, h: 14, d: 40 },
     description: 'โครงเหล็ก Heavy Rack กลางแจ้ง 4 แถว A-D ชั้น L1-L4 เสาสูง 1.5 เท่า'
   },
   A5: {
@@ -108,10 +107,10 @@ const BUILDINGS: Record<BuildingKey, BuildingSpec> = {
     zoneKey: 'A5',
     targetNavigation: 'A5_TENT',
     capacity: 784,
-    colorHex: '#10b981',
-    badgeClass: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
-    position: { x: 62, y: 0, z: 32 },
-    size: { w: 42, h: 12, d: 42 },
+    colorHex: '#ef4444',
+    badgeClass: 'bg-rose-500/20 text-rose-300 border-rose-500/40',
+    position: { x: 68, y: 0, z: 32 },
+    size: { w: 44, h: 12, d: 44 },
     description: 'เต็นท์ผ้าใบโค้ง 4 หลัง จัดรูปแบบ 2x2 (784 ช่องวางพื้น)'
   }
 };
@@ -126,7 +125,7 @@ function createBillboardLabelTexture(title: string, subtitle: string, colorHex: 
   const ctx = canvas.getContext('2d')!;
 
   // Background rounded pill
-  ctx.fillStyle = 'rgba(11, 17, 28, 0.88)';
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.9)'; // Refined transparency
   ctx.strokeStyle = colorHex;
   ctx.lineWidth = 6;
 
@@ -160,6 +159,332 @@ function createBillboardLabelTexture(title: string, subtitle: string, colorHex: 
   ctx.font = '22px system-ui, sans-serif';
   ctx.fillStyle = colorHex;
   ctx.fillText(subtitle, 64, 94);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 8;
+  return texture;
+}
+
+/**
+ * Creates Large Rack Head Decal Texture for A4 (แร็ค B-F และ G-K)
+ */
+function createA4RackHeadDecalTexture(rowName: string, subCode: string, color: string, totalBays: number): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, 512, 256);
+
+  ctx.lineWidth = 14;
+  ctx.strokeStyle = '#facc15'; // Vibrant yellow safety border
+  ctx.strokeRect(7, 7, 498, 242);
+
+  ctx.fillStyle = '#090d16';
+  ctx.fillRect(18, 18, 476, 220);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 90px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`แร็ค ${rowName}`, 256, 82);
+
+  ctx.fillStyle = '#38bdf8';
+  ctx.font = 'bold 36px system-ui, sans-serif';
+  ctx.fillText(`${subCode} (${totalBays} ช่อง x 4 ชั้น)`, 256, 172);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.anisotropy = 8;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+/**
+ * Creates 2D floating aisle tag texture (RUA B, RUA C, etc.)
+ */
+function createAisleTagTexture(label: string): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 80;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+  ctx.strokeStyle = '#facc15';
+  ctx.lineWidth = 4;
+
+  const r = 16;
+  ctx.beginPath();
+  ctx.moveTo(r, 4);
+  ctx.lineTo(canvas.width - r, 4);
+  ctx.quadraticCurveTo(canvas.width - 4, 4, canvas.width - 4, r);
+  ctx.lineTo(canvas.width - 4, canvas.height - r);
+  ctx.quadraticCurveTo(canvas.width - 4, canvas.height - 4, canvas.width - r, canvas.height - 4);
+  ctx.lineTo(r, canvas.height - 4);
+  ctx.quadraticCurveTo(4, canvas.height - 4, 4, canvas.height - r);
+  ctx.lineTo(4, r);
+  ctx.quadraticCurveTo(4, 4, r, 4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.font = 'bold 36px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#facc15';
+  ctx.fillText(label, canvas.width / 2, canvas.height / 2);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+/**
+ * Creates sign texture for A2 Flow Rail signs (R01..R13)
+ */
+function createA2SignTexture(text: string, bgColor: string, textColor: string): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = bgColor;
+  ctx.beginPath();
+  ctx.roundRect(6, 6, canvas.width - 12, canvas.height - 12, 16);
+  ctx.fill();
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = '#ffffff';
+  ctx.stroke();
+
+  ctx.fillStyle = textColor;
+  ctx.font = '900 64px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+/**
+ * Creates floor arrow texture for A2 Flow Rail direction
+ */
+function createFlowArrowTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.clearRect(0, 0, 256, 64);
+  ctx.fillStyle = '#facc15';
+  for (let i = 0; i < 3; i++) {
+    const startX = 60 + i * 60;
+    ctx.beginPath();
+    ctx.moveTo(startX, 32);
+    ctx.lineTo(startX + 30, 10);
+    ctx.lineTo(startX + 45, 10);
+    ctx.lineTo(startX + 20, 32);
+    ctx.lineTo(startX + 45, 54);
+    ctx.lineTo(startX + 30, 54);
+    ctx.closePath();
+    ctx.fill();
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+/**
+ * Creates locator tag sprite texture for A4 Racks (e.g. B-01, C-05, etc.)
+ */
+function createRackTagTexture(text: string, bgColor = 'rgba(15, 23, 42, 0.95)', textColor = '#facc15'): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 160;
+  canvas.height = 56;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = bgColor;
+  ctx.strokeStyle = textColor;
+  ctx.lineWidth = 4;
+
+  ctx.beginPath();
+  ctx.roundRect(4, 4, canvas.width - 8, canvas.height - 8, 10);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.font = 'bold 24px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = textColor;
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+/**
+ * Creates zone tag sprite texture for A4 Floor Staging (e.g. โซน X1, โซน X2, etc.)
+ */
+function createFloorZoneTagTexture(text: string): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 220;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = 'rgba(2, 132, 199, 0.9)';
+  ctx.strokeStyle = '#38bdf8';
+  ctx.lineWidth = 4;
+
+  ctx.beginPath();
+  ctx.roundRect(6, 6, canvas.width - 12, canvas.height - 12, 12);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.font = 'bold 26px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+/**
+ * Creates floor column decal texture (C01-C12)
+ */
+function createA4FloorColumnDecalTexture(colNum: number): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(0, 0, 128, 64);
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = '#facc15';
+  ctx.strokeRect(2, 2, 124, 60);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 34px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`C${colNum < 10 ? '0' + colNum : colNum}`, 64, 32);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+/**
+ * Creates floor row decal texture (R01-R46)
+ */
+function createA4FloorRowDecalTexture(rowNum: number): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(0, 0, 128, 64);
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = '#facc15';
+  ctx.strokeRect(2, 2, 124, 60);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 34px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`R${rowNum < 10 ? '0' + rowNum : rowNum}`, 64, 32);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+/**
+ * Creates Tent Floor Engraved Decal Texture for A5
+ */
+function createA5TentFloorDecalTexture(tentId: number, signCode: string): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(0, 0, 512, 128);
+  ctx.lineWidth = 8;
+  ctx.strokeStyle = '#38bdf8';
+  ctx.strokeRect(4, 4, 504, 120);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 52px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`เต็นท์ผ้าใบ ${tentId}`, 256, 45);
+  ctx.fillStyle = '#38bdf8';
+  ctx.font = 'bold 24px system-ui, sans-serif';
+  ctx.fillText(`${signCode} • 7 กลุ่ม (196 PL)`, 256, 95);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+/**
+ * Creates Group Floor Decal for A5
+ */
+function createA5GroupFloorTexture(grpNum: number): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(0, 0, 256, 128);
+  ctx.lineWidth = 8;
+  ctx.strokeStyle = '#facc15';
+  ctx.strokeRect(4, 4, 248, 120);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 62px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`กลุ่ม ${grpNum}`, 128, 50);
+  ctx.fillStyle = '#facc15';
+  ctx.font = 'bold 22px system-ui, sans-serif';
+  ctx.fillText(`G0${grpNum} • 28 PL`, 128, 98);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+/**
+ * Creates Large Rack Head Decal Texture for CY3 (แร็ค A, B, C, D)
+ */
+function createCY3RackHeadDecalTexture(rowName: string, signCode: string, color: string): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d')!;
+  
+  // Outer colored border
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, 512, 256);
+
+  // White border
+  ctx.lineWidth = 12;
+  ctx.strokeStyle = '#ffffff';
+  ctx.strokeRect(6, 6, 500, 244);
+
+  // Dark background
+  ctx.fillStyle = '#090d16';
+  ctx.fillRect(16, 16, 480, 224);
+
+  // Main Title
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 84px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`แร็ค ${rowName}`, 256, 85);
+
+  // Subtitle
+  ctx.fillStyle = color;
+  ctx.font = 'bold 36px system-ui, sans-serif';
+  ctx.fillText(`${signCode} (25 ช่อง x 4 ชั้น)`, 256, 175);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -306,8 +631,6 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
   const [hoverTooltip, setHoverTooltip] = useState<{ x: number; y: number; buildingKey: BuildingKey } | null>(null);
   const [colorMode, setColorMode] = useState<'UTILIZATION' | 'AGING' | 'URGENT'>('UTILIZATION');
   const [showLabels, setShowLabels] = useState<boolean>(true);
-  const [showVehicles, setShowVehicles] = useState<boolean>(true);
-  const [showRoads, setShowRoads] = useState<boolean>(true);
   const [showHeatmap, setShowHeatmap] = useState<boolean>(false);
   const [cameraPreset, setCameraPreset] = useState<'ISO_45' | 'TOP_85'>('ISO_45');
 
@@ -382,8 +705,8 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
   const buildingMeshesRef = useRef<Map<BuildingKey, THREE.Group>>(new Map());
   const boundingBoxesRef = useRef<Map<BuildingKey, THREE.Mesh>>(new Map());
   const heatmapMeshesRef = useRef<Map<BuildingKey, THREE.Mesh>>(new Map());
-  const vehiclesGroupRef = useRef<THREE.Group | null>(null);
-  const roadsGroupRef = useRef<THREE.Group | null>(null);
+  const routePulseMeshRef = useRef<THREE.Mesh | null>(null);
+  const routeCurveRef = useRef<THREE.CatmullRomCurve3 | null>(null);
 
   // Target camera state for smooth damping transition
   const cameraTargetPos = useRef<THREE.Vector3>(new THREE.Vector3(-44, 55, 70));
@@ -396,6 +719,16 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
   const tourTimerRef = useRef<number>(0);
   const showHeatmapRef = useRef<boolean>(showHeatmap);
   const colorModeRef = useRef(colorMode);
+
+  const locatorMap = useMemo(() => {
+    const map = new Map<string, InventoryItem>();
+    items.forEach(it => {
+      if (it.locatorCode) {
+        map.set(it.locatorCode.toUpperCase(), it);
+      }
+    });
+    return map;
+  }, [items]);
 
   useEffect(() => { isTourActiveRef.current = isTourActive; }, [isTourActive]);
   useEffect(() => { isTourPausedRef.current = isTourPaused; }, [isTourPaused]);
@@ -410,13 +743,13 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
     const width = container.clientWidth || 1000;
     const height = container.clientHeight || 650;
 
-    // 1. Scene & Renderer
+    // 1. Scene & Renderer (Bright Pure White High-Contrast)
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#080d1a');
-    scene.fog = new THREE.FogExp2('#080d1a', 0.0035);
+    scene.background = new THREE.Color('#ffffff'); 
+    scene.fog = new THREE.FogExp2('#ffffff', 0.005);
     sceneRef.current = scene;
 
-    const camera = new THREE.PerspectiveCamera(42, width / height, 0.5, 600);
+    const camera = new THREE.PerspectiveCamera(42, width / height, 0.5, 900);
     camera.position.set(-44, 55, 70);
     cameraRef.current = camera;
 
@@ -438,19 +771,19 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
     controls.target.set(0, 0, 0);
     controlsRef.current = controls;
 
-    // 2. Lighting Setup
-    const ambientLight = new THREE.AmbientLight('#1e293b', 1.2);
-    const hemiLight = new THREE.HemisphereLight('#38bdf8', '#0f172a', 1.4);
+    // 2. Lighting Setup (Crisp Studio Daylight)
+    const ambientLight = new THREE.AmbientLight('#ffffff', 2.0);
+    const hemiLight = new THREE.HemisphereLight('#ffffff', '#cbd5e1', 1.6);
     hemiLight.position.set(0, 80, 0);
 
-    const dirLight = new THREE.DirectionalLight('#ffffff', 1.8);
+    const dirLight = new THREE.DirectionalLight('#ffffff', 2.2);
     dirLight.position.set(80, 120, 60);
     dirLight.castShadow = true;
     dirLight.shadow.mapSize.width = 2048;
     dirLight.shadow.mapSize.height = 2048;
     dirLight.shadow.camera.near = 10;
-    dirLight.shadow.camera.far = 300;
-    const d = 110;
+    dirLight.shadow.camera.far = 400;
+    const d = 150;
     dirLight.shadow.camera.left = -d;
     dirLight.shadow.camera.right = d;
     dirLight.shadow.camera.top = d;
@@ -459,13 +792,13 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
 
     scene.add(ambientLight, hemiLight, dirLight);
 
-    // 3. Ground Base & Tarmac Site Plate
+    // 3. Ground Base & Site Plate (Pure White Layout)
     const groundGroup = new THREE.Group();
-    const groundGeo = new THREE.PlaneGeometry(240, 170);
+    const groundGeo = new THREE.PlaneGeometry(500, 400);
     const groundMat = new THREE.MeshStandardMaterial({
-      color: '#0f172a',
-      roughness: 0.85,
-      metalness: 0.25
+      color: '#ffffff',
+      roughness: 0.95,
+      metalness: 0.05
     });
     const groundMesh = new THREE.Mesh(groundGeo, groundMat);
     groundMesh.rotation.x = -Math.PI / 2;
@@ -473,54 +806,19 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
     groundGroup.add(groundMesh);
 
     // Site Grid Overlay
-    const gridHelper = new THREE.GridHelper(240, 48, '#334155', '#1e293b');
+    const gridHelper = new THREE.GridHelper(500, 100, '#e2e8f0', '#f1f5f9');
     gridHelper.position.y = 0.05;
     groundGroup.add(gridHelper);
     scene.add(groundGroup);
 
-    // 4. Road Network & Transport Lines
-    const roadsGroup = new THREE.Group();
-    roadsGroupRef.current = roadsGroup;
-    
-    // Main vertical highway road
-    const mainRoadGeo = new THREE.PlaneGeometry(16, 150);
-    const roadMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.7, metalness: 0.3 });
-    const mainRoad = new THREE.Mesh(mainRoadGeo, roadMat);
-    mainRoad.rotation.x = -Math.PI / 2;
-    mainRoad.position.set(28, 0.08, 0);
-    roadsGroup.add(mainRoad);
-
-    // Cross connecting road (A2 to A4)
-    const crossRoadGeo = new THREE.PlaneGeometry(80, 12);
-    const crossRoad = new THREE.Mesh(crossRoadGeo, roadMat);
-    crossRoad.rotation.x = -Math.PI / 2;
-    crossRoad.position.set(-25, 0.08, 0);
-    roadsGroup.add(crossRoad);
-
-    // CY3 & A5 Branch Roads
-    const cy3Road = new THREE.Mesh(new THREE.PlaneGeometry(40, 12), roadMat);
-    cy3Road.rotation.x = -Math.PI / 2;
-    cy3Road.position.set(45, 0.08, -32);
-
-    const a5Road = new THREE.Mesh(new THREE.PlaneGeometry(40, 12), roadMat);
-    a5Road.rotation.x = -Math.PI / 2;
-    a5Road.position.set(45, 0.08, 32);
-
-    roadsGroup.add(cy3Road, a5Road);
-
-    // Yellow Dashed Lane Lines
-    const lineMat = new THREE.MeshStandardMaterial({ color: '#eab308', emissive: '#eab308', emissiveIntensity: 0.3 });
-    for (let z = -65; z <= 65; z += 12) {
-      const line = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 5), lineMat);
-      line.rotation.x = -Math.PI / 2;
-      line.position.set(28, 0.12, z);
-      roadsGroup.add(line);
-    }
-    scene.add(roadsGroup);
+    // 4. Transport Lines (Removed as per request)
 
     // 5. Build 4 Master Campus Buildings
     const buildingsGroup = new THREE.Group();
-    const instancedPalletMat = new THREE.MeshStandardMaterial({ color: '#38bdf8', roughness: 0.4, metalness: 0.3 });
+    const uprightBlueMat = new THREE.MeshStandardMaterial({ color: '#1d4ed8', metalness: 0.85, roughness: 0.25 });
+    const beamOrangeMat = new THREE.MeshStandardMaterial({ color: '#ea580c', metalness: 0.65, roughness: 0.3 });
+    const guardYellowMat = new THREE.MeshStandardMaterial({ color: '#eab308', roughness: 0.3 });
+    const woodPineMat = new THREE.MeshStandardMaterial({ color: '#bfa079', roughness: 0.85, metalness: 0.05 });
 
     (Object.keys(BUILDINGS) as BuildingKey[]).forEach(bKey => {
       const spec = BUILDINGS[bKey];
@@ -544,193 +842,448 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
       boundingBoxesRef.current.set(bKey, proxyBox);
       scene.add(proxyBox);
 
-      // Outer Structural Frame Glowing Wireframe Outline
-      const frameGeo = new THREE.BoxGeometry(spec.size.w + 0.5, spec.size.h + 0.5, spec.size.d + 0.5);
+      // Outer Structural Frame Wireframe Outline (Perimeter Frame matching zone view)
+      const frameGeo = new THREE.BoxGeometry(spec.size.w, 0.05, spec.size.d);
       const edgesGeo = new THREE.EdgesGeometry(frameGeo);
-      const lineMatGlow = new THREE.LineBasicMaterial({ color: spec.colorHex, linewidth: 2 });
+      const lineMatGlow = new THREE.LineBasicMaterial({ color: spec.colorHex, linewidth: 4 });
       const frameOutline = new THREE.LineSegments(edgesGeo, lineMatGlow);
-      frameOutline.position.y = spec.size.h / 2;
+      frameOutline.position.y = 0.81; // Correctly on top of slab
       frameOutline.name = `outline-${bKey}`;
       bGroup.add(frameOutline);
 
       // --- Custom Internal 3D Architecture for Each Building ---
       if (bKey === 'A2') {
-        // A2: Flow Rail Glassy Semi-Transparent Shell
-        const shellGeo = new THREE.BoxGeometry(spec.size.w, spec.size.h, spec.size.d);
-        const glassMat = new THREE.MeshPhysicalMaterial({
-          color: spec.colorHex,
-          transparent: true,
-          opacity: 0.3,
-          roughness: 0.1,
-          transmission: 0.6
-        });
-        const shell = new THREE.Mesh(shellGeo, glassMat);
-        shell.position.y = spec.size.h / 2;
-        bGroup.add(shell);
+        // A2: Flow Rail High-Fidelity 3D Roller Lanes matching A2FlowRail3DView (No glass shell)
 
-        // Internal 13 Flow Roller Lanes (R01 to R13)
+        // Materials matching A2FlowRail3DView
+        const railSteelBlue = new THREE.MeshStandardMaterial({ color: '#1d4ed8', metalness: 0.8, roughness: 0.3 });
+        const railGuideOrange = new THREE.MeshStandardMaterial({ color: '#ea580c', metalness: 0.6, roughness: 0.4 });
+        const rollerGalvanized = new THREE.MeshStandardMaterial({ color: '#94a3b8', metalness: 0.9, roughness: 0.15 });
+        const stopperHazardMat = new THREE.MeshStandardMaterial({ color: '#eab308', metalness: 0.7, roughness: 0.3 });
+        const infeedGreenMat = new THREE.MeshStandardMaterial({ color: '#10b981', metalness: 0.6, roughness: 0.4 });
+        const arrowTexture = createFlowArrowTexture();
+        const arrowMat = new THREE.MeshBasicMaterial({ map: arrowTexture, transparent: true, opacity: 0.95 });
+
+        // Floor Zones (Infeed Green on Right X > 0, Outfeed Yellow on Left X < 0)
+        const outfeedZoneMat = new THREE.MeshStandardMaterial({ color: '#f59e0b', roughness: 0.7 });
+        const outfeedZone = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.02, spec.size.d - 4), outfeedZoneMat);
+        outfeedZone.position.set(-spec.size.w / 2 + 2.5, 0.41, 0);
+
+        const infeedZoneMat = new THREE.MeshStandardMaterial({ color: '#10b981', roughness: 0.7 });
+        const infeedZone = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.02, spec.size.d - 4), infeedZoneMat);
+        infeedZone.position.set(spec.size.w / 2 - 2.5, 0.41, 0);
+
+        bGroup.add(outfeedZone, infeedZone);
+
+        // 13 Flow Lanes (R01 to R13)
+        const trackXStart = spec.size.w / 2 - 5; // Infeed +11
+        const trackXEnd = -spec.size.w / 2 + 5;  // Outfeed -11
+        const trackLength = trackXStart - trackXEnd;
+        const slopeDrop = 0.6;
+        const yOutfeed = 0.85;
+        const slopeAngle = Math.atan2(slopeDrop, trackLength);
+
+        const getRailYAtX = (x: number) => {
+          const clampedX = Math.max(trackXEnd, Math.min(trackXStart, x));
+          const ratio = (clampedX - trackXEnd) / trackLength;
+          return yOutfeed + ratio * slopeDrop;
+        };
+
         for (let r = 0; r < 13; r++) {
-          const rx = -spec.size.w / 2 + 2.5 + r * (spec.size.w - 5) / 12;
-          const laneFrame = new THREE.Mesh(
-            new THREE.BoxGeometry(1.6, 1.2, spec.size.d - 6),
-            new THREE.MeshStandardMaterial({ color: '#475569', roughness: 0.5, metalness: 0.8 })
-          );
-          laneFrame.position.set(rx, 1.4, 0);
-          bGroup.add(laneFrame);
+          const zPos = -spec.size.d / 2 + 4.5 + r * (spec.size.d - 9) / 12;
+          const rLabel = `R${String(r + 1).padStart(2, '0')}`;
 
-          // Roller tracks & pallet boxes inside
-          for (let p = 0; p < 7; p++) {
-            const pz = -spec.size.d / 2 + 5 + p * 5.8;
-            const pallet = new THREE.Mesh(
-              new THREE.BoxGeometry(1.4, 1.0, 1.4),
-              new THREE.MeshStandardMaterial({ color: p % 2 === 0 ? '#06b6d4' : '#38bdf8', roughness: 0.3 })
-            );
-            pallet.position.set(rx, 2.3, pz);
-            pallet.castShadow = true;
-            bGroup.add(pallet);
+          // Outfeed Sign (Left)
+          const outfeedSignTex = createA2SignTexture(rLabel, '#0f172a', '#f59e0b');
+          const outfeedSignMat = new THREE.MeshBasicMaterial({ map: outfeedSignTex, side: THREE.DoubleSide });
+          const outfeedSign = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.6), outfeedSignMat);
+          outfeedSign.position.set(-spec.size.w / 2 + 2.5, 1.8, zPos);
+          outfeedSign.rotation.y = -Math.PI / 2;
+          bGroup.add(outfeedSign);
+
+          // Infeed Sign (Right)
+          const infeedSignTex = createA2SignTexture(rLabel, '#0f172a', '#38bdf8');
+          const infeedSignMat = new THREE.MeshBasicMaterial({ map: infeedSignTex, side: THREE.DoubleSide });
+          const infeedSign = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.6), infeedSignMat);
+          infeedSign.position.set(spec.size.w / 2 - 2.5, 1.8, zPos);
+          infeedSign.rotation.y = Math.PI / 2;
+          bGroup.add(infeedSign);
+
+          // Directional Flow Arrow Mesh
+          const flowArrowMesh = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 0.9), arrowMat);
+          flowArrowMesh.rotation.x = -Math.PI / 2;
+          flowArrowMesh.position.set(0, 0.42, zPos);
+          bGroup.add(flowArrowMesh);
+
+          // Steel Side Channels & Guide Flanges
+          const bedLen = trackLength + 0.8;
+          const yMid = getRailYAtX(0) - 0.08;
+          const leftChan = new THREE.Mesh(new THREE.BoxGeometry(bedLen, 0.16, 0.08), railSteelBlue);
+          leftChan.position.set(0, yMid, zPos - 0.7);
+          leftChan.rotation.z = slopeAngle;
+          const rightChan = new THREE.Mesh(new THREE.BoxGeometry(bedLen, 0.16, 0.08), railSteelBlue);
+          rightChan.position.set(0, yMid, zPos + 0.7);
+          rightChan.rotation.z = slopeAngle;
+
+          const leftFlange = new THREE.Mesh(new THREE.BoxGeometry(bedLen, 0.05, 0.04), railGuideOrange);
+          leftFlange.position.set(0, yMid + 0.1, zPos - 0.7);
+          leftFlange.rotation.z = slopeAngle;
+          const rightFlange = new THREE.Mesh(new THREE.BoxGeometry(bedLen, 0.05, 0.04), railGuideOrange);
+          rightFlange.position.set(0, yMid + 0.1, zPos + 0.7);
+          rightFlange.rotation.z = slopeAngle;
+
+          bGroup.add(leftChan, rightChan, leftFlange, rightFlange);
+
+          // Support Leg Posts
+          [-8, -4, 0, 4, 8].forEach(xLeg => {
+            const legH = getRailYAtX(xLeg);
+            const pL = new THREE.Mesh(new THREE.BoxGeometry(0.1, legH, 0.1), railSteelBlue);
+            pL.position.set(xLeg, legH / 2 + 0.4, zPos - 0.7);
+            const pR = new THREE.Mesh(new THREE.BoxGeometry(0.1, legH, 0.1), railSteelBlue);
+            pR.position.set(xLeg, legH / 2 + 0.4, zPos + 0.7);
+            bGroup.add(pL, pR);
+          });
+
+          // Rollers across the lane
+          for (let ro = 0; ro < 18; ro++) {
+            const xRol = trackXStart - (ro * (trackLength / 17));
+            const ySurface = getRailYAtX(xRol);
+            const roller = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.3, 10), rollerGalvanized);
+            roller.rotation.x = Math.PI / 2;
+            roller.position.set(xRol, ySurface - 0.05, zPos);
+            bGroup.add(roller);
+          }
+
+          // Entry Guides (Right) & Hazard Stoppers (Left)
+          const infeedGuide = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.25, 0.08), infeedGreenMat);
+          infeedGuide.position.set(trackXStart + 0.4, yOutfeed + slopeDrop + 0.1, zPos);
+          bGroup.add(infeedGuide);
+
+          const stopper = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 1.4), stopperHazardMat);
+          stopper.position.set(trackXEnd - 0.2, yOutfeed + 0.25, zPos);
+          bGroup.add(stopper);
+
+          // 8 Pallet Positions per Rail (DA2D-1-RXX-PXX)
+          for (let p = 1; p <= 8; p++) {
+            const pLabel = `P${String(p).padStart(2, '0')}`;
+            const locator = `DA2D-1-${rLabel}-${pLabel}`;
+            const item = locatorMap.get(locator);
+
+            if (item) {
+              const xPos = trackXEnd + 1.4 + (p - 1) * (trackLength - 2.8) / 7;
+              const ySurface = getRailYAtX(xPos);
+
+              // Pallet wooden base + cargo box
+              const palletGrp = new THREE.Group();
+              palletGrp.position.set(xPos, ySurface, zPos);
+              palletGrp.rotation.z = slopeAngle;
+
+              const runner1 = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.08, 0.1), woodPineMat);
+              runner1.position.set(0, 0.04, 0.5);
+              const runner2 = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.08, 0.1), woodPineMat);
+              runner2.position.set(0, 0.04, -0.5);
+              palletGrp.add(runner1, runner2);
+
+              const topDeck = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.04, 1.2), woodPineMat);
+              topDeck.position.set(0, 0.1, 0);
+              palletGrp.add(topDeck);
+
+              // Cargo Box with status color
+              const isOverdue = item.agingDays > 30 || item.agingStatus === 'OVERDUE';
+              const isWarning = item.agingDays > 14 || item.agingStatus === 'WARNING';
+              const boxColor = isOverdue ? '#dc2626' : (isWarning ? '#f59e0b' : '#0284c7');
+              
+              const cargoMat = new THREE.MeshStandardMaterial({ color: boxColor, roughness: 0.35, metalness: 0.2 });
+              const cargoBox = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.9, 1.1), cargoMat);
+              cargoBox.position.set(0, 0.58, 0);
+              cargoBox.castShadow = true;
+              palletGrp.add(cargoBox);
+
+              // Wireframe cross-brace lines on cargo box
+              const wireGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(1.42, 0.92, 1.12));
+              const wireMat = new THREE.LineBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.5 });
+              const wireframe = new THREE.LineSegments(wireGeo, wireMat);
+              wireframe.position.set(0, 0.58, 0);
+              palletGrp.add(wireframe);
+
+              bGroup.add(palletGrp);
+            }
           }
         }
       } else if (bKey === 'A4') {
-        // A4: Main Selective Rack & Floor Staging Warehouse (Cutaway roof)
-        // Building Truss Roof Pillars
-        [-spec.size.w/2 + 2, spec.size.w/2 - 2].forEach(px => {
-          [-spec.size.d/2 + 2, spec.size.d/2 - 2].forEach(pz => {
-            const pillar = new THREE.Mesh(
-              new THREE.CylinderGeometry(0.5, 0.5, spec.size.h, 8),
-              new THREE.MeshStandardMaterial({ color: '#64748b', metalness: 0.8 })
-            );
-            pillar.position.set(px, spec.size.h/2, pz);
-            bGroup.add(pillar);
+        // A4: Selective Racks (B-K) + Floor Staging (X1-X8) matching 100% DA4D 3D Zone View Architecture
+        const stagingPadMat = new THREE.MeshStandardMaterial({ color: '#cbd5e1', roughness: 0.6 });
+        const lineYellowMat = new THREE.MeshBasicMaterial({ color: '#facc15' });
+
+        const BAY_SPAN_Z = 2.4;
+        const RACK_FRAME_DEPTH = 1.2;
+        const RACK_TOTAL_HEIGHT = 5.6;
+
+        // 1. SELECTIVE RACKS
+        // Section DA4D-2: B, C, D, E, F (10 Bays)
+        const da4d2Rows = [
+          { name: 'B', x: -21.0 }, { name: 'C', x: -16.0 }, { name: 'D', x: -14.2 }, { name: 'E', x: -9.2 }, { name: 'F', x: -7.4 }
+        ];
+        // Section DA4D-3: G, H, I, J, K (5 Bays)
+        const da4d3Rows = [
+          { name: 'G', x: -1.5 }, { name: 'H', x: 4.0 }, { name: 'I', x: 5.8 }, { name: 'J', x: 11.2 }, { name: 'K', x: 13.0 }
+        ];
+
+        [...da4d2Rows.map(r => ({ ...r, sec: '2', bays: 10, zStart: -14.4 })), 
+         ...da4d3Rows.map(r => ({ ...r, sec: '3', bays: 5, zStart: -26.4 }))].forEach(r => {
+          
+          // Head Sign
+          const headMat = new THREE.MeshBasicMaterial({ 
+            map: createA4RackHeadDecalTexture(r.name, `DA4D-${r.sec}`, r.sec === '2' ? '#3b82f6' : '#8b5cf6', r.bays),
+            side: THREE.DoubleSide 
           });
+          const headSign = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.6), headMat);
+          headSign.position.set(r.x, 4.5, r.zStart + 1.2);
+          bGroup.add(headSign);
+
+          for (let bay = 1; bay <= r.bays; bay++) {
+            const zBayCenter = r.zStart - (bay - 1) * BAY_SPAN_Z;
+            const xFront = r.x + RACK_FRAME_DEPTH / 2;
+            const xRear = r.x - RACK_FRAME_DEPTH / 2;
+
+            [xFront, xRear].forEach(px => {
+              const col = new THREE.Mesh(new THREE.BoxGeometry(0.1, RACK_TOTAL_HEIGHT, 0.1), uprightBlueMat);
+              col.position.set(px, RACK_TOTAL_HEIGHT / 2 + 0.4, zBayCenter);
+              bGroup.add(col);
+              const guard = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.5, 0.18), guardYellowMat);
+              guard.position.set(px, 0.65, zBayCenter);
+              bGroup.add(guard);
+            });
+
+            for (let lvl = 1; lvl <= 4; lvl++) {
+              const yLvl = (lvl === 1 ? 0 : (lvl - 1) * 1.4) + 0.4;
+              if (lvl > 1) {
+                [xFront, xRear].forEach(px => {
+                  const beam = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, BAY_SPAN_Z - 0.05), beamOrangeMat);
+                  beam.position.set(px, yLvl, zBayCenter);
+                  bGroup.add(beam);
+                });
+              }
+
+              ['P1', 'P2'].forEach((pos, pIdx) => {
+                const zOff = (pIdx === 0 ? -0.55 : 0.55);
+                const locator = `DA4D-${r.sec}-${r.name}${String(bay).padStart(2, '0')}-L${lvl}-${pos}`;
+                const item = locatorMap.get(locator);
+                if (item) {
+                  const palletGrp = new THREE.Group();
+                  palletGrp.position.set(r.x, yLvl + (lvl === 1 ? 0 : 0.05), zBayCenter + zOff);
+                  const base = new THREE.Mesh(new THREE.BoxGeometry(RACK_FRAME_DEPTH - 0.1, 0.06, 0.95), woodPineMat);
+                  base.position.y = 0.08;
+                  palletGrp.add(base);
+                  const isOverdue = item.agingDays > 30 || item.agingStatus === 'OVERDUE';
+                  const isWarning = item.agingDays > 14 || item.agingStatus === 'WARNING';
+                  const boxColor = isOverdue ? '#dc2626' : (isWarning ? '#f59e0b' : '#0284c7');
+                  const box = new THREE.Mesh(new THREE.BoxGeometry(RACK_FRAME_DEPTH - 0.15, 0.8, 0.9), new THREE.MeshStandardMaterial({ color: boxColor }));
+                  box.position.y = 0.51;
+                  palletGrp.add(box);
+                  bGroup.add(palletGrp);
+                }
+              });
+            }
+          }
         });
 
-        // Selective Racks B-K (Rear Wing)
-        for (let r = 0; r < 8; r++) {
-          const rz = -spec.size.d / 2 + 8 + r * 5.2;
-          const rackBar = new THREE.Mesh(
-            new THREE.BoxGeometry(spec.size.w - 12, 12, 1.8),
-            new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.6, metalness: 0.8 })
-          );
-          rackBar.position.set(-2, 6.5, rz);
-          bGroup.add(rackBar);
+        // 2. FLOOR STAGING (DA4D-1: X1-X8)
+        const floorZonesConfig = [
+          { id: 'X8', zCenter: -5.0, rows: 4, cols: 12, startRow: 43 },
+          { id: 'X7', zCenter: -0.5, rows: 6, cols: 12, startRow: 37 },
+          { id: 'X6', zCenter: 4.5, rows: 6, cols: 12, startRow: 31 },
+          { id: 'X5', zCenter: 9.5, rows: 6, cols: 12, startRow: 25 },
+          { id: 'X4', zCenter: 15.5, rows: 6, cols: 7, startRow: 19 },
+          { id: 'X3', zCenter: 20.5, rows: 6, cols: 7, startRow: 13 },
+          { id: 'X2', zCenter: 25.5, rows: 6, cols: 7, startRow: 7 },
+          { id: 'X1', zCenter: 30.5, rows: 6, cols: 7, startRow: 1 }
+        ];
 
-          // Pallet Boxes on Racks
-          for (let bx = -spec.size.w / 2 + 8; bx <= spec.size.w / 2 - 12; bx += 3.8) {
-            for (let lvl = 1; lvl <= 3; lvl++) {
-              if (Math.random() > 0.25) {
-                const box = new THREE.Mesh(
-                  new THREE.BoxGeometry(1.6, 1.2, 1.4),
-                  new THREE.MeshStandardMaterial({ color: '#f59e0b', roughness: 0.4 })
-                );
-                box.position.set(bx, lvl * 3.2, rz);
-                box.castShadow = true;
-                bGroup.add(box);
+        floorZonesConfig.forEach(sz => {
+          const slotX = 1.4;
+          const slotZ = 0.7;
+          const padW = sz.cols * slotX;
+          const padD = sz.rows * slotZ;
+          const padX = -24.0 + padW / 2 - slotX / 2;
+
+          const pad = new THREE.Mesh(new THREE.BoxGeometry(padW, 0.05, padD), stagingPadMat);
+          pad.position.set(padX, 0.43, sz.zCenter);
+          bGroup.add(pad);
+
+          const borderLine = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(padW + 0.1, 0.02, padD + 0.1)), lineYellowMat);
+          borderLine.position.set(padX, 0.44, sz.zCenter);
+          bGroup.add(borderLine);
+
+          for (let c = 1; c <= sz.cols; c++) {
+            for (let r = 1; r <= sz.rows; r++) {
+              const globalR = sz.startRow + (sz.rows - r);
+              const locator = `${sz.id}-R${String(globalR).padStart(2, '0')}-C${String(c).padStart(2, '0')}`;
+              const item = locatorMap.get(locator);
+              if (item) {
+                const px = -24.0 + (c - 1) * slotX;
+                const pz = sz.zCenter - padD / 2 + (r - 0.5) * slotZ;
+                const palletGrp = new THREE.Group();
+                palletGrp.position.set(px, 0.45, pz);
+                const base = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.05, 0.6), woodPineMat);
+                base.position.y = 0.025;
+                palletGrp.add(base);
+                const isOverdue = item.agingDays > 30 || item.agingStatus === 'OVERDUE';
+                const isWarning = item.agingDays > 14 || item.agingStatus === 'WARNING';
+                const boxColor = isOverdue ? '#dc2626' : (isWarning ? '#f59e0b' : '#0284c7');
+                const box = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.7, 0.55), new THREE.MeshStandardMaterial({ color: boxColor }));
+                box.position.y = 0.38;
+                palletGrp.add(box);
+                bGroup.add(palletGrp);
               }
             }
           }
-        }
-
-        // L-shaped Floor Staging Area (Front Right Wing)
-        for (let fx = 10; fx < spec.size.w/2 - 4; fx += 4.5) {
-          for (let fz = 8; fz < spec.size.d/2 - 4; fz += 4.5) {
-            const stagingPad = new THREE.Mesh(
-              new THREE.BoxGeometry(3.6, 0.1, 3.6),
-              new THREE.MeshStandardMaterial({ color: '#0284c7', roughness: 0.8 })
-            );
-            stagingPad.position.set(fx, 0.85, fz);
-            bGroup.add(stagingPad);
-
-            const floorPallet = new THREE.Mesh(
-              new THREE.BoxGeometry(3.2, 1.8, 3.2),
-              new THREE.MeshStandardMaterial({ color: '#eab308', roughness: 0.3 })
-            );
-            floorPallet.position.set(fx, 1.8, fz);
-            floorPallet.castShadow = true;
-            bGroup.add(floorPallet);
-          }
-        }
+        });
       } else if (bKey === 'CY3') {
-        // CY3: Outdoor Heavy Rack (No walls, open-air canopy, 1.5x taller steel columns)
-        const pillarHeight = spec.size.h; // 22 units high!
-        for (let row = 0; row < 4; row++) {
-          const rx = -spec.size.w / 2 + 5 + row * 8.5;
-          
-          // Heavy steel columns
-          [-spec.size.d / 2 + 4, spec.size.d / 2 - 4].forEach(cz => {
-            const col = new THREE.Mesh(
-              new THREE.BoxGeometry(1.2, pillarHeight, 1.2),
-              new THREE.MeshStandardMaterial({ color: '#f97316', metalness: 0.9, roughness: 0.2 })
-            );
-            col.position.set(rx, pillarHeight / 2, cz);
-            col.castShadow = true;
-            bGroup.add(col);
-          });
+        // CY3 Outdoor Heavy Rack (4 rows: Row A, Row B, Row C, Row D - 100% 3D Twin of CY3 zone view)
 
-          // Canopy Roof Trusses Overhead
-          const canopyRoof = new THREE.Mesh(
-            new THREE.BoxGeometry(4, 0.8, spec.size.d - 4),
-            new THREE.MeshStandardMaterial({ color: '#ea580c', roughness: 0.4 })
-          );
-          canopyRoof.position.set(rx, pillarHeight + 0.4, 0);
-          bGroup.add(canopyRoof);
-
-          // Heavy Racks L1-L4
-          for (let lvl = 1; lvl <= 4; lvl++) {
-            const rackShelf = new THREE.Mesh(
-              new THREE.BoxGeometry(2.4, 0.4, spec.size.d - 8),
-              new THREE.MeshStandardMaterial({ color: '#334155', metalness: 0.8 })
-            );
-            rackShelf.position.set(rx, lvl * 4.5, 0);
-            bGroup.add(rackShelf);
-
-            // Heavy Pallets
-            for (let pz = -spec.size.d / 2 + 6; pz <= spec.size.d / 2 - 6; pz += 4.5) {
-              const hPallet = new THREE.Mesh(
-                new THREE.BoxGeometry(2.0, 1.8, 2.0),
-                new THREE.MeshStandardMaterial({ color: '#f97316', roughness: 0.4 })
-              );
-              hPallet.position.set(rx, lvl * 4.5 + 1.1, pz);
-              hPallet.castShadow = true;
-              bGroup.add(hPallet);
-            }
-          }
-        }
-      } else if (bKey === 'A5') {
-        // A5: 4 Arched Canvas Tents (2x2 Grid)
-        const tentOffsets = [
-          { x: -spec.size.w/4, z: -spec.size.d/4, name: 'Tent 1' },
-          { x: spec.size.w/4, z: -spec.size.d/4, name: 'Tent 2' },
-          { x: -spec.size.w/4, z: spec.size.d/4, name: 'Tent 3' },
-          { x: spec.size.w/4, z: spec.size.d/4, name: 'Tent 4' },
+        const rowsConfig = [
+          { code: 'A', z: -12.0, signCode: 'DY3T-1.01' },
+          { code: 'B', z: -4.5, signCode: 'DY3T-1.02' },
+          { code: 'C', z: 4.5, signCode: 'DY3T-1.03' },
+          { code: 'D', z: 12.0, signCode: 'DY3T-1.04' },
         ];
 
-        tentOffsets.forEach(t => {
-          // Arched dome roof mesh
-          const domeGeo = new THREE.CylinderGeometry(8.5, 8.5, 16, 16, 1, false, 0, Math.PI);
-          const tentMat = new THREE.MeshStandardMaterial({
-            color: '#10b981',
-            transparent: true,
-            opacity: 0.45,
-            roughness: 0.3,
+        const numBays = 25;
+        const bayWidth = 2.4;
+        const rackFrameDepth = 1.2;
+        const rackHeight = 5.6;
+
+        rowsConfig.forEach(r => {
+          const rowColor = r.code === 'A' ? '#3b82f6' : r.code === 'B' ? '#10b981' : r.code === 'C' ? '#f59e0b' : '#8b5cf6';
+          const rowDecalMat = new THREE.MeshBasicMaterial({
+            map: createCY3RackHeadDecalTexture(r.code, r.signCode, rowColor),
             side: THREE.DoubleSide
           });
-          const dome = new THREE.Mesh(domeGeo, tentMat);
-          dome.rotation.z = Math.PI / 2;
-          dome.position.set(t.x, 8.5, t.z);
-          bGroup.add(dome);
 
-          // Pallet staging grids inside tent
-          for (let px = -5; px <= 5; px += 3.2) {
-            for (let pz = -5; pz <= 5; pz += 3.2) {
-              const tPallet = new THREE.Mesh(
-                new THREE.BoxGeometry(2.4, 1.4, 2.4),
-                new THREE.MeshStandardMaterial({ color: '#10b981', roughness: 0.4 })
-              );
-              tPallet.position.set(t.x + px, 1.5, t.z + pz);
-              tPallet.castShadow = true;
-              bGroup.add(tPallet);
+          // Head and Tail signs
+          const headSign = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.0), rowDecalMat);
+          headSign.position.set(-(numBays * bayWidth) / 2 - 0.1, 4.0, r.z);
+          headSign.rotation.y = -Math.PI / 2;
+          bGroup.add(headSign);
+
+          for (let bay = 1; bay <= numBays; bay++) {
+            const bayX = (bay - 13) * bayWidth;
+            const xLeft = bayX - bayWidth / 2;
+            const xRight = bayX + bayWidth / 2;
+            const zFront = r.z + rackFrameDepth / 2;
+            const zRear = r.z - rackFrameDepth / 2;
+
+            [[xLeft, zFront], [xLeft, zRear], [xRight, zFront], [xRight, zRear]].forEach(([px, pz]) => {
+              const col = new THREE.Mesh(new THREE.BoxGeometry(0.1, rackHeight, 0.1), uprightBlueMat);
+              col.position.set(px, rackHeight / 2 + 0.4, pz);
+              bGroup.add(col);
+              const guard = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 0.2), guardYellowMat);
+              guard.position.set(px, 0.65, pz);
+              bGroup.add(guard);
+            });
+
+            for (let lvl = 1; lvl <= 4; lvl++) {
+              const yLvl = (lvl === 1 ? 0 : (lvl - 1) * 1.4) + 0.4;
+              if (lvl > 1) {
+                [zFront, zRear].forEach(bz => {
+                  const beam = new THREE.Mesh(new THREE.BoxGeometry(bayWidth - 0.05, 0.1, 0.08), beamOrangeMat);
+                  beam.position.set(bayX, yLvl, bz);
+                  bGroup.add(beam);
+                });
+              }
+
+              ['P1', 'P2'].forEach((pos, pIdx) => {
+                const xOff = (pIdx === 0 ? -0.55 : 0.55);
+                const locator = `DY3T-1-${r.code}${String(bay).padStart(2, '0')}-L${lvl}-${pos}`;
+                const item = locatorMap.get(locator);
+                if (item) {
+                  const palletGrp = new THREE.Group();
+                  palletGrp.position.set(bayX + xOff, yLvl + (lvl === 1 ? 0 : 0.05), r.z);
+                  const base = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.06, rackFrameDepth - 0.1), woodPineMat);
+                  base.position.y = 0.08;
+                  palletGrp.add(base);
+                  const isOverdue = item.agingDays > 30 || item.agingStatus === 'OVERDUE';
+                  const isWarning = item.agingDays > 14 || item.agingStatus === 'WARNING';
+                  const boxColor = isOverdue ? '#dc2626' : (isWarning ? '#f59e0b' : '#0284c7');
+                  const box = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.8, rackFrameDepth - 0.15), new THREE.MeshStandardMaterial({ color: boxColor }));
+                  box.position.y = 0.51;
+                  palletGrp.add(box);
+                  bGroup.add(palletGrp);
+                }
+              });
             }
           }
+        });
+      } else if (bKey === 'A5') {
+        // A5: 4 Arched Canvas Tents (2x2 Grid - 100% 3D Twin of A5 zone view)
+        const tentPadMat = new THREE.MeshStandardMaterial({ color: '#162032', roughness: 0.75 });
+        const redLineMat = new THREE.LineBasicMaterial({ color: '#dc2626', linewidth: 3 });
+        const trussSteelMat = new THREE.MeshStandardMaterial({ color: '#64748b', metalness: 0.85, roughness: 0.25 });
+
+        const roofMat = new THREE.MeshStandardMaterial({
+          color: '#e2e8f0', roughness: 0.3, metalness: 0.05, transparent: true, opacity: 0.2, side: THREE.DoubleSide, depthWrite: false
+        });
+
+        const TENT_W = 18.0;
+        const TENT_D = 12.0;
+        const TENT_H = 4.5;
+
+        const tentPositions = [
+          { id: 1, name: 'เต็นท์ผ้าใบ 1', signCode: 'DA5T-1.01', x: -10.5, z: 10.5 },
+          { id: 2, name: 'เต็นท์ผ้าใบ 2', signCode: 'DA5T-2.01', x: -10.5, z: -10.5 },
+          { id: 3, name: 'เต็นท์ผ้าใบ 3', signCode: 'DA5T-3.01', x: 10.5, z: 10.5 },
+          { id: 4, name: 'เต็นท์ผ้าใบ 4', signCode: 'DA5T-4.01', x: 10.5, z: -10.5 },
+        ];
+
+        tentPositions.forEach(t => {
+          const tGrp = new THREE.Group();
+          tGrp.position.set(t.x, 0, t.z);
+          const slab = new THREE.Mesh(new THREE.BoxGeometry(TENT_W, 0.1, TENT_D), tentPadMat);
+          slab.position.y = 0.45;
+          tGrp.add(slab);
+
+          const border = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(TENT_W, 0.02, TENT_D)), redLineMat);
+          border.position.y = 0.51;
+          tGrp.add(border);
+
+          // Roof
+          const arcAngle = Math.PI / 1.5;
+          const cylGeo = new THREE.CylinderGeometry(6.8, 6.8, TENT_W, 24, 1, true, -arcAngle / 2, arcAngle);
+          const roofMesh = new THREE.Mesh(cylGeo, roofMat);
+          roofMesh.rotation.z = Math.PI / 2;
+          roofMesh.position.y = TENT_H - 2.5;
+          tGrp.add(roofMesh);
+
+          // Real Data Tents
+          const groupSpacingX = (TENT_W - 0.8) / 7;
+          const slotPitchZ = 0.95;
+          for (let g = 1; g <= 7; g++) {
+            const grpX = (g - 4) * groupSpacingX;
+            for (let r = 1; r <= 4; r++) {
+              const sx = grpX + (r - 2.5) * 0.6;
+              for (let c = 1; c <= 7; c++) {
+                const sz = (t.z > 0 ? -1 : 1) * (TENT_D / 2 - 1.2 - (c - 1) * slotPitchZ);
+                const locator = `DA5T-${t.id}-${String(g).padStart(2, '0')}-R${r}-${String(c).padStart(2, '0')}`;
+                const item = locatorMap.get(locator);
+                if (item) {
+                  const palletGrp = new THREE.Group();
+                  palletGrp.position.set(sx, 0.47, sz);
+                  const base = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.05, 0.85), woodPineMat);
+                  base.position.y = 0.025;
+                  palletGrp.add(base);
+                  const isOverdue = item.agingDays > 30 || item.agingStatus === 'OVERDUE';
+                  const isWarning = item.agingDays > 14 || item.agingStatus === 'WARNING';
+                  const boxColor = isOverdue ? '#dc2626' : (isWarning ? '#f59e0b' : '#0284c7');
+                  const box = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.7, 0.75), new THREE.MeshStandardMaterial({ color: boxColor }));
+                  box.position.y = 0.4;
+                  palletGrp.add(box);
+                  tGrp.add(palletGrp);
+                }
+              }
+            }
+          }
+          bGroup.add(tGrp);
         });
       }
 
@@ -770,16 +1323,7 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
 
     scene.add(buildingsGroup);
 
-    // 6. Forklift Vehicles Animated on Roads
-    const vehiclesGroup = new THREE.Group();
-    vehiclesGroupRef.current = vehiclesGroup;
-
-    const fk1 = createRealisticForklift(28, 0.1, -20, 0, 1.2);
-    const fk2 = createRealisticForklift(28, 0.1, 20, Math.PI, 1.2);
-    const fk3 = createRealisticForklift(-20, 0.1, 0, Math.PI / 2, 1.2);
-
-    vehiclesGroup.add(fk1, fk2, fk3);
-    scene.add(vehiclesGroup);
+    // 6. Forklift Vehicles & Navigation Route (Removed as per request)
 
     // 7. Raycaster & Interaction Events
     const raycaster = new THREE.Raycaster();
@@ -888,12 +1432,7 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
         }
       });
 
-      // Animate Vehicles on roads
-      if (vehiclesGroupRef.current && showVehicles) {
-        fk1.position.z = -35 + Math.sin(time * 0.8) * 35;
-        fk2.position.z = 35 - Math.sin(time * 0.8) * 35;
-        fk3.position.x = -20 + Math.cos(time * 0.6) * 30;
-      }
+      // Vehicles & Navigation Animation (Removed as per request)
 
       // Pulse outline glow for hovered building
       (Object.keys(BUILDINGS) as BuildingKey[]).forEach(bKey => {
@@ -936,19 +1475,7 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
     });
   }, [showLabels]);
 
-  // Sync Vehicles Visibility
-  useEffect(() => {
-    if (vehiclesGroupRef.current) {
-      vehiclesGroupRef.current.visible = showVehicles;
-    }
-  }, [showVehicles]);
-
-  // Sync Roads Visibility
-  useEffect(() => {
-    if (roadsGroupRef.current) {
-      roadsGroupRef.current.visible = showRoads;
-    }
-  }, [showRoads]);
+  // Sync UI Visibility (Cleaned up)
 
   // Update Billboard Labels when metrics change
   useEffect(() => {
@@ -1158,14 +1685,6 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
               <input type="checkbox" checked={showLabels} onChange={e => setShowLabels(e.target.checked)} className="rounded text-blue-600" />
               <span>ป้ายชื่อ</span>
             </label>
-            <label className="flex items-center space-x-1 cursor-pointer hover:text-white">
-              <input type="checkbox" checked={showVehicles} onChange={e => setShowVehicles(e.target.checked)} className="rounded text-blue-600" />
-              <span>รถยก</span>
-            </label>
-            <label className="flex items-center space-x-1 cursor-pointer hover:text-white">
-              <input type="checkbox" checked={showRoads} onChange={e => setShowRoads(e.target.checked)} className="rounded text-blue-600" />
-              <span>เส้นทาง</span>
-            </label>
           </div>
 
           <button
@@ -1182,6 +1701,86 @@ export const CampusMasterOverview: React.FC<CampusMasterOverviewProps> = ({
       {/* Main 3D Canvas Container */}
       <div className="flex-1 w-full h-full relative min-h-0">
         <div ref={mountRef} className="w-full h-full" />
+
+        {/* Video-Style Top 3D WMS Twin HUD Bar Overlay */}
+        <div className="absolute top-3 left-4 z-20 hidden md:flex items-center space-x-3 bg-slate-950/85 border border-cyan-500/40 rounded-2xl p-2 px-3.5 shadow-2xl backdrop-blur-md text-xs font-mono">
+          <div className="flex items-center space-x-2 border-r border-slate-800 pr-3">
+            <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
+            <span className="text-cyan-300 font-bold">3D TWIN WMS LIVE</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Activity className="w-4 h-4 text-amber-400" />
+            <span className="text-slate-300 font-sans">อัตราจัดเก็บ:</span>
+            <span className="text-amber-400 font-bold">
+              {Math.round(((Object.values(buildingMetrics) as any[]).reduce((a, b) => a + b.occupied, 0) / 2408) * 100)}%
+            </span>
+          </div>
+        </div>
+
+        {/* Floating Card Overlay when Building / Zone is Selected (PRODUTO LOCALIZADO) */}
+        {selectedBuilding && (
+          <div className="absolute top-4 right-4 z-30 w-80 bg-slate-950/95 border border-cyan-500/50 rounded-2xl p-4 shadow-2xl backdrop-blur-xl animate-fadeIn space-y-3">
+            <div className="flex items-start justify-between border-b border-slate-800 pb-2">
+              <div>
+                <span className="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-[10px] font-mono font-bold">
+                  PRODUTO LOCALIZADO / โซนที่เลือก
+                </span>
+                <h3 className="font-black text-white text-base mt-1">
+                  {BUILDINGS[selectedBuilding].name}
+                </h3>
+              </div>
+              <button
+                onClick={handleResetView}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-all cursor-pointer"
+                title="ปิดหน้านี้"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              {BUILDINGS[selectedBuilding].description}
+            </p>
+
+            <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3 space-y-2 text-xs">
+              <div className="flex justify-between items-center text-slate-300">
+                <span>จำนวนจัดเก็บ:</span>
+                <span className="font-mono font-bold text-cyan-400">
+                  {buildingMetrics[selectedBuilding].occupied} / {BUILDINGS[selectedBuilding].capacity} P
+                </span>
+              </div>
+              <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-700">
+                <div
+                  className="bg-cyan-500 h-full rounded-full transition-all"
+                  style={{ width: `${buildingMetrics[selectedBuilding].percent}%` }}
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-1 pt-1 text-[11px] text-center font-mono">
+                <div className="bg-emerald-950/40 border border-emerald-500/30 rounded p-1">
+                  <div className="text-[9px] text-slate-400 font-sans">Safe</div>
+                  <div className="font-bold text-emerald-400">{buildingMetrics[selectedBuilding].safeCount}</div>
+                </div>
+                <div className="bg-amber-950/40 border border-amber-500/30 rounded p-1">
+                  <div className="text-[9px] text-slate-400 font-sans">Warning</div>
+                  <div className="font-bold text-amber-400">{buildingMetrics[selectedBuilding].warningCount}</div>
+                </div>
+                <div className="bg-red-950/40 border border-red-500/30 rounded p-1">
+                  <div className="text-[9px] text-slate-400 font-sans">Overdue</div>
+                  <div className="font-bold text-red-400">{buildingMetrics[selectedBuilding].overdueCount}</div>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => onNavigateToZone(BUILDINGS[selectedBuilding].targetNavigation as any)}
+              className="w-full py-2.5 px-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white rounded-xl text-xs font-black shadow-lg flex items-center justify-center space-x-2 transition-all active:scale-95 cursor-pointer"
+            >
+              <span>เปิดผัง 3D/2D รายละเอียดโซน</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         {/* Floating Guided Tour Mode Banner & Controls HUD */}
         {isTourActive && (

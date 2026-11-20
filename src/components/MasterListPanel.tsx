@@ -102,6 +102,7 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
   const [lineFilter, setLineFilter] = useState<string>('ALL');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
   const [toolFilter, setToolFilter] = useState<string>('');
+  const [pipeFilter, setPipeFilter] = useState<string>('ALL');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<MasterDataItem | null>(null);
 
@@ -219,7 +220,7 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
     }
   }, [masterData, setMasterData]);
 
-  // Multi-criteria Filter for Master Items (Search text + Line + Type + Tool) with uniqueness guarantee
+  // Multi-criteria Filter for Master Items (Search text + Line + Type + Tool + Pipe) with uniqueness guarantee
   const filteredData = useMemo(() => {
     const seen = new Set<string>();
     return masterData.filter(d => {
@@ -231,16 +232,19 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
       const matchesSearch = 
         !search ||
         d.modelHE.toLowerCase().includes(search.toLowerCase()) || 
-        d.partName.toLowerCase().includes(search.toLowerCase());
+        d.partName.toLowerCase().includes(search.toLowerCase()) ||
+        (d.pipeSize && `pipe ${d.pipeSize}`.includes(search.toLowerCase())) ||
+        (d.pipeSize && `ø${d.pipeSize}`.includes(search.toLowerCase()));
 
       const lines = getItemLines(d);
       const matchesLine = lineFilter === 'ALL' || lines.includes(lineFilter) || d.useLine === lineFilter;
       const matchesType = typeFilter === 'ALL' || (d.productType || 'Evaporator') === typeFilter;
       const matchesTool = !toolFilter || d.partName.toLowerCase().includes(toolFilter.toLowerCase());
+      const matchesPipe = pipeFilter === 'ALL' || (d.pipeSize ? String(d.pipeSize) === pipeFilter : false);
 
-      return matchesSearch && matchesLine && matchesType && matchesTool;
+      return matchesSearch && matchesLine && matchesType && matchesTool && matchesPipe;
     });
-  }, [masterData, search, lineFilter, typeFilter, toolFilter]);
+  }, [masterData, search, lineFilter, typeFilter, toolFilter, pipeFilter]);
 
   // Filter Lines
   const filteredLines = useLines.filter(l =>
@@ -857,10 +861,27 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
                 </select>
               </div>
 
+              {/* Pipe Size Filter */}
+              <div className="flex items-center space-x-1.5 bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-1.5 shrink-0">
+                <Sliders className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                <select
+                  value={pipeFilter}
+                  onChange={(e) => setPipeFilter(e.target.value)}
+                  className="bg-transparent text-xs text-white focus:outline-none font-medium cursor-pointer"
+                  title="ฟิลเตอร์ตามขนาดท่อ (Pipe Size)"
+                >
+                  <option value="ALL" className="bg-slate-900 text-slate-200">⚡ ทุกขนาดท่อ (Pipe Size)</option>
+                  <option value="5" className="bg-slate-900 text-slate-200">Pipe 5 (Ø5)</option>
+                  <option value="7" className="bg-slate-900 text-slate-200">Pipe 7 (Ø7)</option>
+                  <option value="8" className="bg-slate-900 text-slate-200">Pipe 8 (Ø8)</option>
+                  <option value="9" className="bg-slate-900 text-slate-200">Pipe 9 (Ø9)</option>
+                </select>
+              </div>
+
               {/* Reset filter button */}
-              {(lineFilter !== 'ALL' || typeFilter !== 'ALL' || search) && (
+              {(lineFilter !== 'ALL' || typeFilter !== 'ALL' || pipeFilter !== 'ALL' || search || toolFilter) && (
                 <button
-                  onClick={() => { setSearch(''); setLineFilter('ALL'); setTypeFilter('ALL'); }}
+                  onClick={() => { setSearch(''); setLineFilter('ALL'); setTypeFilter('ALL'); setPipeFilter('ALL'); setToolFilter(''); }}
                   className="text-xs text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg hover:bg-slate-800 transition-colors border border-slate-800"
                   title="ล้างตัวกรองทั้งหมด"
                 >
@@ -881,12 +902,12 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
       </div>
 
       {/* Main Tab Content */}
-      <div className="overflow-x-auto flex-1 p-2 sm:p-4 min-h-0">
+      <div className="overflow-hidden flex-1 p-2 sm:p-4 min-h-0 flex flex-col">
         {/* TAB: MASTER PARTS MANAGEMENT */}
         {activeTab === 'MASTER_PARTS' && (
-          <div className="space-y-4 animate-fadeIn">
-            <div className="bg-slate-950/80 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-              <div className="px-4 py-3 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+          <div className="animate-fadeIn flex-1 flex flex-col min-h-0">
+            <div className="bg-slate-950/80 border border-slate-800 rounded-2xl overflow-hidden shadow-xl flex-1 flex flex-col min-h-0">
+              <div className="px-4 py-3 bg-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0">
                 <div className="flex items-center space-x-2">
                   <Box className="w-4 h-4 text-blue-400" />
                   <span className="text-xs font-bold text-white">
@@ -896,7 +917,7 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
                 <span className="text-[11px] text-slate-400">เชื่อมโยงอัตโนมัติกับ QuickScannerModal</span>
               </div>
 
-              <div className="overflow-auto max-h-[60vh]">
+              <div className="overflow-auto flex-1 min-h-0">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead className="bg-slate-900/95 text-slate-300 font-mono sticky top-0 border-b border-slate-800 z-10 shadow-md">
                     <tr>
@@ -1057,13 +1078,23 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
                           </select>
                         </td>
                         <td className="py-2 px-3">
-                          <input
-                            type="text"
-                            value={editForm.partName}
-                            onChange={(e) => setEditForm({ ...editForm, partName: e.target.value })}
-                            placeholder="Tool Name (e.g. SK, U12)"
-                            className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white focus:outline-none"
-                          />
+                          <div className="flex items-center space-x-1">
+                            <input
+                              type="text"
+                              value={editForm.partName}
+                              onChange={(e) => setEditForm({ ...editForm, partName: e.target.value })}
+                              placeholder="Tool (SK, U12)"
+                              className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white focus:outline-none"
+                            />
+                            <input
+                              type="number"
+                              value={editForm.pipeSize || ''}
+                              onChange={(e) => setEditForm({ ...editForm, pipeSize: e.target.value ? Number(e.target.value) : undefined })}
+                              placeholder="Pipe"
+                              className="w-16 bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-xs text-purple-300 font-bold focus:outline-none"
+                              title="ขนาดท่อ (Pipe Size)"
+                            />
+                          </div>
                         </td>
                         <td className="py-2 px-3 text-right">
                           <input
@@ -1163,12 +1194,23 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
                               </select>
                             </td>
                             <td className="py-2 px-3">
-                              <input
-                                type="text"
-                                value={editForm.partName}
-                                onChange={(e) => setEditForm({ ...editForm, partName: e.target.value })}
-                                className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white focus:outline-none"
-                              />
+                              <div className="flex items-center space-x-1">
+                                <input
+                                  type="text"
+                                  value={editForm.partName}
+                                  onChange={(e) => setEditForm({ ...editForm, partName: e.target.value })}
+                                  placeholder="Tool (SK, U12)"
+                                  className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white focus:outline-none"
+                                />
+                                <input
+                                  type="number"
+                                  value={editForm.pipeSize || ''}
+                                  onChange={(e) => setEditForm({ ...editForm, pipeSize: e.target.value ? Number(e.target.value) : undefined })}
+                                  placeholder="Pipe"
+                                  className="w-16 bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-xs text-purple-300 font-bold focus:outline-none"
+                                  title="ขนาดท่อ (Pipe Size)"
+                                />
+                              </div>
                             </td>
                             <td className="py-2 px-3 text-right">
                               <input
@@ -1224,8 +1266,15 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
                               {item.productType || 'Evaporator'}
                             </span>
                           </td>
-                          <td className="py-2 px-3 text-slate-300 truncate max-w-[200px]" title={item.partName}>
-                            {item.partName}
+                          <td className="py-2 px-3 text-slate-300" title={item.partName}>
+                            <div className="flex items-center space-x-1.5 flex-wrap">
+                              <span className="font-semibold text-slate-200">{item.partName}</span>
+                              {item.pipeSize && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-purple-950/80 text-purple-300 border border-purple-500/40 shadow-2xs">
+                                  Ø{item.pipeSize}
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="py-2 px-3 text-right font-black text-cyan-300 text-sm">
                             {item.stdQtyPerPallet} <span className="text-[10px] text-slate-300 font-bold">ชิ้น</span>
@@ -1271,7 +1320,7 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
 
         {/* TAB 2: USE LINES (ไลน์ผลิต) */}
         {activeTab === 'LINES' && (
-          <div className="space-y-4 animate-fadeIn">
+          <div className="animate-fadeIn flex-1 flex flex-col min-h-0 space-y-3">
             {lineSuccessMsg && (
               <div className="p-3 bg-emerald-950/80 border border-emerald-500/50 text-emerald-200 rounded-xl text-xs font-bold animate-fadeIn flex items-center justify-between shadow-md">
                 <div className="flex items-center space-x-2">
@@ -1399,7 +1448,7 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
             )}
 
             {/* Table */}
-            <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950 shadow-md">
+            <div className="overflow-auto flex-1 min-h-0 rounded-xl border border-slate-800 bg-slate-950 shadow-md">
               <table className="w-full text-left text-xs text-slate-200">
                 <thead className="bg-slate-900/90 text-slate-300 font-bold uppercase text-[11px] border-b border-slate-800">
                   <tr>
@@ -1477,7 +1526,7 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
 
         {/* TAB 2.5: TARGET USE LINES (ไลน์ที่นำไปใช้ - Red-Orange Theme) */}
         {activeTab === 'TARGET_LINES' && (
-          <div className="space-y-4 animate-fadeIn">
+          <div className="animate-fadeIn flex-1 flex flex-col min-h-0 space-y-3">
             {targetLineSuccessMsg && (
               <div className="p-3 bg-orange-950/80 border border-orange-500/50 text-amber-200 rounded-xl text-xs font-bold animate-fadeIn flex items-center justify-between shadow-md">
                 <div className="flex items-center space-x-2">
@@ -1605,7 +1654,7 @@ export const MasterListPanel: React.FC<MasterListPanelProps> = ({
             )}
 
             {/* Table matching Screenshot image_9155bb7d.png but in Red-Orange Theme */}
-            <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950 shadow-md">
+            <div className="overflow-auto flex-1 min-h-0 rounded-xl border border-slate-800 bg-slate-950 shadow-md">
               <table className="w-full text-left text-xs text-slate-200">
                 <thead className="bg-slate-900/90 text-slate-300 font-bold uppercase text-[11px] border-b border-slate-800">
                   <tr>

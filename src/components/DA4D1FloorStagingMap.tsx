@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { InventoryItem, MovementType, StorageZone, ShelfLevel, MovementLog } from '../types';
-import { UnifiedSlotModal, UnifiedSlotData } from './UnifiedSlotModal';
+
 import { SlotMiniStatsOverlay, MiniStatsSlotData } from './SlotMiniStatsOverlay';
 import { A4FloorStaging3DView } from './zone-3d/A4FloorStaging3DView';
 import { ZoneKpiFormalDashboard } from './ZoneKpiFormalDashboard';
+import { UnifiedSlotModal, UnifiedSlotData } from './UnifiedSlotModal';
 import { useTranslation } from '../i18n/i18nContext';
 import { resolveCanonicalCoordinate } from '../utils/locatorUtils';
 import { 
@@ -156,8 +157,11 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
   const [isGroupDropdownOpen, setIsGroupDropdownOpen] = useState<boolean>(false);
   const [localSearch, setLocalSearch] = useState<string>('');
   
-  // Selected slot detail modal
-  const [selectedSlot, setSelectedSlot] = useState<{
+
+
+  // Active single-click preview (2D matrix) and UnifiedSlotModal (3D single-click)
+  const [selectedSlotModal, setSelectedSlotModal] = useState<UnifiedSlotData | null>(null);
+  const [activeSlotPreview, setActiveSlotPreview] = useState<{
     groupId: string;
     rowNumber: number;
     colNumber: number;
@@ -427,13 +431,67 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
                 const rStr = String(row).padStart(2, '0');
                 const cStr = String(col).padStart(2, '0');
                 const loc = `DA4D-1.01-${group}-R${rStr}-C${cStr}`;
-                setSelectedSlot({
-                  groupId: group,
-                  rowNumber: row,
-                  colNumber: col,
+                setSelectedSlotModal({
+                  sectorType: 'FLOOR_STAGING',
+                  buildingName: 'อาคาร A4 วางพื้น (DA4D-1)',
+                  facilityId: 'FAC-A4-FLOOR',
+                  zoneName: `ลานวางพื้น ${group}`,
                   locatorCode: loc,
+                  bayOrGroupNumber: group,
+                  rowNumber: row,
+                  columnOrRailNumber: col,
+                  maxCapacityPallets: 1,
                   item: item || null
                 });
+              }}
+              onSelectAnySlot={(type, locator, item) => {
+                const resolved = resolveCanonicalCoordinate({ locatorCode: locator });
+                if (type === 'RACK') {
+                  const bayItems = items.filter(it => {
+                    const r = resolveCanonicalCoordinate({
+                      zone: it.zone,
+                      bayNumber: it.bayNumber,
+                      level: it.level,
+                      palletPosition: it.palletPosition,
+                      locatorCode: it.locatorCode
+                    });
+                    return r.zone === resolved.zone && r.bayNumber === resolved.bayNumber;
+                  });
+                  setSelectedSlotModal({
+                    sectorType: 'RACK',
+                    buildingName: 'อาคาร A4 Selective Rack',
+                    facilityId: 'FAC-A4-RACK',
+                    zoneName: `แถว ${resolved.zone} · เสา ${String(resolved.bayNumber).padStart(2, '0')}`,
+                    locatorCode: resolved.canonicalLocator,
+                    bayOrGroupNumber: resolved.bayNumber,
+                    level: resolved.level,
+                    maxCapacityPallets: 8,
+                    item: item || null,
+                    bayItems
+                  });
+                } else {
+                  setSelectedSlotModal({
+                    sectorType: 'FLOOR_STAGING',
+                    buildingName: 'อาคาร A4 วางพื้น (DA4D-1)',
+                    facilityId: 'FAC-A4-FLOOR',
+                    zoneName: `ลานวางพื้น ${resolved.zone}`,
+                    locatorCode: resolved.canonicalLocator,
+                    bayOrGroupNumber: resolved.zone,
+                    rowNumber: resolved.bayNumber,
+                    columnOrRailNumber: resolved.level,
+                    maxCapacityPallets: 1,
+                    item: item || null
+                  });
+                }
+              }}
+              onDoubleClickSlot={(group, row, col, item) => {
+                const rStr = String(row).padStart(2, '0');
+                const cStr = String(col).padStart(2, '0');
+                const loc = `DA4D-1.01-${group}-R${rStr}-C${cStr}`;
+                if (onOpenScanner) {
+                  const zoneCode = `${group}` as StorageZone;
+                  onOpenScanner(zoneCode, row, col, item ? 'OUT' : 'IN', loc, 'P1', item || null);
+                }
               }}
               onOpenScanner={onOpenScanner}
               onNavigateToCampus={onNavigateToCampus}
@@ -553,20 +611,34 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
                             (statusFilter === 'AGING' && item && (item.agingDays > 30 || item.agingStatus === 'WARNING' || item.agingStatus === 'OVERDUE'));
                           const isSlotActive = isMatch && isStatusMatch;
 
-                          // Highlight exact sample from reference image: DA4D-1-R8-06 (Group X2, Row 8, Col 06)
-                          const isDiagramRedSample = (rowNum === 8 && colNum === 6) || (item && (item.agingStatus === 'OVERDUE' || item.remark?.includes('Red Sample')));
+                          // Highlight exact sample or critical/expired slots with pulse animation
+                          const isDiagramRedSample = (rowNum === 8 && colNum === 6) || (item && (item.agingStatus === 'OVERDUE' || item.agingStatus === 'EXPIRED' || item.agingDays > 30 || item.remark?.includes('Red Sample')));
+
+                          const isSelected = Boolean(
+                            activeSlotPreview &&
+                            activeSlotPreview.groupId === group.id &&
+                            activeSlotPreview.rowNumber === rowNum &&
+                            activeSlotPreview.colNumber === colNum
+                          );
 
                           return (
                             <div
                               key={colNum}
                               id={`slot-floor-r${rowNum}-c${colNum}`}
-                              onClick={() => setSelectedSlot({
+                              onClick={() => setActiveSlotPreview({
                                 groupId: group.id,
                                 rowNumber: rowNum,
                                 colNumber: colNum,
                                 locatorCode,
                                 item: item || null
                               })}
+                              onDoubleClick={(e) => {
+                                e.stopPropagation();
+                                if (onOpenScanner) {
+                                  const zoneCode = `X${group.id}` as StorageZone;
+                                  onOpenScanner(zoneCode, rowNum, colNum, item ? 'OUT' : 'IN', locatorCode, 'P1', item || null);
+                                }
+                              }}
                               onMouseEnter={(e) => {
                                 setHoveredSlot({
                                   groupId: group.id,
@@ -677,6 +749,44 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
         )}
         </div>
 
+        {/* ACTIVE SLOT SELECTION PREVIEW (NO POPUP MODAL ON SINGLE CLICK) */}
+        {activeSlotPreview && (
+          <div className="shrink-0 bg-slate-900/95 border border-blue-500/50 rounded-xl px-3 py-1.5 flex items-center justify-between text-xs backdrop-blur-md shadow-md animate-fadeIn">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse shrink-0" />
+              <span className="font-mono font-bold text-amber-300 shrink-0">{activeSlotPreview.locatorCode}</span>
+              <span className="text-slate-400 text-[11px] truncate">
+                {activeSlotPreview.item ? `${activeSlotPreview.item.modelHE} (${activeSlotPreview.item.quantity}U)` : 'ตำแหน่งว่าง พร้อมรับเข้า'}
+              </span>
+              <span className="hidden sm:inline text-[10px] text-blue-300/80 bg-blue-950/60 px-2 py-0.5 rounded-full border border-blue-500/30">
+                💡 ดับเบิ้ลคลิก เพื่อทำธุรกรรม (รับเข้า/เบิกออก/ย้าย)
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  if (activeSlotPreview && onOpenScanner) {
+                    const zoneCode = `X${activeSlotPreview.groupId}` as StorageZone;
+                    onOpenScanner(zoneCode, activeSlotPreview.rowNumber, activeSlotPreview.colNumber, activeSlotPreview.item ? 'OUT' : 'IN', activeSlotPreview.locatorCode, 'P1', activeSlotPreview.item || null);
+                  }
+                }}
+                className="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg text-[11px] shadow-sm transition-all"
+              >
+                ทำธุรกรรม &rarr;
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveSlotPreview(null)}
+                className="text-slate-400 hover:text-white text-xs px-1"
+                title="ปิด"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* BOTTOM: Ultra-compact KPI Cards (ความจุ, รับเข้า-รับออก, Aging) */}
         <div className="shrink-0">
           <ZoneKpiFormalDashboard
@@ -687,24 +797,10 @@ export const DA4D1FloorStagingMap: React.FC<DA4D1FloorStagingMapProps> = ({
         </div>
       </div>
 
-      {/* HOVER MINI-STATS OVERLAY REMOVED FOR CLEAN 2D VIEW */}
-
-      {/* UNIFIED PALLET SLOT ACTION MODAL */}
       <UnifiedSlotModal
-        isOpen={!!selectedSlot}
-        onClose={() => setSelectedSlot(null)}
-        slotData={selectedSlot ? {
-          sectorType: 'FLOOR_STAGING',
-          buildingName: 'อาคาร A4',
-          facilityId: 'FAC-A4-MAIN',
-          zoneName: `กลุ่ม ${selectedSlot.groupId} (ลานวางพื้น DA4D-1)`,
-          locatorCode: selectedSlot.locatorCode,
-          bayOrGroupNumber: selectedSlot.groupId,
-          rowNumber: selectedSlot.rowNumber,
-          columnOrRailNumber: selectedSlot.colNumber,
-          item: selectedSlot.item || null,
-          maxCapacityPallets: 1
-        } : null}
+        isOpen={!!selectedSlotModal}
+        onClose={() => setSelectedSlotModal(null)}
+        slotData={selectedSlotModal}
         onOpenScanner={onOpenScanner}
         onRelocateItem={onRelocateItem}
       />

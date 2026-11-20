@@ -30,6 +30,7 @@ import {
   Grid
 } from 'lucide-react';
 import { CameraControlOverlay } from './CameraControlOverlay';
+import { ZoneSlotHoverCard, ZoneSlotHoverData } from './ZoneSlotHoverCard';
 
 type CameraPresetKey = 
   | 'ALL_A4' | 'TOP_DOWN' | 'RACKS' | 'RACKS_B_F' | 'RACKS_G_K' | 'FLOOR' | 'FRONT_35'
@@ -75,6 +76,7 @@ interface A4UnifiedFactory3DViewProps {
   searchQuery?: string;
   initialFocus?: CameraPresetKey;
   onSelectSlot?: (type: 'RACK' | 'FLOOR', locator: string, item?: InventoryItem) => void;
+  onDoubleClickSlot?: (type: 'RACK' | 'FLOOR', locator: string, item?: InventoryItem) => void;
   onOpenScanner?: (zone: StorageZone, bay: number, level: ShelfLevel, mode: MovementType, locatorCode?: string, palletPosition?: string, item?: InventoryItem) => void;
   onNavigateToCampus?: () => void;
 }
@@ -84,6 +86,7 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
   searchQuery = '',
   initialFocus = 'ALL_A4',
   onSelectSlot,
+  onDoubleClickSlot,
   onOpenScanner,
   onNavigateToCampus
 }) => {
@@ -104,29 +107,7 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
     initialFocus && PRESET_CONFIGS[initialFocus] ? initialFocus : 'ALL_A4'
   );
   
-  const [selectedSlot, setSelectedSlot] = useState<{
-    type: 'RACK' | 'FLOOR';
-    locator: string;
-    zoneName: string;
-    item?: InventoryItem;
-    palletPosition?: string;
-    rowName?: string;
-    bay?: number;
-    level?: number;
-    group?: string;
-    row?: number;
-    col?: number;
-  } | null>(null);
-
-  const [hoveredInfo, setHoveredInfo] = useState<{
-    name: string;
-    locator: string;
-    desc: string;
-    item?: InventoryItem;
-    palletPosition?: string;
-    statusMode: 'EMPTY' | 'OCCUPIED' | 'AGING' | 'OVERDUE';
-    posDetail?: string;
-  } | null>(null);
+  const [hoveredInfo, setHoveredInfo] = useState<ZoneSlotHoverData | null>(null);
 
   // Parse inventory items mapped into A4
   const a4Data = useMemo(() => {
@@ -985,7 +966,7 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
             const pPos: 'P1' | 'P2' = pIdx === 0 ? 'P1' : 'P2';
             const item = a4Data.rackItemsMap.get(`${r.name}-${bay}-${lvl}-${pPos}`) ||
                          (pIdx === 0 ? a4Data.rackItemsMap.get(`${r.name}-${bay}-${lvl}`) : undefined);
-            const locatorStr = `DA4D-3-${r.name}0${bay}-L${lvl}-${pPos}`;
+            const locatorStr = `DA4D-3-${r.name}${String(bay).padStart(2, '0')}-L${lvl}-${pPos}`;
 
             if (item) {
               let bMat = boxActiveBlue;
@@ -1344,13 +1325,14 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
           rackBayNeon.show();
 
           setHoveredInfo({
-            name: hit.zoneName,
+            zoneLabel: hit.zoneName,
             locator: hit.locator,
-            desc: hit.desc,
-            item: hit.item,
-            palletPosition: hit.palletPosition,
+            positionLabel:
+              hit.type === 'RACK'
+                ? `เสา ${String(hit.bay || 1).padStart(2, '0')} · ชั้น L${hit.level || 1} · ${hit.palletPosition || 'P1'}`
+                : `${hit.group} · แถว R${String(hit.row || 1).padStart(2, '0')} · ช่อง C${String(hit.col || 1).padStart(2, '0')}`,
             statusMode: hit.statusMode,
-            posDetail: hit.type === 'RACK' ? `เสา ${hit.bay} &bull; ชั้น L${hit.level}` : `${hit.group} R${hit.row}-C${hit.col}`
+            item: hit.item,
           });
           container.style.cursor = 'pointer';
           return;
@@ -1385,29 +1367,15 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
           intersects[0].object.parent?.parent === m.mesh
         );
         if (hit) {
-          if (e.detail === 2 && onOpenScanner) {
+          if (onSelectSlot) {
+            onSelectSlot(hit.type, hit.locator, hit.item);
+          } else if (onDoubleClickSlot) {
+            onDoubleClickSlot(hit.type, hit.locator, hit.item);
+          } else if (onOpenScanner) {
             const targetZone = (hit.rowName || hit.group || 'B') as StorageZone;
             const targetBay = hit.bay || hit.row || 1;
             const targetLevel = (hit.level || hit.col || 1) as ShelfLevel;
             onOpenScanner(targetZone, targetBay, targetLevel, hit.item ? 'OUT' : 'IN', hit.locator, hit.palletPosition, hit.item);
-          } else {
-            setSelectedSlot({
-              type: hit.type,
-              locator: hit.locator,
-              zoneName: hit.zoneName,
-              item: hit.item,
-              palletPosition: hit.palletPosition,
-              rowName: hit.rowName,
-              bay: hit.bay,
-              level: hit.level,
-              group: hit.group,
-              row: hit.row,
-              col: hit.col
-            });
-
-            if (onSelectSlot) {
-              onSelectSlot(hit.type, hit.locator, hit.item);
-            }
           }
         }
       }
@@ -1577,145 +1545,8 @@ export const A4UnifiedFactory3DView: React.FC<A4UnifiedFactory3DViewProps> = ({
         {/* Three.js Canvas Mount */}
         <div ref={mountRef} className="w-full flex-1 h-full min-h-[300px] cursor-grab active:cursor-grabbing" />
 
-        {/* 3D Holographic Ghost HUD Target Tooltip */}
-        {hoveredInfo && (
-          <div className={`absolute bottom-4 left-4 backdrop-blur-md border rounded-2xl p-3.5 shadow-2xl z-30 max-w-sm pointer-events-none animate-fadeIn ${
-            hoveredInfo.statusMode === 'EMPTY'
-              ? 'bg-emerald-950/90 border-emerald-500/60 shadow-emerald-900/30'
-              : hoveredInfo.statusMode === 'OVERDUE'
-              ? 'bg-rose-950/90 border-rose-500/60 shadow-rose-900/30'
-              : hoveredInfo.statusMode === 'AGING'
-              ? 'bg-amber-950/90 border-amber-500/60 shadow-amber-900/30'
-              : 'bg-slate-900/95 border-cyan-500/60 shadow-cyan-900/30'
-          }`}>
-            <div className="flex items-center justify-between gap-2 mb-1.5">
-              <div className="flex items-center gap-1.5">
-                <span className={`w-2.5 h-2.5 rounded-full animate-ping ${
-                  hoveredInfo.statusMode === 'EMPTY' ? 'bg-emerald-400' :
-                  hoveredInfo.statusMode === 'OVERDUE' ? 'bg-rose-400' :
-                  hoveredInfo.statusMode === 'AGING' ? 'bg-amber-400' : 'bg-cyan-400'
-                }`} />
-                <span className="font-mono text-[11px] uppercase font-bold text-white tracking-wider">
-                  {hoveredInfo.name}
-                </span>
-              </div>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase border ${
-                hoveredInfo.statusMode === 'EMPTY'
-                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                  : hoveredInfo.statusMode === 'OVERDUE'
-                  ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
-                  : hoveredInfo.statusMode === 'AGING'
-                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                  : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
-              }`}>
-                {hoveredInfo.statusMode === 'EMPTY' ? '● ช่องว่าง (Infeed พร้อม)' : 
-                 hoveredInfo.statusMode === 'OVERDUE' ? '▲ OVERDUE > 45d' : 
-                 hoveredInfo.statusMode === 'AGING' ? '⚠ AGING > 28d' : '✓ มีสินค้า (STORED)'}
-              </span>
-            </div>
-
-            <div className="text-sm font-mono font-black text-white mb-0.5 tracking-tight">
-              {hoveredInfo.locator}
-            </div>
-
-            {hoveredInfo.posDetail && (
-              <div className="text-[11px] font-mono text-slate-400 mb-1">
-                {hoveredInfo.posDetail}
-              </div>
-            )}
-
-            <div className="text-xs text-slate-200 line-clamp-2">
-              {hoveredInfo.desc}
-            </div>
-
-            <div className="mt-2 pt-2 border-t border-slate-700/60 flex items-center justify-between text-[10px] text-slate-400">
-              <span className="text-cyan-300 font-medium">🎯 Holographic Laser Target Lock</span>
-              <span className="text-white font-bold">คลิกเพื่อรับเข้า/เบิกออก</span>
-            </div>
-          </div>
-        )}
-
-        {/* Slot Detail Drawer / Popup */}
-        {selectedSlot && (
-          <div className="absolute top-14 right-4 bg-slate-900/95 backdrop-blur-md border border-slate-700/80 rounded-2xl p-4 shadow-2xl z-30 w-80 animate-fadeIn">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <Box className="w-4 h-4 text-blue-400" />
-                <span className="text-xs font-bold text-white">{selectedSlot.zoneName}</span>
-              </div>
-              <button
-                onClick={() => setSelectedSlot(null)}
-                className="text-slate-400 hover:text-white text-xs p-1"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="mt-3 space-y-2 text-xs">
-              <div>
-                <span className="text-slate-400">พิกัด Locator: </span>
-                <span className="font-mono font-black text-amber-300">{selectedSlot.locator}</span>
-              </div>
-
-              {selectedSlot.item ? (
-                <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800 space-y-1.5">
-                  <div className="font-bold text-white">{selectedSlot.item.partNumber}</div>
-                  <div className="text-slate-300">{selectedSlot.item.modelHE} ({selectedSlot.item.partName})</div>
-                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800 text-[11px] font-mono">
-                    <div>
-                      <span className="text-slate-500">จำนวน: </span>
-                      <span className="text-blue-400 font-bold">{selectedSlot.item.quantity} ชิ้น</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-500">Aging: </span>
-                      <span className={selectedSlot.item.agingDays > 28 ? 'text-amber-400 font-bold' : 'text-slate-300'}>
-                        {selectedSlot.item.agingDays} วัน
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-3 bg-emerald-950/20 border border-emerald-500/30 rounded-xl text-emerald-400 text-center font-bold">
-                  ✓ ตำแหน่งนี้ว่าง พร้อมจัดเก็บสินค้า
-                </div>
-              )}
-
-              {onOpenScanner && (
-                <div className="pt-2 flex gap-2">
-                  <button
-                    onClick={() => {
-                      if (selectedSlot.type === 'RACK') {
-                        onOpenScanner(selectedSlot.rowName as any, selectedSlot.bay || 1, selectedSlot.level as any, 'IN', selectedSlot.locator, selectedSlot.palletPosition, selectedSlot.item);
-                      } else {
-                        onOpenScanner(selectedSlot.group as any, selectedSlot.row || 1, (selectedSlot.col || 1) as any, 'IN', selectedSlot.locator, selectedSlot.palletPosition, selectedSlot.item);
-                      }
-                    }}
-                    className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5"
-                  >
-                    <QrCode className="w-3.5 h-3.5" />
-                    <span>สแกนรับเข้า</span>
-                  </button>
-
-                  {selectedSlot.item && (
-                    <button
-                      onClick={() => {
-                        if (selectedSlot.type === 'RACK') {
-                          onOpenScanner(selectedSlot.rowName as any, selectedSlot.bay || 1, selectedSlot.level as any, 'OUT', selectedSlot.locator, selectedSlot.palletPosition, selectedSlot.item);
-                        } else {
-                          onOpenScanner(selectedSlot.group as any, selectedSlot.row || 1, (selectedSlot.col || 1) as any, 'OUT', selectedSlot.locator, selectedSlot.palletPosition, selectedSlot.item);
-                        }
-                      }}
-                      className="flex-1 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5"
-                    >
-                      <QrCode className="w-3.5 h-3.5" />
-                      <span>สแกนเบิกจ่าย</span>
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        {/* Unified Slot Hover Preview Card */}
+        {hoveredInfo && <ZoneSlotHoverCard data={hoveredInfo} />}
 
       </div>
 

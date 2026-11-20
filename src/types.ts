@@ -64,6 +64,7 @@ export interface MasterDataItem {
   storageType?: ProductStorageType;
   useLine?: string; // Production line mapping (primary)
   useLines?: string[]; // Multi-line assignment tags (e.g. ['HE2', 'HE4', 'HE5', 'Y4'])
+  pipeSize?: number; // Size of pipe (e.g. 5, 7, 8, 9)
 }
 
 export interface AuditLog {

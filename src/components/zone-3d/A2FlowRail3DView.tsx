@@ -5,11 +5,13 @@ import { InventoryItem, MovementType, ShelfLevel, StorageZone } from '../../type
 import { createRackBayNeonHighlight } from './neonEdgeHighlight';
 import { isA2InventoryItem } from '../../utils/zoneKpiHelper';
 import { CameraControlOverlay } from './CameraControlOverlay';
+import { ZoneSlotHoverCard, ZoneSlotHoverData } from './ZoneSlotHoverCard';
 
 interface A2FlowRail3DViewProps {
   items: InventoryItem[];
   searchQuery?: string;
   onSelectSlot: (railNum: number, posNum: number, item?: InventoryItem) => void;
+  onDoubleClickSlot?: (railNum: number, posNum: number, item?: InventoryItem) => void;
   onOpenScanner?: (zone: StorageZone, bay: number, level: ShelfLevel, mode: MovementType, locatorCode?: string, palletPosition?: string, item?: InventoryItem) => void;
 }
 
@@ -30,6 +32,7 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
   items,
   searchQuery = '',
   onSelectSlot,
+  onDoubleClickSlot,
   onOpenScanner
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -42,12 +45,13 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
   const palletNodesRef = useRef<Map<string, PalletNode>>(new Map());
   const onSelectSlotRef = useRef(onSelectSlot);
   onSelectSlotRef.current = onSelectSlot;
+  const onDoubleClickSlotRef = useRef(onDoubleClickSlot);
+  onDoubleClickSlotRef.current = onDoubleClickSlot;
   const onOpenScannerRef = useRef(onOpenScanner);
   onOpenScannerRef.current = onOpenScanner;
 
-  const [selectedSlot, setSelectedSlot] = useState<{ rail: number; pos: number; item?: InventoryItem } | null>(null);
   const [cameraFocus, setCameraFocus] = useState<'OVERVIEW' | 'TOP' | 'OUTFEED'>('OUTFEED');
-  const [hoveredInfo, setHoveredInfo] = useState<{ rail: number; pos: number; item?: InventoryItem } | null>(null);
+  const [hoveredInfo, setHoveredInfo] = useState<ZoneSlotHoverData | null>(null);
 
   // Smooth camera fly-to function
   const flyCameraTo = (targetPos: THREE.Vector3, lookAtTarget: THREE.Vector3, duration = 850) => {
@@ -609,14 +613,7 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
       if (intersects.length > 0) {
         const hitNode = nodes.find(n => n.hitBox === intersects[0].object);
         if (hitNode) {
-          if (event.detail === 2 && onOpenScannerRef.current) {
-            const railZone = `R${hitNode.rail}` as StorageZone;
-            const loc = `DA2D-1-R${String(hitNode.rail).padStart(2, '0')}-${String(hitNode.pos).padStart(2, '0')}`;
-            onOpenScannerRef.current(railZone, hitNode.pos, 1, hitNode.item ? 'OUT' : 'IN', loc, 'P1', hitNode.item || null);
-          } else {
-            setSelectedSlot({ rail: hitNode.rail, pos: hitNode.pos, item: hitNode.item });
-            onSelectSlotRef.current(hitNode.rail, hitNode.pos, hitNode.item);
-          }
+          onSelectSlotRef.current(hitNode.rail, hitNode.pos, hitNode.item);
         }
       }
     };
@@ -633,16 +630,35 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
       if (intersects.length > 0) {
         const hitNode = nodes.find(n => n.hitBox === intersects[0].object);
         if (hitNode) {
-          setHoveredInfo({ rail: hitNode.rail, pos: hitNode.pos, item: hitNode.item });
+          const statusMode: ZoneSlotHoverData['statusMode'] = hitNode.item
+            ? (hitNode.item.agingDays > 45 || hitNode.item.agingStatus === 'OVERDUE'
+                ? 'OVERDUE'
+                : hitNode.item.agingDays > 28 || hitNode.item.agingStatus === 'WARNING'
+                ? 'AGING'
+                : 'OCCUPIED')
+            : 'EMPTY';
+
+          const railStr = String(hitNode.rail).padStart(2, '0');
+          const posStr = String(hitNode.pos).padStart(2, '0');
+          const canonicalLocator = `DA2D-1-R${railStr}-${posStr}`;
+
+          setHoveredInfo({
+            zoneLabel: `รางเลื่อน A2 (รางที่ ${hitNode.rail})`,
+            locator: canonicalLocator,
+            positionLabel:
+              hitNode.pos === 1
+                ? `ราง R${railStr} · ช่อง 01 (หน้าไลน์ Outfeed)`
+                : hitNode.pos === 8
+                ? `ราง R${railStr} · ช่อง 08 (จุดรับเข้า Infeed)`
+                : `ราง R${railStr} · ช่อง ${posStr} (FIFO)`,
+            statusMode,
+            item: hitNode.item,
+          });
           renderer.domElement.style.cursor = 'pointer';
 
           hoverGhostGroup.position.set(hitNode.x, hitNode.y, hitNode.z);
           hoverGhostGroup.rotation.z = railSlopeAngle;
           hoverGhostGroup.visible = true;
-
-          const statusMode = hitNode.item
-            ? (hitNode.item.agingDays > 45 || hitNode.item.agingStatus === 'OVERDUE' ? 'OVERDUE' : hitNode.item.agingDays > 28 || hitNode.item.agingStatus === 'WARNING' ? 'AGING' : 'OCCUPIED')
-            : 'EMPTY';
 
           if (hitNode.item) {
             ghostBoxMat.color.setHex(statusMode === 'OVERDUE' ? 0xef4444 : statusMode === 'AGING' ? 0xf59e0b : 0x0284c7);
@@ -833,64 +849,8 @@ export const A2FlowRail3DView: React.FC<A2FlowRail3DViewProps> = ({
         ]}
       />
 
-      {/* Bottom Floating Info Pill */}
-      {hoveredInfo && (
-        <div className="absolute bottom-4 left-4 bg-slate-900/95 backdrop-blur-md border border-cyan-500/50 px-4 py-3 rounded-xl shadow-2xl text-xs max-w-md pointer-events-none animate-fadeIn ring-1 ring-cyan-500/30">
-          <div className="flex items-center justify-between gap-3 mb-1.5 pb-1 border-b border-slate-800">
-            <div className="flex items-center gap-2">
-              <span className="font-mono font-bold text-cyan-300 text-sm">
-                DA2D-1 &bull; R{hoveredInfo.rail}-0{hoveredInfo.pos}
-              </span>
-              <span className="text-[10px] text-slate-400 font-medium">
-                (รางที่ {hoveredInfo.rail} &bull; บล็อกที่ {hoveredInfo.pos})
-              </span>
-            </div>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 ${
-              hoveredInfo.item
-                ? 'bg-blue-950 text-cyan-300 border border-cyan-700/60'
-                : 'bg-emerald-950 text-emerald-300 border border-emerald-700/60'
-            }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${hoveredInfo.item ? 'bg-cyan-400 animate-pulse' : 'bg-emerald-400'}`} />
-              {hoveredInfo.item ? 'มีสินค้าในบล็อก' : 'ช่องว่าง (พร้อมรับเข้า)'}
-            </span>
-          </div>
-
-          {hoveredInfo.item ? (
-            <div className="space-y-1 text-slate-300">
-              <div className="flex items-center justify-between">
-                <p className="font-bold text-white text-sm truncate">{hoveredInfo.item.modelHE}</p>
-                <span className="text-[10px] font-mono text-slate-400">PL: {hoveredInfo.item.palletId}</span>
-              </div>
-              <p className="text-slate-400 truncate text-[11px]">{hoveredInfo.item.partName}</p>
-              <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-800/80">
-                <span>จำนวน: <strong className="text-white">{hoveredInfo.item.quantity}</strong> EA</span>
-                <span>Lot: <strong className="text-slate-200">{hoveredInfo.item.lotNo || '-'}</strong></span>
-                <span className={hoveredInfo.item.agingDays > 30 ? 'text-rose-400 font-bold' : 'text-slate-300'}>
-                  Aging: {hoveredInfo.item.agingDays} วัน
-                </span>
-              </div>
-              <div className="mt-1.5 pt-1.5 bg-blue-950/50 border border-blue-800/50 rounded-lg px-2.5 py-1 text-[11px] text-cyan-300 flex items-center justify-between">
-                <span>🎯 คลิกช่องนี้เพื่อ <strong className="text-white underline">เบิกจ่าย / ตรวจสอบข้อมูล</strong></span>
-                <span className="text-[10px] text-amber-300 font-bold font-mono">
-                  {hoveredInfo.pos === 1 ? '⚡ หน้าไลน์ Outfeed (Pos 01)' : `FIFO ขั้น Pos ${String(hoveredInfo.pos).padStart(2, '0')}`}
-                </span>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              <p className="text-slate-300 text-[11px]">
-                บล็อกรางไหลว่าง สามารถรับเข้าสินค้าพาเลทใหม่เข้าสู่ระบบได้
-              </p>
-              <div className="bg-emerald-950/50 border border-emerald-700/50 rounded-lg px-2.5 py-1 text-[11px] text-emerald-300 flex items-center justify-between">
-                <span>✨ คลิกช่องนี้เพื่อ <strong className="text-white underline">บันทึกรับเข้าสินค้า (Infeed)</strong></span>
-                <span className="text-[10px] text-emerald-300 font-bold font-mono">
-                  {hoveredInfo.pos === 8 ? '📥 จุดรับเข้าหลัก Pos 08' : `ช่อง Pos ${String(hoveredInfo.pos).padStart(2, '0')}`}
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+      {/* Unified Slot Hover Preview Card */}
+      {hoveredInfo && <ZoneSlotHoverCard data={hoveredInfo} />}
     </div>
   );
 };

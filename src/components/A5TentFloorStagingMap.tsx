@@ -131,6 +131,16 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
     item?: InventoryItem;
   } | null>(null);
 
+  // Active single-click preview (inspect only, does NOT open transaction modal)
+  const [activeSlotPreview, setActiveSlotPreview] = useState<{
+    tentNum: number;
+    groupNum: number;
+    rowCode: string;
+    colNum: number;
+    locator: string;
+    item?: InventoryItem;
+  } | null>(null);
+
   // Hover state for SlotMiniStatsOverlay
   const [hoveredSlot, setHoveredSlot] = useState<{
     title: string;
@@ -227,12 +237,13 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
     return { isVisible: true, isSearchHit, item, locator };
   };
 
-  const handleCellClick = (tentNum: number, groupNum: number, rowCode: string, colNum: number) => {
+  // Single click: update highlight / preview only (strictly DOES NOT open popup modal)
+  const handleCellSingleClick = (tentNum: number, groupNum: number, rowCode: string, colNum: number) => {
     const key = `${tentNum}-${groupNum}-${rowCode}-${colNum}`;
     const item = slotMap.get(key);
     const locator = `DA5T-${tentNum}-${String(groupNum).padStart(2, '0')}-${rowCode}-${String(colNum).padStart(2, '0')}`;
 
-    setSelectedSlotData({
+    setActiveSlotPreview({
       tentNum,
       groupNum,
       rowCode,
@@ -245,6 +256,25 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
       onSelectSlot(`TENT_${tentNum}`, groupNum, rowCode, colNum);
     }
   };
+
+  // Double click: explicitly confirms intention and opens transaction modal
+  const handleCellDoubleClick = (tentNum: number, groupNum: number, rowCode: string, colNum: number) => {
+    const key = `${tentNum}-${groupNum}-${rowCode}-${colNum}`;
+    const item = slotMap.get(key);
+    const locator = `DA5T-${tentNum}-${String(groupNum).padStart(2, '0')}-${rowCode}-${String(colNum).padStart(2, '0')}`;
+
+    setSelectedSlotData({
+      tentNum,
+      groupNum,
+      rowCode,
+      colNum,
+      locator,
+      item
+    });
+  };
+
+  // Legacy fallback alias
+  const handleCellClick = handleCellDoubleClick;
 
   const currentTentConfig = TENTS.find(t => t.number === selectedTent) || TENTS[0];
 
@@ -354,7 +384,10 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
               items={items}
               searchQuery={activeSearch}
               onSelectSlot={(tent, grp, row, col) => {
-                handleCellClick(tent, grp, `R${row}`, col);
+                handleCellSingleClick(tent, grp, `R${row}`, col);
+              }}
+              onDoubleClickSlot={(tent, grp, row, col) => {
+                handleCellDoubleClick(tent, grp, `R${row}`, col);
               }}
               onOpenScanner={onOpenScanner}
             />
@@ -613,64 +646,28 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
       )}
 
       {/* ========================================================================= */}
-      {/* VIEW 2: DETAILED TENT GRID VIEW (MATCHING IMAGE 2 EXACT BLUEPRINT)         */}
+      {/* VIEW 2: DETAILED TENT GRID VIEW (FULL HEIGHT RESPONSIVE 2D BLUEPRINT)      */}
       {/* ========================================================================= */}
       {viewMode === 'TENT_DETAIL' && (
-        <div className="w-full h-full min-h-0 overflow-y-auto p-3 sm:p-4 space-y-4">
-          {/* Active Tent Switcher & Information Banner */}
-          <div className="bg-slate-900 rounded-xl p-4 shadow-sm border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-left">
-            <div>
-              <div className="flex items-center space-x-2">
-                <span className="px-2.5 py-1 rounded bg-purple-900/60 text-purple-200 font-black text-xs border border-purple-700">
-                  {currentTentConfig.name}
-                </span>
-                <span className="font-mono text-xs font-bold text-slate-400">
-                  Code: {currentTentConfig.signCode}
-                </span>
-              </div>
-              <p className="text-xs text-slate-400 mt-1 font-medium">
-                {currentTentConfig.description}
-              </p>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <span className="text-xs text-slate-400 font-bold">{t('common.select')}:</span>
-              <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
-                {TENTS.map((t) => (
-                  <button
-                    key={t.number}
-                    onClick={() => setSelectedTent(t.number)}
-                    className={`px-3 py-1 rounded-md text-xs font-black transition-all ${
-                      selectedTent === t.number
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    Tent {t.number}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Interactive Blueprint Canvas */}
-          <div className="bg-[#080B10] rounded-2xl p-4 sm:p-6 shadow-md border-2 border-slate-800 overflow-x-auto text-left">
-            <div className="min-w-[840px] space-y-4">
+        <div className="w-full h-full min-h-0 flex flex-col p-2 sm:p-2.5 overflow-hidden">
+          {/* Interactive Blueprint Canvas - Flex to fill container */}
+          <div className="bg-[#080B10] rounded-xl p-2 sm:p-3 shadow-md border border-slate-800 flex-1 flex flex-col min-h-0 overflow-auto text-left">
+            <div className="min-w-[840px] flex-1 flex flex-col justify-between">
               {/* Group Headers */}
-              <div className="flex items-center">
+              <div className="flex items-center shrink-0 pb-1">
                 {/* Column Y-Axis label placeholder */}
-                <div className="w-16 shrink-0 text-center">
-                  <span className="text-[11px] font-black text-slate-300 uppercase">Column</span>
+                <div className="w-14 sm:w-16 shrink-0 text-center">
+                  <span className="text-[10px] sm:text-[11px] font-black text-slate-300 uppercase tracking-wider">Column</span>
                 </div>
 
                 {/* 7 Group Titles */}
-                <div className="grid grid-cols-7 gap-3 flex-1">
+                <div className="grid grid-cols-7 gap-1.5 sm:gap-2 flex-1">
                   {GROUP_NUMBERS.map((grp) => (
-                    <div key={grp} className="text-center">
+                    <div key={grp} className="text-center py-0.5 rounded bg-slate-900/60 border border-slate-800/80">
                       <span className="text-xs sm:text-sm font-black text-blue-400 tracking-tight block">
                         A5 Tent {selectedTent} -0{grp}
                       </span>
-                      <span className="text-[10px] font-mono text-slate-500 font-semibold">
+                      <span className="text-[9px] sm:text-[10px] font-mono text-slate-400 font-semibold">
                         DA5T-{selectedTent}-0{grp}
                       </span>
                     </div>
@@ -678,23 +675,23 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
                 </div>
               </div>
 
-              {/* Main Grid: Rows 07 down to 01 */}
-              <div className="space-y-1.5 border-t-2 border-b-2 border-slate-800 py-3">
+              {/* Main Grid: Rows 07 down to 01 (Flex-1 to utilize full vertical space) */}
+              <div className="flex-1 flex flex-col justify-between py-1 border-t border-b border-slate-800 gap-1 min-h-0">
                 {COLUMN_NUMBERS.map((colNum) => (
-                  <div key={colNum} className="flex items-center">
+                  <div key={colNum} className="flex items-stretch flex-1 min-h-[38px] sm:min-h-[44px]">
                     {/* Y-Axis Label: 07, 06, 05 ... */}
-                    <div className="w-16 shrink-0 text-center">
-                      <span className="font-mono text-xs sm:text-sm font-black text-slate-300">
+                    <div className="w-14 sm:w-16 shrink-0 flex items-center justify-center">
+                      <span className="font-mono text-xs sm:text-sm font-black text-slate-300 bg-slate-900/80 px-2 py-1 rounded border border-slate-800">
                         {String(colNum).padStart(2, '0')}
                       </span>
                     </div>
 
                     {/* 7 Group Columns side-by-side */}
-                    <div className="grid grid-cols-7 gap-3 flex-1">
+                    <div className="grid grid-cols-7 gap-1.5 sm:gap-2 flex-1 items-stretch">
                       {GROUP_NUMBERS.map((grpNum) => (
                         <div
                           key={grpNum}
-                          className="grid grid-cols-4 border border-slate-800 bg-slate-950 shadow-xs rounded"
+                          className="grid grid-cols-4 gap-0.5 border border-slate-800/90 bg-slate-950 p-0.5 shadow-xs rounded items-stretch"
                         >
                           {ROW_CODES.map((rowCode) => {
                             const { isVisible, isSearchHit, item, locator } = checkSlotMatch(
@@ -705,14 +702,19 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
                             );
 
                             const isSelected =
-                              selectedSlotData &&
-                              selectedSlotData.tentNum === selectedTent &&
-                              selectedSlotData.groupNum === grpNum &&
-                              selectedSlotData.rowCode === rowCode &&
-                              selectedSlotData.colNum === colNum;
+                              (activeSlotPreview &&
+                               activeSlotPreview.tentNum === selectedTent &&
+                               activeSlotPreview.groupNum === grpNum &&
+                               activeSlotPreview.rowCode === rowCode &&
+                               activeSlotPreview.colNum === colNum) ||
+                              (selectedSlotData &&
+                               selectedSlotData.tentNum === selectedTent &&
+                               selectedSlotData.groupNum === grpNum &&
+                               selectedSlotData.rowCode === rowCode &&
+                               selectedSlotData.colNum === colNum);
 
                             // Standard Color Tokens
-                            let cellBg = 'bg-[#0B1017] hover:bg-[#111823] border-[#273244] text-[#667085]';
+                            let cellBg = 'bg-[#0B1017] hover:bg-[#151D2A] border-[#273244] text-slate-400 hover:border-slate-500';
 
                             if (item) {
                               if (item.agingDays > 30 || item.agingStatus === 'OVERDUE') {
@@ -734,7 +736,11 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
                               <button
                                 key={rowCode}
                                 id={`slot-tent${selectedTent}-g${grpNum}-${rowCode}-c${colNum}`}
-                                onClick={() => handleCellClick(selectedTent, grpNum, rowCode, colNum)}
+                                onClick={() => handleCellSingleClick(selectedTent, grpNum, rowCode, colNum)}
+                                onDoubleClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCellDoubleClick(selectedTent, grpNum, rowCode, colNum);
+                                }}
                                 onMouseEnter={(e) => {
                                   setHoveredSlot({
                                     title: `เต็นท์ A5 Tent ${selectedTent} (กลุ่ม ${String(grpNum).padStart(2, '0')}) - ${rowCode} เสา ${String(colNum).padStart(2, '0')}`,
@@ -752,15 +758,15 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
                                   }
                                 }}
                                 onMouseLeave={() => setHoveredSlot(null)}
-                                className={`h-7.5 sm:h-8 border rounded p-0.5 flex flex-col justify-between items-center text-center transition-all cursor-pointer relative overflow-hidden select-none ${cellBg} ${
+                                className={`w-full h-full min-h-[34px] sm:min-h-[40px] border rounded p-0.5 sm:p-1 flex flex-col justify-between items-center text-center transition-all cursor-pointer relative overflow-hidden select-none active:scale-[0.98] ${cellBg} ${
                                   !isVisible ? 'opacity-20' : 'opacity-100'
                                 }`}
                                 title={`Locator: ${locator}${item ? ` | ${item.modelHE} - ${item.partName}` : ' (ว่าง)'}`}
                               >
-                                <div className="w-full flex items-center justify-between text-[7px] font-mono leading-none">
+                                <div className="w-full flex items-center justify-between text-[7px] sm:text-[8px] font-mono leading-none">
                                   <span className="font-black opacity-80">{rowCode}</span>
                                   {item && (
-                                    <span className="text-[6.5px] font-mono font-black bg-black/25 px-0.5 rounded leading-none">
+                                    <span className="text-[6.5px] sm:text-[7.5px] font-mono font-black bg-black/30 px-0.5 rounded leading-none">
                                       {item.useLine || '1P'}
                                     </span>
                                   )}
@@ -769,17 +775,17 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
                                 {item ? (
                                   <>
                                     <div className="w-full leading-tight truncate my-auto">
-                                      <span className="text-[7.5px] sm:text-[8px] font-mono font-black tracking-tight truncate block drop-shadow-2xs">
+                                      <span className="text-[8px] sm:text-[9.5px] font-mono font-black tracking-tight truncate block drop-shadow-2xs">
                                         {item.modelHE}
                                       </span>
                                     </div>
-                                    <div className="w-full text-center pt-0.2 border-t border-black/10 text-[7px] font-mono font-black leading-none">
+                                    <div className="w-full text-center pt-0.5 border-t border-black/10 text-[7px] sm:text-[8px] font-mono font-black leading-none">
                                       {item.quantity}U
                                     </div>
                                   </>
                                 ) : (
-                                  <div className="my-auto">
-                                    <span className="text-[7px] text-slate-300 font-sans">
+                                  <div className="my-auto flex items-center justify-center">
+                                    <span className="text-[7.5px] sm:text-[8.5px] text-slate-400 font-sans font-medium">
                                       ว่าง
                                     </span>
                                   </div>
@@ -795,13 +801,13 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
               </div>
 
               {/* Bottom Row Labels: R1, R2, R3, R4 underneath each group */}
-              <div className="flex items-center">
-                <div className="w-16 shrink-0" />
-                <div className="grid grid-cols-7 gap-3 flex-1">
+              <div className="flex items-center shrink-0 pt-1">
+                <div className="w-14 sm:w-16 shrink-0" />
+                <div className="grid grid-cols-7 gap-1.5 sm:gap-2 flex-1">
                   {GROUP_NUMBERS.map((grpNum) => (
                     <div key={grpNum} className="grid grid-cols-4 text-center">
                       {ROW_CODES.map((rowCode) => (
-                        <span key={rowCode} className="text-[10px] font-bold text-slate-700">
+                        <span key={rowCode} className="text-[9px] sm:text-[10px] font-bold text-slate-400">
                           {rowCode}
                         </span>
                       ))}
@@ -811,36 +817,42 @@ export const A5TentFloorStagingMap: React.FC<A5TentFloorStagingMapProps> = ({
               </div>
             </div>
           </div>
-
-          {/* Floor Blueprint Legend */}
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-4 text-xs">
-            <div className="flex flex-wrap items-center gap-4">
-              <span className="font-bold text-slate-700">สัญลักษณ์สีโซนเต็นท์:</span>
-              <div className="flex items-center space-x-1.5">
-                <span className="w-4 h-4 bg-red-700 border border-slate-900 inline-block rounded-xs" />
-                <span className="text-slate-700 font-semibold">มีสินค้า (Occupied Slot - ตามแบบโซน)</span>
-              </div>
-              <div className="flex items-center space-x-1.5">
-                <span className="w-4 h-4 bg-white border border-slate-900 inline-block rounded-xs" />
-                <span className="text-slate-700 font-semibold">ตำแหน่งว่าง (Available)</span>
-              </div>
-              <div className="flex items-center space-x-1.5">
-                <span className="w-4 h-4 bg-amber-600 border border-slate-900 inline-block rounded-xs" />
-                <span className="text-slate-700 font-semibold">Aging &gt; 30 วัน (Warning)</span>
-              </div>
-              <div className="flex items-center space-x-1.5">
-                <span className="w-4 h-4 bg-emerald-600 border border-slate-900 inline-block rounded-xs" />
-                <span className="text-slate-700 font-semibold">ตรงกับการค้นหา (Search Match)</span>
-              </div>
-            </div>
-
-            <div className="text-slate-500 font-mono text-[11px]">
-              รูปแบบรหัส: <strong>DA5T-[เต็นท์]-[กลุ่ม 01-07]-[แถว R1-R4]-[คอลัมน์ 01-07]</strong>
-            </div>
-          </div>
         </div>
       )}
     </div>
+
+        {/* ACTIVE SLOT SELECTION PREVIEW (NO POPUP MODAL ON SINGLE CLICK) */}
+        {activeSlotPreview && (
+          <div className="shrink-0 bg-slate-900/95 border border-blue-500/50 rounded-xl px-3 py-1.5 flex items-center justify-between text-xs backdrop-blur-md shadow-md animate-fadeIn">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse shrink-0" />
+              <span className="font-mono font-bold text-amber-300 shrink-0">{activeSlotPreview.locator}</span>
+              <span className="text-slate-400 text-[11px] truncate">
+                {activeSlotPreview.item ? `${activeSlotPreview.item.modelHE} (${activeSlotPreview.item.quantity}U)` : 'ตำแหน่งว่าง พร้อมรับเข้า'}
+              </span>
+              <span className="hidden sm:inline text-[10px] text-blue-300/80 bg-blue-950/60 px-2 py-0.5 rounded-full border border-blue-500/30">
+                💡 ดับเบิ้ลคลิก เพื่อทำธุรกรรม (รับเข้า/เบิกออก/ย้าย)
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => handleCellDoubleClick(activeSlotPreview.tentNum, activeSlotPreview.groupNum, activeSlotPreview.rowCode, activeSlotPreview.colNum)}
+                className="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg text-[11px] shadow-sm transition-all"
+              >
+                ทำธุรกรรม &rarr;
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveSlotPreview(null)}
+                className="text-slate-400 hover:text-white text-xs px-1"
+                title="ปิด"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* BOTTOM: Ultra-compact KPI Cards (ความจุ, รับเข้า-รับออก, Aging) */}
         <div className="shrink-0">

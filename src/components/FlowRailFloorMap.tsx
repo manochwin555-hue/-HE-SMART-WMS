@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { InventoryItem, MovementType, StorageZone, ShelfLevel, MovementLog } from '../types';
-import { UnifiedSlotModal, UnifiedSlotData } from './UnifiedSlotModal';
+
 import { SlotMiniStatsOverlay, MiniStatsSlotData } from './SlotMiniStatsOverlay';
 import { A2FlowRail3DView } from './zone-3d/A2FlowRail3DView';
 import { ZoneKpiFormalDashboard } from './ZoneKpiFormalDashboard';
+import { UnifiedSlotModal } from './UnifiedSlotModal';
 import { isA2InventoryItem } from '../utils/zoneKpiHelper';
 import { useTranslation } from '../i18n/i18nContext';
 import { 
@@ -42,7 +43,7 @@ interface FlowRailFloorMapProps {
   logs?: MovementLog[];
   searchQuery?: string;
   onSelectSlot?: (stationId: string, zone: string, bayNumber: number, level: number) => void;
-  onOpenScanner: (zone: StorageZone, bay: number, level: ShelfLevel, mode: MovementType) => void;
+  onOpenScanner: (zone: StorageZone, bay: number, level: ShelfLevel, mode: MovementType, locatorCode?: string, palletPosition?: string, item?: InventoryItem | null) => void;
   onRelocateItem?: (item: InventoryItem) => void;
   onNavigateToCampus?: () => void;
 }
@@ -255,7 +256,7 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
               items={items}
               searchQuery={activeSearch}
               onSelectSlot={(rail, pos, item) => {
-                const loc = `DA2D-1-R${rail}-${String(pos).padStart(2, '0')}`;
+                const loc = `DA2D-1-R${String(rail).padStart(2, '0')}-${String(pos).padStart(2, '0')}`;
                 setSelectedSlot({
                   railNumber: rail,
                   positionNumber: pos,
@@ -264,6 +265,12 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
                 });
                 if (onSelectSlot) {
                   onSelectSlot('DA2D-1', `R${rail}`, pos, 1);
+                }
+              }}
+              onDoubleClickSlot={(rail, pos, item) => {
+                const loc = `DA2D-1-R${String(rail).padStart(2, '0')}-${String(pos).padStart(2, '0')}`;
+                if (onOpenScanner) {
+                  onOpenScanner(`R${rail}` as StorageZone, pos, 1, item ? 'OUT' : 'IN', loc, 'P1', item || null);
                 }
               }}
               onOpenScanner={onOpenScanner}
@@ -421,7 +428,7 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
                               {Array.from({ length: 8 }, (_, slotIdx) => {
                                 const posNum = slotIdx + 1;
                                 const formattedPos = String(posNum).padStart(2, '0');
-                                const locatorCode = `DA2D-1-R${railNum}-${formattedPos}`;
+                                const locatorCode = `DA2D-1-R${String(railNum).padStart(2, '0')}-${formattedPos}`;
                                 const item = getItemAtSlot(railNum, posNum);
                                 const isMatch = isMatchSearch(item, locatorCode);
 
@@ -566,31 +573,26 @@ export const FlowRailFloorMap: React.FC<FlowRailFloorMapProps> = ({
         </div>
       </div>
 
-      {/* FLOATING HOVER MINI-STATS OVERLAY REMOVED FOR CLEAN 2D VIEW */}
-
-      {/* UNIFIED PALLET SLOT ACTION MODAL */}
       <UnifiedSlotModal
         isOpen={!!selectedSlot}
         onClose={() => setSelectedSlot(null)}
         slotData={selectedSlot ? {
           sectorType: 'FLOW_RAIL',
-          buildingName: 'อาคาร A2',
-          facilityId: 'FAC-A2-MAIN',
-          zoneName: `รางเลื่อน R${selectedSlot.railNumber} (DA2D-1 วางราง)`,
+          buildingName: 'อาคาร A2 รางเลื่อน (DA2D-1)',
+          facilityId: 'FAC-A2-FLOW',
+          zoneName: `รางที่ ${selectedSlot.railNumber} · ช่องที่ ${String(selectedSlot.positionNumber).padStart(2, '0')}`,
           locatorCode: selectedSlot.locatorCode,
-          bayOrGroupNumber: selectedSlot.railNumber,
-          rowNumber: selectedSlot.railNumber,
-          columnOrRailNumber: selectedSlot.positionNumber,
-          item: selectedSlot.item || null,
-          maxCapacityPallets: 1
+          columnOrRailNumber: selectedSlot.railNumber,
+          bayOrGroupNumber: selectedSlot.positionNumber,
+          maxCapacityPallets: 1,
+          item: selectedSlot.item
         } : null}
-        onOpenScanner={(zone, bay, level, mode) => {
-          if (selectedSlot) {
-            onOpenScanner(`R${selectedSlot.railNumber}` as StorageZone, selectedSlot.positionNumber, 1, mode);
-          }
+        onOpenScanner={(zone, bay, level, mode, locatorCode, palletPos, item) => {
+          onOpenScanner(zone, bay, level, mode, locatorCode, palletPos, item);
         }}
         onRelocateItem={onRelocateItem}
       />
+
     </div>
   );
 };

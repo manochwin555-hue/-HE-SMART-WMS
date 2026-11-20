@@ -2,9 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { MovementLog, StorageZone, AuditLog } from '../types';
 import { useTranslation } from '../i18n/i18nContext';
 import { 
-  ListFilter, 
   Search, 
-  Download, 
   CheckCircle2, 
   Clock, 
   AlertTriangle, 
@@ -161,51 +159,6 @@ export const MovementLogsTable: React.FC<MovementLogsTableProps> = ({
     return matchesSearch && matchesStatus && matchesType && matchesLine && matchesZone && matchesGap;
   });
 
-  // Export to Excel / CSV Function with UTF-8 BOM for Excel compatibility
-  const handleExportCSV = (filenameFormat: string = 'Excel') => {
-    const headers = [
-      'Scan Input QR Tag',
-      'Movement Type',
-      'Model HE',
-      'Locator Code',
-      'Quantity Check',
-      'Actual Qty',
-      'Quantity Gap',
-      'Balance Qty',
-      'Use Line',
-      'Scan Status',
-      'Created On Date Time'
-    ];
-
-    const rows = filteredLogs.map((l) => [
-      `"${l.scanInput}"`,
-      l.type,
-      l.modelHE,
-      l.locatorCode,
-      l.quantityCheck,
-      l.actualQty,
-      l.qtyGap,
-      l.balanceQty,
-      l.useLine,
-      l.scanStatus,
-      `"${l.createdOn}"`
-    ]);
-
-    // UTF-8 BOM (\uFEFF) ensures Thai characters render properly in Microsoft Excel
-    const csvContent =
-      'data:text/csv;charset=utf-8,\uFEFF' +
-      [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    const dateStr = new Date().toISOString().slice(0, 10);
-    link.setAttribute('download', `WMS_Movement_Logs_${filenameFormat}_${dateStr}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   // Helper to parse zone, bay & level from locator string e.g. "DA4D-1.02-B11-L1"
   const parseLocator = (loc: string): { zone: StorageZone; bay: number; level: string } | null => {
     const parts = loc.split('-');
@@ -222,31 +175,9 @@ export const MovementLogsTable: React.FC<MovementLogsTableProps> = ({
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-3.5 sm:p-5 lg:p-6 shadow-sm text-slate-900 space-y-4 w-full min-w-0 max-w-full">
-      {/* Table Header & Controls */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between pb-3 sm:pb-4 border-b border-slate-200 gap-3 sm:gap-4">
-        <div>
-          <div className="flex items-center space-x-2">
-            <ListFilter className="w-5 h-5 text-blue-600" />
-            <h2 className="text-lg font-bold text-slate-800">
-              ประวัติการสแกนรับเข้า - เบิกออก (Scan Movement Logs)
-            </h2>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => handleExportCSV('Excel')}
-            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm flex items-center space-x-1.5 transition-all"
-          >
-            <Download className="w-4 h-4 text-white" />
-            <span>ส่งออก Excel (.csv)</span>
-          </button>
-        </div>
-      </div>
-
+    <div className="bg-white border border-slate-200 rounded-xl p-3.5 sm:p-5 lg:p-6 shadow-sm text-slate-900 flex-1 min-h-0 flex flex-col overflow-hidden gap-3.5 w-full min-w-0 max-w-full">
       {/* 📊 UNIFIED COMPACT STATUS TABS BAR (Movement Status & Summary Tabs) */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-2 sm:p-2.5 shadow-sm space-y-2">
+      <div className="shrink-0 bg-slate-900 border border-slate-800 rounded-xl p-2 sm:p-2.5 shadow-sm space-y-2">
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center space-x-2 text-xs font-bold text-slate-300">
             <Clock className="w-3.5 h-3.5 text-blue-400" />
@@ -418,7 +349,7 @@ export const MovementLogsTable: React.FC<MovementLogsTableProps> = ({
       </div>
 
       {/* 🔍 Compact Search & Filter Toolbar */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 sm:p-3 text-white shadow-xs space-y-2.5">
+      <div className="shrink-0 bg-slate-900 border border-slate-800 rounded-xl p-2.5 sm:p-3 text-white shadow-xs space-y-2.5">
         <div className="flex flex-wrap items-center gap-2 text-xs">
           {/* Search Bar */}
           <div className="relative flex-1 min-w-[200px]">
@@ -528,10 +459,10 @@ export const MovementLogsTable: React.FC<MovementLogsTableProps> = ({
       {activeView === 'MOVEMENT' ? (
         <>
           {/* Logs Data Table */}
-          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+          <div className="flex-1 min-h-0 overflow-auto rounded-lg border border-slate-200 bg-white">
             <table className="w-full text-left text-xs text-slate-700">
 
-          <thead className="bg-slate-50 text-slate-600 font-bold uppercase text-[11px] border-b border-slate-200">
+          <thead className="sticky top-0 z-10 bg-slate-50 text-slate-600 font-bold uppercase text-[11px] border-b border-slate-200 shadow-xs">
             <tr>
               <th className="px-3.5 py-3">ประเภท</th>
               <th className="px-3.5 py-3">Scan Input (QR String)</th>
@@ -595,19 +526,19 @@ export const MovementLogsTable: React.FC<MovementLogsTableProps> = ({
                     </td>
 
                     {/* Quantities */}
-                    <td className="px-3.5 py-2.5 text-right font-mono font-bold text-slate-800">
+                    <td className="px-3.5 py-2.5 text-right font-mono tabular-nums font-bold text-slate-800">
                       {log.quantityCheck}
                     </td>
 
-                    <td className="px-3.5 py-2.5 text-right font-mono font-bold text-emerald-600">
+                    <td className="px-3.5 py-2.5 text-right font-mono tabular-nums font-bold text-emerald-600">
                       {log.actualQty}
                     </td>
 
-                    <td className={`px-3.5 py-2.5 text-right font-mono font-bold ${log.qtyGap !== 0 ? 'text-amber-600' : 'text-slate-400'}`}>
+                    <td className={`px-3.5 py-2.5 text-right font-mono tabular-nums font-bold ${log.qtyGap !== 0 ? 'text-amber-600' : 'text-slate-400'}`}>
                       {log.qtyGap}
                     </td>
 
-                    <td className="px-3.5 py-2.5 text-right font-mono font-extrabold text-slate-900">
+                    <td className="px-3.5 py-2.5 text-right font-mono tabular-nums font-extrabold text-slate-900">
                       {log.balanceQty}
                     </td>
 
@@ -647,9 +578,9 @@ export const MovementLogsTable: React.FC<MovementLogsTableProps> = ({
       </div>
         </>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+        <div className="flex-1 min-h-0 overflow-auto rounded-lg border border-slate-200 bg-white">
           <table className="w-full text-left text-xs text-slate-700">
-            <thead className="bg-slate-50 text-slate-600 font-bold uppercase text-[11px] border-b border-slate-200">
+            <thead className="sticky top-0 z-10 bg-slate-50 text-slate-600 font-bold uppercase text-[11px] border-b border-slate-200 shadow-xs">
               <tr>
                 <th className="px-3.5 py-3">Timestamp</th>
                 <th className="px-3.5 py-3">Action</th>

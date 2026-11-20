@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { InventoryItem, MovementType, ShelfLevel, StorageZone, MovementLog } from '../types';
 import { A4UnifiedFactory3DView } from './zone-3d/A4UnifiedFactory3DView';
 import { A4FrontElevationView } from './A4FrontElevationView';
+import { UnifiedSlotModal, UnifiedSlotData } from './UnifiedSlotModal';
+import { resolveCanonicalCoordinate } from '../utils/locatorUtils';
 import { formatLocatorCode } from './QuickScannerModal';
 import { 
   Warehouse, 
@@ -69,6 +71,7 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
 
   const [selectedZone, setSelectedZone] = useState<StorageZone>('B');
   const [localSearch, setLocalSearch] = useState<string>(searchQuery);
+  const [selectedSlotModal, setSelectedSlotModal] = useState<UnifiedSlotData | null>(null);
 
   useEffect(() => {
     if (searchQuery !== undefined) {
@@ -268,11 +271,43 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
               searchQuery={localSearch}
               initialFocus="RACKS"
               onSelectSlot={(type, locator, item) => {
+                const resolved = resolveCanonicalCoordinate({ locatorCode: locator });
                 if (type === 'RACK') {
-                  const match = locator.match(/DA4D-2-([B-F])(\d+)-L(\d+)/i) || locator.match(/DA4D-3-([G-K])(\d+)-L(\d+)/i);
-                  if (match) {
-                    onSelectBay(match[1] as StorageZone, parseInt(match[2], 10));
-                  }
+                  const bayItems = items.filter(it => {
+                    const r = resolveCanonicalCoordinate({
+                      zone: it.zone,
+                      bayNumber: it.bayNumber,
+                      level: it.level,
+                      palletPosition: it.palletPosition,
+                      locatorCode: it.locatorCode
+                    });
+                    return r.zone === resolved.zone && r.bayNumber === resolved.bayNumber;
+                  });
+                  setSelectedSlotModal({
+                    sectorType: 'RACK',
+                    buildingName: 'อาคาร A4 Selective Rack',
+                    facilityId: 'FAC-A4-RACK',
+                    zoneName: `แถว ${resolved.zone} · เสา ${String(resolved.bayNumber).padStart(2, '0')}`,
+                    locatorCode: resolved.canonicalLocator,
+                    bayOrGroupNumber: resolved.bayNumber,
+                    level: resolved.level,
+                    maxCapacityPallets: 8,
+                    item: item || null,
+                    bayItems
+                  });
+                } else {
+                  setSelectedSlotModal({
+                    sectorType: 'FLOOR_STAGING',
+                    buildingName: 'อาคาร A4 วางพื้น (DA4D-1)',
+                    facilityId: 'FAC-A4-FLOOR',
+                    zoneName: `ลานวางพื้น ${resolved.zone}`,
+                    locatorCode: resolved.canonicalLocator,
+                    bayOrGroupNumber: resolved.zone,
+                    rowNumber: resolved.bayNumber,
+                    columnOrRailNumber: resolved.level,
+                    maxCapacityPallets: 1,
+                    item: item || null
+                  });
                 }
               }}
               onOpenScanner={onOpenScanner}
@@ -547,6 +582,15 @@ export const RackLayout2D: React.FC<RackLayout2DProps> = ({
         )}
 
       </footer>
+
+      <UnifiedSlotModal
+        isOpen={!!selectedSlotModal}
+        onClose={() => setSelectedSlotModal(null)}
+        slotData={selectedSlotModal}
+        onOpenScanner={onOpenScanner}
+        onRelocateItem={onRelocateItem}
+        onOpen3D={onOpen3D}
+      />
 
     </div>
   );
