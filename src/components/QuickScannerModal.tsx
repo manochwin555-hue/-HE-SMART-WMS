@@ -449,6 +449,7 @@ export const QuickScannerModal: React.FC<QuickScannerModalProps> = ({
   const getMaxBaysForZone = (z: string): number => {
     if (['B', 'C', 'D', 'E', 'F'].includes(z)) return 12;
     if (['G', 'H', 'I', 'J', 'K'].includes(z)) return 5;
+    if (z === 'CY3-B' || z === 'CY3-C' || z.startsWith('DY3T-1.02') || z.startsWith('DY3T-1.03')) return 23;
     if (z.startsWith('CY3') || z.startsWith('DY3T')) return 25;
     if (z.startsWith('X')) return z === 'X8' ? 4 : 6;
     if (z.startsWith('R') || z.startsWith('FR')) return 8;

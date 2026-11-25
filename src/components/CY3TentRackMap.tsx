@@ -60,8 +60,8 @@ const CY3_ROWS: CY3RowConfig[] = [
     rowCode: 'B',
     zoneId: 'CY3-B',
     locatorSign: 'DY3T-1.02',
-    description: 'แร็คแถว B (ประกบแถว C) - 25 ช่องเสา x 4 ชั้น = 100 พาเลท',
-    totalBays: 25,
+    description: 'แร็คแถว B (ประกบแถว C) - 23 ช่องเสา x 4 ชั้น = 92 พาเลท',
+    totalBays: 23,
     maxLevels: 4,
     hasBottomRoad: false // Back-to-back with C
   },
@@ -69,8 +69,8 @@ const CY3_ROWS: CY3RowConfig[] = [
     rowCode: 'C',
     zoneId: 'CY3-C',
     locatorSign: 'DY3T-1.03',
-    description: 'แร็คแถว C (ประกบแถว B) - 25 ช่องเสา x 4 ชั้น = 100 พาเลท',
-    totalBays: 25,
+    description: 'แร็คแถว C (ประกบแถว B) - 23 ช่องเสา x 4 ชั้น = 92 พาเลท',
+    totalBays: 23,
     maxLevels: 4,
     hasBottomRoad: true // Forklift road between C and D
   },
@@ -160,7 +160,7 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
 
   // Capacity metrics
   const metrics = useMemo(() => {
-    const totalCapacity = 400; // 4 rows * 25 bays * 4 levels
+    const totalCapacity = 384; // (25 + 23 + 23 + 25) bays * 4 levels
     const totalOccupied = cy3Items.length;
     const utilizationRate = Math.min(100, Math.round((totalOccupied / totalCapacity) * 1000) / 10);
     const agingCount = cy3Items.filter(it => it.agingDays > 14).length;
@@ -287,7 +287,7 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
               <span className="hidden sm:inline">โซน CY3 แร็คกลางแจ้ง (DY3T)</span>
               <span className="sm:hidden">CY3 แร็ค</span>
               <span className="px-1.5 py-0.2 rounded-full bg-rose-600/30 text-rose-300 font-mono text-[10px] border border-rose-500/30">
-                400P
+                384P
               </span>
             </button>
           ) : (
@@ -295,7 +295,7 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
               <span className="hidden sm:inline">โซน CY3 แร็คกลางแจ้ง (DY3T)</span>
               <span className="sm:hidden">CY3 แร็ค</span>
               <span className="px-1.5 py-0.2 rounded-full bg-rose-600/30 text-rose-300 font-mono text-[10px] border border-rose-500/30">
-                400P
+                384P
               </span>
             </div>
           )}
@@ -312,7 +312,7 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
                   ? 'bg-rose-600 text-white shadow-md ring-1 ring-rose-400/50'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
               }`}
-              title="3D Digital Twin แร็ค 4 ชั้นกลางแจ้ง (400P)"
+              title="3D Digital Twin แร็ค 4 ชั้นกลางแจ้ง (384P)"
             >
               <Box className="w-3.5 h-3.5 text-rose-200" />
               <span>3D ผัง 3 มิติ</span>
@@ -451,14 +451,14 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
                               X 4 Floor
                             </span>
                             <span className="text-[9px] font-mono text-slate-400">
-                              {metrics.rowStats[row.rowCode]}/100P
+                              {metrics.rowStats[row.rowCode]}/{row.totalBays * row.maxLevels}P
                             </span>
                           </div>
                         </div>
 
-                        {/* 2. CENTER: 25 BAYS (1 to 25) - STACKED 4-TIER SEGMENTED BLOCKS */}
+                        {/* 2. CENTER: BAY 1..25 ALIGNED GRID (Bays 24-25 empty on B & C) */}
                         <div className="flex-1 grid grid-cols-25 gap-1 min-w-[720px] overflow-x-auto py-1">
-                          {Array.from({ length: 25 }, (_, idx) => {
+                          {Array.from({ length: row.totalBays }, (_, idx) => {
                             const bayNum = idx + 1;
                             const bayItems = getBayItems(row.rowCode, bayNum);
                             const bayOccupiedCount = bayItems.length; // 0 to 4
@@ -620,7 +620,7 @@ export const CY3TentRackMap: React.FC<CY3TentRackMapProps> = ({
                 </div>
 
                 <div className="font-mono text-slate-400">
-                  DY3T-1.01 ถึง 1.04 &bull; รวม 400 ช่องจัดวางพาเลท (Pallet Slots)
+                  DY3T-1.01 ถึง 1.04 &bull; รวม 384 ช่องจัดวางพาเลท (Pallet Slots)
                 </div>
               </div>
 

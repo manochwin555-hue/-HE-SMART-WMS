@@ -7,6 +7,7 @@ import { createHologramGhostTarget } from './hologramGhost';
 import { createRackBayNeonHighlight, applyFaintEmissiveHighlight } from './neonEdgeHighlight';
 import { CameraControlOverlay } from './CameraControlOverlay';
 import { ZoneSlotHoverCard, ZoneSlotHoverData } from './ZoneSlotHoverCard';
+import { CY3_ROW_SPECS, buildCy3SlotMap } from '../../utils/cy3SlotHelper';
 
 interface CY3OutdoorRack3DViewProps {
   items: InventoryItem[];
@@ -31,47 +32,8 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
   const rowGroupsRef = useRef<Record<'A' | 'B' | 'C' | 'D', THREE.Group>>({} as any);
   const [hoveredSlot, setHoveredSlot] = useState<ZoneSlotHoverData | null>(null);
 
-  // Map CY3 items: 4 rows x 25 bays x 4 levels x 2 positions (P1, P2)
-  const cy3ItemMap = useMemo(() => {
-    const map = new Map<string, InventoryItem>();
-    items.forEach(it => {
-      if (!it || typeof it.quantity !== 'number' || it.quantity <= 0) return;
-
-      const locUpper = (it.locatorCode || '').toUpperCase();
-      const zoneUpper = (String(it.zone || '')).toUpperCase();
-      const facId = (it.facilityId || '').toUpperCase();
-
-      if (!locUpper.includes('DY3T') && !zoneUpper.startsWith('CY3') && facId !== 'FAC-CY3-TENT') {
-        return;
-      }
-
-      let r: 'A' | 'B' | 'C' | 'D' = 'A';
-      if (locUpper.includes('DY3T-1.01')) r = 'A';
-      else if (locUpper.includes('DY3T-1.02')) r = 'B';
-      else if (locUpper.includes('DY3T-1.03')) r = 'C';
-      else if (locUpper.includes('DY3T-1.04')) r = 'D';
-      else if (zoneUpper === 'CY3-A' || zoneUpper === 'A') r = 'A';
-      else if (zoneUpper === 'CY3-B' || zoneUpper === 'B') r = 'B';
-      else if (zoneUpper === 'CY3-C' || zoneUpper === 'C') r = 'C';
-      else if (zoneUpper === 'CY3-D' || zoneUpper === 'D') r = 'D';
-
-      let b = it.bayNumber || 1;
-      let l: ShelfLevel = it.level || 1;
-
-      const m = locUpper.match(/DY3T-1\.0[1-4]-(?:[A-D])?0*(\d+)-L(\d)(?:-P([12]))?/i);
-      let pos = it.palletPosition || 'P1';
-      if (m) {
-        b = parseInt(m[1], 10);
-        l = parseInt(m[2], 10) as ShelfLevel;
-        if (m[3]) pos = `P${m[3]}`;
-      } else if (locUpper.includes('-P2')) {
-        pos = 'P2';
-      }
-
-      map.set(`${r}-${b}-${l}-${pos}`, it);
-    });
-    return map;
-  }, [items]);
+  // Map CY3 items using shared cy3SlotHelper (A/D 25 bays, B/C 23 bays x 4 levels x P1/P2)
+  const cy3ItemMap = useMemo(() => buildCy3SlotMap(items), [items]);
 
   useEffect(() => {
     if (!mountRef.current) return;
@@ -182,7 +144,7 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
     const overdueBoxMat = new THREE.MeshStandardMaterial({ color: '#ef4444', roughness: 0.5 });
 
     // Helper: Create Large Rack Head Decal Texture (สำหรับหัวแถว แร็ค A, B, C, D)
-    const createRackHeadDecalTexture = (rowName: string, signCode: string, color: string) => {
+    const createRackHeadDecalTexture = (rowName: string, signCode: string, color: string, bayCount: number) => {
       const canvas = document.createElement('canvas');
       canvas.width = 512;
       canvas.height = 256;
@@ -208,10 +170,10 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
         ctx.textBaseline = 'middle';
         ctx.fillText(`แร็ค ${rowName}`, 256, 85);
 
-        // Subtitle (e.g. DY3T-1.01 • 100 PL)
+        // Subtitle (e.g. DY3T-1.01 (25 ช่อง x 4 ชั้น))
         ctx.fillStyle = color;
         ctx.font = 'bold 36px "Segoe UI", Arial, sans-serif';
-        ctx.fillText(`${signCode} (25 ช่อง x 4 ชั้น)`, 256, 175);
+        ctx.fillText(`${signCode} (${bayCount} ช่อง x 4 ชั้น)`, 256, 175);
       }
       const tex = new THREE.CanvasTexture(canvas);
       tex.anisotropy = 8;
@@ -276,14 +238,8 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
     // [Road Z = 0]
     // Row C: Z = 4.5
     // Row D: Z = 12
-    const ROWS_CONFIG: { code: 'A' | 'B' | 'C' | 'D'; z: number; sign: string }[] = [
-      { code: 'A', z: -12, sign: 'DY3T-1.01' },
-      { code: 'B', z: -4.5, sign: 'DY3T-1.02' },
-      { code: 'C', z: 4.5, sign: 'DY3T-1.03' },
-      { code: 'D', z: 12, sign: 'DY3T-1.04' },
-    ];
+    const ROWS_CONFIG = CY3_ROW_SPECS;
 
-    const BAY_COUNT = 25;
     const BAY_WIDTH = 2.4; // 2.4m width along X (fits 2 pallets side-by-side)
     const RACK_DEPTH = 1.2; // 1.2m depth along Z
     const RACK_HEIGHT = 5.6;
@@ -295,26 +251,27 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
       rowGroupsRef.current[rConfig.code] = rowGroup;
       racksGroup.add(rowGroup);
 
-      const rowColor = rConfig.code === 'A' ? '#3b82f6' : rConfig.code === 'B' ? '#10b981' : rConfig.code === 'C' ? '#f59e0b' : '#8b5cf6';
+      const rowColor = rConfig.color;
       
       const rowDecalMat = new THREE.MeshBasicMaterial({
-        map: createRackHeadDecalTexture(rConfig.code, rConfig.sign, rowColor),
+        map: createRackHeadDecalTexture(rConfig.code, rConfig.sign, rowColor, rConfig.bays),
         side: THREE.DoubleSide
       });
 
-      // Overhead End-Frame 3D Sign Plate
+      // Overhead End-Frame 3D Sign Plate (Right end anchors to final bay of each row: Bay 25 for A/D, Bay 23 for B/C)
       const leftSignPlate = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.0), rowDecalMat);
       leftSignPlate.position.set(-30.1, 4.0, rConfig.z);
       leftSignPlate.rotation.y = -Math.PI / 2;
       rowGroup.add(leftSignPlate);
 
+      const rightEndX = (rConfig.bays - 13 + 0.5) * BAY_WIDTH + 0.1;
       const rightSignPlate = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.0), rowDecalMat);
-      rightSignPlate.position.set(30.1, 4.0, rConfig.z);
+      rightSignPlate.position.set(rightEndX, 4.0, rConfig.z);
       rightSignPlate.rotation.y = Math.PI / 2;
       rowGroup.add(rightSignPlate);
 
-      // 25 bays per row
-      for (let b = 1; b <= BAY_COUNT; b++) {
+      // Build bays 1..rConfig.bays keeping original X positions (b - 13) * BAY_WIDTH
+      for (let b = 1; b <= rConfig.bays; b++) {
         const xPos = (b - 13) * BAY_WIDTH;
         const xLeft = xPos - BAY_WIDTH / 2;
         const xRight = xPos + BAY_WIDTH / 2;
@@ -347,7 +304,7 @@ export const CY3OutdoorRack3DView: React.FC<CY3OutdoorRack3DViewProps> = ({
 
         // Add Side Diagonal Steel Bracing on Left and Right end frames
         addSideBracingAtX(rowGroup, xLeft, rConfig.z, RACK_DEPTH, RACK_HEIGHT);
-        if (b === BAY_COUNT) {
+        if (b === rConfig.bays) {
           addSideBracingAtX(rowGroup, xRight, rConfig.z, RACK_DEPTH, RACK_HEIGHT);
         }
 

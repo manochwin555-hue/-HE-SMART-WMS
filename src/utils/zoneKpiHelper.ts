@@ -46,7 +46,7 @@ export const ZONE_SPECS: Record<ZoneKey, ZoneConfigSpec> = {
     name: 'รวมทุกคลังแคมปัส (A2, A4, A5, CY3)',
     shortName: 'แคมปัส',
     badge: 'CAMPUS',
-    capacity: 2408, // 112 (A2) + 432 (A4 Floor) + 680 (A4 Rack) + 784 (A5) + 400 (CY3)
+    capacity: 2384, // 104 (A2) + 432 (A4 Floor) + 680 (A4 Rack) + 784 (A5) + 384 (CY3)
     capacityTitle: 'อัตราจัดเก็บรวมแคมปัส',
     capacitySubtitle: 'ความจุรวมแคมปัส',
     inSubtitle: 'รับเข้าคลัง A2 / A4 / A5 / CY3',
@@ -112,9 +112,9 @@ export const ZONE_SPECS: Record<ZoneKey, ZoneConfigSpec> = {
     name: 'เต็นท์คลัง CY3 (4-Tier Selective Rack)',
     shortName: 'CY3 (เต็นท์ 4 ชั้น)',
     badge: 'CY3',
-    capacity: 400, // 4 rows * 25 bays * 4 floors
+    capacity: 384, // (25 + 23 + 23 + 25) bays * 4 floors
     capacityTitle: 'อัตราจัดเก็บเต็นท์ CY3',
-    capacitySubtitle: 'ความจุแร็ค 4 ชั้น DY3T (Rows A-D)',
+    capacitySubtitle: 'ความจุแร็ค 4 ชั้น DY3T (A,D 25 ช่อง • B,C 23 ช่อง)',
     inSubtitle: 'รับเข้าเต็นท์ CY3 (Outdoor Rack)',
     outSubtitle: 'เบิกจ่ายวัตถุดิบสู่สายการผลิต',
   },

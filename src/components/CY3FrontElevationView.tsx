@@ -32,6 +32,7 @@ interface RowElevationConfig {
   locatorSign: string;
   name: string;
   description: string;
+  totalBays: number;
   heightLevels: string[];
 }
 
@@ -39,29 +40,33 @@ const ELEVATION_ROWS: RowElevationConfig[] = [
   {
     rowCode: 'A',
     locatorSign: 'DY3T-1.01',
-    name: 'แถว A (DY3T-1.01) - ทิศเหนือติดทางเข้า',
-    description: 'แร็ค 4 ชั้นด้านเหนือติดถนน Forklift Aisle หลัก',
+    name: 'แถว A (DY3T-1.01) - ทิศเหนือติดทางเข้า (25 ช่อง)',
+    description: 'แร็ค 4 ชั้นด้านเหนือติดถนน Forklift Aisle หลัก (Bay 1-25)',
+    totalBays: 25,
     heightLevels: ['L4 (+6.0m)', 'L3 (+4.2m)', 'L2 (+2.4m)', 'L1 (+0.6m)']
   },
   {
     rowCode: 'B',
     locatorSign: 'DY3T-1.02',
-    name: 'แถว B (DY3T-1.02) - กลางแถวเหนือ',
-    description: 'แร็ค 4 ชั้นประกบหลังแถว C หันหน้าเข้าหาทางวิ่ง A',
+    name: 'แถว B (DY3T-1.02) - กลางแถวเหนือ (23 ช่อง)',
+    description: 'แร็ค 4 ชั้นประกบหลังแถว C (Bay 1-23 ท้ายแถวเปิดโล่ง)',
+    totalBays: 23,
     heightLevels: ['L4 (+6.0m)', 'L3 (+4.2m)', 'L2 (+2.4m)', 'L1 (+0.6m)']
   },
   {
     rowCode: 'C',
     locatorSign: 'DY3T-1.03',
-    name: 'แถว C (DY3T-1.03) - กลางแถวใต้',
-    description: 'แร็ค 4 ชั้นประกบหลังแถว B หันหน้าเข้าหาทางวิ่ง D',
+    name: 'แถว C (DY3T-1.03) - กลางแถวใต้ (23 ช่อง)',
+    description: 'แร็ค 4 ชั้นประกบหลังแถว B (Bay 1-23 ท้ายแถวเปิดโล่ง)',
+    totalBays: 23,
     heightLevels: ['L4 (+6.0m)', 'L3 (+4.2m)', 'L2 (+2.4m)', 'L1 (+0.6m)']
   },
   {
     rowCode: 'D',
     locatorSign: 'DY3T-1.04',
-    name: 'แถว D (DY3T-1.04) - ทิศใต้ริมเต็นท์',
-    description: 'แร็ค 4 ชั้นด้านใต้ติดผนังเต็นท์ CY3',
+    name: 'แถว D (DY3T-1.04) - ทิศใต้ริมเต็นท์ (25 ช่อง)',
+    description: 'แร็ค 4 ชั้นด้านใต้ติดผนังเต็นท์ CY3 (Bay 1-25)',
+    totalBays: 25,
     heightLevels: ['L4 (+6.0m)', 'L3 (+4.2m)', 'L2 (+2.4m)', 'L1 (+0.6m)']
   }
 ];
@@ -134,7 +139,7 @@ export const CY3FrontElevationView: React.FC<CY3FrontElevationViewProps> = ({
             <h3 className="font-black text-xs sm:text-sm text-white flex items-center gap-2">
               <span>มุมมองหน้าตรง L1-L4 (Front Elevation)</span>
               <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 font-bold">
-                25 เสา x 4 ชั้น
+                A/D 25 • B/C 23 เสา x 4 ชั้น
               </span>
             </h3>
           </div>
@@ -174,8 +179,9 @@ export const CY3FrontElevationView: React.FC<CY3FrontElevationViewProps> = ({
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto p-2 sm:p-3 bg-slate-950/70 space-y-3">
         {rowsToRender.map((row) => {
           // Count occupied in this row
+          const rowMaxCapacity = row.totalBays * 4;
           let rowOccupied = 0;
-          for (let b = 1; b <= 25; b++) {
+          for (let b = 1; b <= row.totalBays; b++) {
             for (let l = 1; l <= 4; l++) {
               if (slotMap.has(`${row.rowCode}-${b}-${l}-P1`)) rowOccupied++;
               if (slotMap.has(`${row.rowCode}-${b}-${l}-P2`)) rowOccupied++;
@@ -204,28 +210,44 @@ export const CY3FrontElevationView: React.FC<CY3FrontElevationViewProps> = ({
 
                 <div className="flex items-center gap-3 text-xs font-mono">
                   <span className="text-slate-400">
-                    จัดเก็บจริง: <strong className="text-emerald-400">{rowOccupied}</strong> / 100 พาเลท
+                    จัดเก็บจริง: <strong className="text-emerald-400">{rowOccupied}</strong> / {rowMaxCapacity} พาเลท
                   </span>
                   <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-bold border border-blue-500/30">
-                    {Math.round((rowOccupied / 100) * 100)}% Occupancy
+                    {Math.round((rowOccupied / rowMaxCapacity) * 100)}% Occupancy
                   </span>
                 </div>
               </div>
 
-              {/* Front Elevation Grid (25 Columns x 4 Shelves) */}
+              {/* Front Elevation Grid (Aligned 25-column canvas; B & C render Bays 1-23 leaving tail open) */}
               <div className="overflow-x-auto py-2">
                 <div className="min-w-[1000px] flex flex-col space-y-1">
                   
                   {/* Top Column (Bay) Numbers Bar */}
                   <div className="flex items-center pl-16 pr-2 mb-1 gap-1">
-                    {Array.from({ length: 25 }, (_, i) => (
-                      <div
-                        key={i + 1}
-                        className="flex-1 text-center font-mono text-[10px] font-bold text-slate-400 bg-slate-950 py-0.5 rounded border border-slate-800"
-                      >
-                        Bay {i + 1}
-                      </div>
-                    ))}
+                    <div className="flex-1 grid grid-cols-25 gap-1">
+                      {Array.from({ length: 25 }, (_, i) => {
+                        const bayNum = i + 1;
+                        if (bayNum > row.totalBays) {
+                          return (
+                            <div
+                              key={bayNum}
+                              className="text-center font-mono text-[9px] text-slate-600/60 py-0.5 rounded border border-dashed border-slate-800/60"
+                              title="พื้นที่โล่งท้ายแถว"
+                            >
+                              —
+                            </div>
+                          );
+                        }
+                        return (
+                          <div
+                            key={bayNum}
+                            className="text-center font-mono text-[10px] font-bold text-slate-400 bg-slate-950 py-0.5 rounded border border-slate-800"
+                          >
+                            Bay {bayNum}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   {/* 4 Levels (L4 down to L1) */}
@@ -247,6 +269,14 @@ export const CY3FrontElevationView: React.FC<CY3FrontElevationViewProps> = ({
                         <div className="flex-1 grid grid-cols-25 gap-1">
                           {Array.from({ length: 25 }, (_, idx) => {
                             const bayNum = idx + 1;
+                            if (bayNum > row.totalBays) {
+                              return (
+                                <div
+                                  key={bayNum}
+                                  className="flex-1 rounded-sm border border-dashed border-slate-800/40 bg-slate-950/20"
+                                />
+                              );
+                            }
                             const locatorPrefix = `${row.locatorSign}-${row.rowCode}${String(bayNum).padStart(2, '0')}-L${lvl}`;
 
                             return (
